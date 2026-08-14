@@ -14,6 +14,7 @@ import {
   GripVertical,
   Home,
   Landmark,
+  Layers,
   Minus,
   MinusCircle,
   Pencil,
@@ -160,7 +161,7 @@ function FormulaCodeBadge({ text }: { text: string }) {
   const tokens = text.split(/(\s+)/);
 
   return (
-    <div className="px-3 py-1.5 rounded-lg bg-slate-900 dark:bg-slate-950 border border-slate-800 text-slate-100 font-mono text-xs font-semibold shadow-inner inline-flex items-center gap-1.5 flex-wrap">
+    <div className="px-3.5 py-2 rounded-xl bg-slate-950 border border-slate-800 text-slate-100 font-mono text-xs font-semibold shadow-inner inline-flex items-center gap-1.5 flex-wrap">
       {tokens.map((tok, idx) => {
         if (/^\s+$/.test(tok)) return null;
         if (["+", "-", "*", "/", "(", ")"].includes(tok)) {
@@ -180,7 +181,7 @@ function FormulaCodeBadge({ text }: { text: string }) {
         return (
           <span
             key={idx}
-            className="text-sky-300 bg-sky-950/80 px-1.5 py-0.5 rounded border border-sky-800/60 text-[11.5px]"
+            className="text-sky-300 bg-sky-950/80 px-2 py-0.5 rounded-md border border-sky-800/60 text-[11.5px]"
           >
             {tok}
           </span>
@@ -206,8 +207,6 @@ export function FormulaTab({ projectId, embedded = false }: { projectId: string;
 
   // Dragged component state
   const [draggedItem, setDraggedItem] = useState<LibraryComponentItem | null>(null);
-  const [editingFormulaId, setEditingFormulaId] = useState<string | null>(null);
-  const [editingText, setEditingText] = useState("");
 
   useEffect(() => {
     if (formulasQuery.data) {
@@ -221,10 +220,6 @@ export function FormulaTab({ projectId, embedded = false }: { projectId: string;
   // Derived sections
   const grossComponents = useMemo(() => formulas.filter((f) => f.category === "income"), [formulas]);
   const deductionComponents = useMemo(() => formulas.filter((f) => f.category === "deduction"), [formulas]);
-  const netComponents = useMemo(
-    () => formulas.filter((f) => f.category === "aggregate" || f.category === "net"),
-    [formulas]
-  );
 
   const filteredLibrary = useMemo(() => {
     const q = filterSearch.toLowerCase().trim();
@@ -336,23 +331,28 @@ export function FormulaTab({ projectId, embedded = false }: { projectId: string;
 
   return (
     <div className="space-y-6">
-      {/* Top Header */}
+      {/* Senior Designed Header */}
       <div className="flex flex-wrap items-center justify-between gap-4 pb-4 border-b border-border">
         <div>
-          <span className="text-[11px] font-bold text-primary tracking-widest uppercase block mb-1">
-            PAYROLL ENGINE
+          <span className="text-[11px] font-extrabold tracking-widest uppercase bg-gradient-to-r from-primary to-emerald-500 bg-clip-text text-transparent block mb-1">
+            PAYROLL STRUCTURE ENGINE
           </span>
           <h2 className="text-2xl font-bold text-foreground tracking-tight">Formula Configuration</h2>
           <p className="text-xs text-muted mt-0.5">
-            Configure structural payroll components and formulas for project salary calculation.
+            Configure structural components on the visual canvas, then define natural Excel formulas below.
           </p>
         </div>
 
-        <div className="flex items-center gap-2">
+        <div className="flex items-center gap-2.5">
           <Button variant="secondary" onClick={cancel} disabled={!dirty}>
             Discard
           </Button>
-          <Button variant="primary" onClick={() => saveMutation.mutate()} disabled={saveMutation.isPending}>
+          <Button
+            variant="primary"
+            onClick={() => saveMutation.mutate()}
+            disabled={saveMutation.isPending}
+            className="shadow-md shadow-primary/20 hover:shadow-lg hover:shadow-primary/30 transition-all"
+          >
             <Save className="w-4 h-4" /> Save Configuration
           </Button>
         </div>
@@ -361,20 +361,20 @@ export function FormulaTab({ projectId, embedded = false }: { projectId: string;
       {/* Validation Banner */}
       {validation && (
         <div
-          className={`p-3.5 rounded-xl border flex items-center justify-between gap-3 ${
+          className={`p-4 rounded-2xl border flex items-center justify-between gap-3 shadow-sm ${
             validation.valid
-              ? "bg-emerald-50 dark:bg-emerald-950/40 border-emerald-200 text-emerald-800 dark:text-emerald-300"
-              : "bg-amber-50 dark:bg-amber-950/40 border-amber-200 text-amber-800 dark:text-amber-300"
+              ? "bg-emerald-50/80 dark:bg-emerald-950/40 border-emerald-200 dark:border-emerald-800 text-emerald-800 dark:text-emerald-300"
+              : "bg-amber-50/80 dark:bg-amber-950/40 border-amber-200 dark:border-amber-800 text-amber-800 dark:text-amber-300"
           }`}
         >
-          <div className="flex items-center gap-2.5">
+          <div className="flex items-center gap-3">
             <CheckCircle2 className="w-5 h-5 shrink-0" />
             <div>
               <strong className="text-xs font-bold block">
                 {validation.valid ? "Tất cả công thức hợp lệ 100%" : `Có ${validation.errors.length} lỗi cần xử lý`}
               </strong>
               {validation.errors.length > 0 && (
-                <span className="text-xs block opacity-90">{validation.errors.join("; ")}</span>
+                <span className="text-xs block opacity-90 mt-0.5">{validation.errors.join("; ")}</span>
               )}
             </div>
           </div>
@@ -386,10 +386,12 @@ export function FormulaTab({ projectId, embedded = false }: { projectId: string;
 
       {/* Main Workspace Layout Grid */}
       <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 items-start">
-        {/* Left Column: Components Library */}
-        <aside className="lg:col-span-4 bg-card border border-border rounded-xl p-4 shadow-sm space-y-4">
+        {/* Left Column: Components Library Sidebar */}
+        <aside className="lg:col-span-4 bg-card border border-border rounded-2xl p-4.5 shadow-sm space-y-4">
           <div className="flex items-center justify-between">
-            <strong className="text-sm font-bold text-foreground">Components Library</strong>
+            <strong className="text-sm font-bold text-foreground flex items-center gap-2">
+              <Layers className="w-4 h-4 text-primary" /> Components Library
+            </strong>
           </div>
 
           {/* Search Filter */}
@@ -403,10 +405,10 @@ export function FormulaTab({ projectId, embedded = false }: { projectId: string;
           </label>
 
           {/* Group 1: EARNINGS */}
-          <div className="space-y-2">
-            <div className="flex items-center justify-between text-xs font-bold tracking-wider text-muted uppercase">
+          <div className="space-y-2.5">
+            <div className="flex items-center justify-between text-xs font-extrabold tracking-wider text-muted uppercase">
               <span>EARNINGS (LƯƠNG, PHỤ CẤP)</span>
-              <span className="w-5 h-5 rounded-full bg-primary/10 text-primary text-[10px] flex items-center justify-center font-mono">
+              <span className="w-5 h-5 rounded-full bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border border-emerald-500/20 text-[10px] flex items-center justify-center font-mono font-bold">
                 {earningsLibrary.length}
               </span>
             </div>
@@ -424,13 +426,18 @@ export function FormulaTab({ projectId, embedded = false }: { projectId: string;
                     className={`p-3 rounded-xl border transition-all flex items-center justify-between gap-3 ${
                       isAdded
                         ? "bg-secondary/40 border-border opacity-50 cursor-not-allowed"
-                        : "bg-card hover:border-primary/50 border-border shadow-sm cursor-grab hover:-translate-y-0.5"
+                        : "bg-card hover:border-emerald-500/50 border-border shadow-xs hover:shadow-md cursor-grab hover:-translate-y-0.5"
                     }`}
                   >
                     <div className="flex items-center gap-2.5 min-w-0">
-                      <GripVertical className="w-4 h-4 text-muted shrink-0 opacity-50" />
+                      <GripVertical className="w-4 h-4 text-muted shrink-0 opacity-40" />
+                      <div className="w-7 h-7 rounded-lg bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border border-emerald-500/20 flex items-center justify-center shrink-0">
+                        <ComponentIcon name={item.iconName} className="w-3.5 h-3.5" />
+                      </div>
                       <div className="min-w-0">
-                        <strong className="text-xs font-bold text-foreground truncate block">{item.name}</strong>
+                        <strong className="text-xs font-bold text-foreground truncate block leading-snug">
+                          {item.name}
+                        </strong>
                         <code className="text-[10px] font-mono text-muted">{item.code}</code>
                       </div>
                     </div>
@@ -439,7 +446,7 @@ export function FormulaTab({ projectId, embedded = false }: { projectId: string;
                       type="button"
                       disabled={isAdded}
                       onClick={() => addComponentToStructure(item)}
-                      className="w-7 h-7 rounded-lg bg-primary/10 text-primary hover:bg-primary hover:text-white flex items-center justify-center shrink-0 transition-colors disabled:opacity-30 disabled:pointer-events-none"
+                      className="w-7 h-7 rounded-lg bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 hover:bg-emerald-500 hover:text-white flex items-center justify-center shrink-0 transition-all hover:scale-110 disabled:opacity-30 disabled:pointer-events-none"
                       title="Thêm vào cấu trúc"
                     >
                       <Plus className="w-4 h-4" />
@@ -451,10 +458,10 @@ export function FormulaTab({ projectId, embedded = false }: { projectId: string;
           </div>
 
           {/* Group 2: DEDUCTIONS */}
-          <div className="space-y-2 pt-2 border-t border-border">
-            <div className="flex items-center justify-between text-xs font-bold tracking-wider text-muted uppercase">
+          <div className="space-y-2.5 pt-3 border-t border-border">
+            <div className="flex items-center justify-between text-xs font-extrabold tracking-wider text-muted uppercase">
               <span>DEDUCTIONS (KHẤU TRỪ)</span>
-              <span className="w-5 h-5 rounded-full bg-rose-500/10 text-rose-500 text-[10px] flex items-center justify-center font-mono">
+              <span className="w-5 h-5 rounded-full bg-rose-500/10 text-rose-600 dark:text-rose-400 border border-rose-500/20 text-[10px] flex items-center justify-center font-mono font-bold">
                 {deductionsLibrary.length}
               </span>
             </div>
@@ -472,13 +479,18 @@ export function FormulaTab({ projectId, embedded = false }: { projectId: string;
                     className={`p-3 rounded-xl border transition-all flex items-center justify-between gap-3 ${
                       isAdded
                         ? "bg-secondary/40 border-border opacity-50 cursor-not-allowed"
-                        : "bg-card hover:border-rose-400 border-border shadow-sm cursor-grab hover:-translate-y-0.5"
+                        : "bg-card hover:border-rose-400 border-border shadow-xs hover:shadow-md cursor-grab hover:-translate-y-0.5"
                     }`}
                   >
                     <div className="flex items-center gap-2.5 min-w-0">
-                      <GripVertical className="w-4 h-4 text-muted shrink-0 opacity-50" />
+                      <GripVertical className="w-4 h-4 text-muted shrink-0 opacity-40" />
+                      <div className="w-7 h-7 rounded-lg bg-rose-500/10 text-rose-600 dark:text-rose-400 border border-rose-500/20 flex items-center justify-center shrink-0">
+                        <ComponentIcon name={item.iconName} className="w-3.5 h-3.5" />
+                      </div>
                       <div className="min-w-0">
-                        <strong className="text-xs font-bold text-foreground truncate block">{item.name}</strong>
+                        <strong className="text-xs font-bold text-foreground truncate block leading-snug">
+                          {item.name}
+                        </strong>
                         <code className="text-[10px] font-mono text-muted">{item.code}</code>
                       </div>
                     </div>
@@ -487,7 +499,7 @@ export function FormulaTab({ projectId, embedded = false }: { projectId: string;
                       type="button"
                       disabled={isAdded}
                       onClick={() => addComponentToStructure(item)}
-                      className="w-7 h-7 rounded-lg bg-rose-500/10 text-rose-500 hover:bg-rose-500 hover:text-white flex items-center justify-center shrink-0 transition-colors disabled:opacity-30 disabled:pointer-events-none"
+                      className="w-7 h-7 rounded-lg bg-rose-500/10 text-rose-600 dark:text-rose-400 hover:bg-rose-500 hover:text-white flex items-center justify-center shrink-0 transition-all hover:scale-110 disabled:opacity-30 disabled:pointer-events-none"
                       title="Thêm vào cấu trúc"
                     >
                       <Plus className="w-4 h-4" />
@@ -500,8 +512,8 @@ export function FormulaTab({ projectId, embedded = false }: { projectId: string;
         </aside>
 
         {/* Right Column: Visual Structure Drag & Drop Canvas */}
-        <section className="lg:col-span-8 bg-card border border-border rounded-xl p-5 shadow-sm space-y-6">
-          {/* Tab Switcher */}
+        <section className="lg:col-span-8 bg-card border border-border rounded-2xl p-5.5 shadow-sm space-y-6">
+          {/* Tab Switcher Navigation */}
           <div className="flex items-center gap-6 border-b border-border pb-3">
             <button
               type="button"
@@ -533,10 +545,12 @@ export function FormulaTab({ projectId, embedded = false }: { projectId: string;
           </div>
 
           {/* 1. Gross Earnings Structure Box */}
-          <div className="border-l-4 border-l-sky-500 bg-sky-50/20 dark:bg-sky-950/10 rounded-r-xl border border-sky-200 dark:border-sky-800/60 p-4 space-y-3">
+          <div className="border-l-4 border-l-emerald-500 bg-gradient-to-r from-emerald-500/10 via-emerald-500/[0.02] to-transparent rounded-r-2xl border border-emerald-500/20 p-4.5 space-y-3.5 shadow-xs">
             <div className="flex items-center justify-between">
-              <div className="flex items-center gap-2">
-                <Calculator className="w-4 h-4 text-sky-600 dark:text-sky-400" />
+              <div className="flex items-center gap-2.5">
+                <div className="w-8 h-8 rounded-xl bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border border-emerald-500/20 flex items-center justify-center shrink-0">
+                  <Calculator className="w-4 h-4" />
+                </div>
                 <strong className="text-sm font-bold text-foreground">Gross Earnings Structure</strong>
               </div>
 
@@ -561,27 +575,29 @@ export function FormulaTab({ projectId, embedded = false }: { projectId: string;
                   addComponentToStructure(draggedItem);
                 }
               }}
-              className="border-2 border-dashed border-sky-300 dark:border-sky-800 rounded-xl p-4 min-h-[110px] flex flex-col items-center justify-center gap-2 transition-colors bg-card/60"
+              className="border-2 border-dashed border-emerald-300 dark:border-emerald-800 bg-emerald-50/40 dark:bg-emerald-950/20 backdrop-blur-xs rounded-2xl p-4 min-h-[110px] flex flex-col items-center justify-center gap-2 transition-all hover:border-emerald-400"
             >
               {grossComponents.length === 0 ? (
                 <div className="text-center text-xs text-muted flex flex-col items-center gap-1 py-2">
-                  <div className="w-8 h-8 rounded-lg bg-sky-500/10 text-sky-500 flex items-center justify-center font-bold text-base mb-1">
+                  <div className="w-9 h-9 rounded-xl bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 flex items-center justify-center font-bold text-lg mb-1 shadow-xs">
                     +
                   </div>
-                  <span>Drag earning components here</span>
+                  <span className="font-medium">Drag earning components here</span>
                 </div>
               ) : (
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5 w-full">
                   {grossComponents.map((item) => (
                     <div
                       key={item.id}
-                      className="p-3 rounded-lg border border-sky-200 dark:border-sky-800/80 bg-card shadow-sm flex items-center justify-between gap-2"
+                      className="p-3 rounded-xl border border-emerald-500/20 bg-card shadow-xs flex items-center justify-between gap-2 hover:shadow-md transition-shadow"
                     >
                       <div className="flex items-center gap-2.5 min-w-0">
                         <GripVertical className="w-4 h-4 text-muted shrink-0 opacity-40" />
                         <div className="min-w-0">
-                          <strong className="text-xs font-bold text-foreground truncate block">{item.name}</strong>
-                          <code className="text-[10px] font-mono text-sky-600 dark:text-sky-400 font-semibold">
+                          <strong className="text-xs font-bold text-foreground truncate block leading-tight">
+                            {item.name}
+                          </strong>
+                          <code className="text-[10px] font-mono text-emerald-600 dark:text-emerald-400 font-bold">
                             {item.outputVariable}
                           </code>
                         </div>
@@ -601,18 +617,20 @@ export function FormulaTab({ projectId, embedded = false }: { projectId: string;
             </div>
           </div>
 
-          {/* Minus Circle Badge between boxes */}
+          {/* Minus Circle Badge Divider */}
           <div className="flex justify-center -my-2">
-            <span className="w-8 h-8 rounded-full bg-secondary border border-border flex items-center justify-center text-muted font-bold text-base shadow-sm">
+            <span className="w-8 h-8 rounded-full bg-card border border-border text-rose-500 font-bold text-base shadow-sm flex items-center justify-center">
               <Minus className="w-4 h-4" />
             </span>
           </div>
 
           {/* 2. Deductions Structure Box */}
-          <div className="border-l-4 border-l-rose-500 bg-rose-50/20 dark:bg-rose-950/10 rounded-r-xl border border-rose-200 dark:border-rose-800/60 p-4 space-y-3">
+          <div className="border-l-4 border-l-rose-500 bg-gradient-to-r from-rose-500/10 via-rose-500/[0.02] to-transparent rounded-r-2xl border border-rose-500/20 p-4.5 space-y-3.5 shadow-xs">
             <div className="flex items-center justify-between">
-              <div className="flex items-center gap-2">
-                <Shield className="w-4 h-4 text-rose-600 dark:text-rose-400" />
+              <div className="flex items-center gap-2.5">
+                <div className="w-8 h-8 rounded-xl bg-rose-500/10 text-rose-600 dark:text-rose-400 border border-rose-500/20 flex items-center justify-center shrink-0">
+                  <Shield className="w-4 h-4" />
+                </div>
                 <strong className="text-sm font-bold text-foreground">Deductions Structure</strong>
               </div>
             </div>
@@ -625,27 +643,29 @@ export function FormulaTab({ projectId, embedded = false }: { projectId: string;
                   addComponentToStructure(draggedItem);
                 }
               }}
-              className="border-2 border-dashed border-rose-300 dark:border-rose-800 rounded-xl p-4 min-h-[110px] flex flex-col items-center justify-center gap-2 transition-colors bg-card/60"
+              className="border-2 border-dashed border-rose-300 dark:border-rose-800 bg-rose-50/40 dark:bg-rose-950/20 backdrop-blur-xs rounded-2xl p-4 min-h-[110px] flex flex-col items-center justify-center gap-2 transition-all hover:border-rose-400"
             >
               {deductionComponents.length === 0 ? (
                 <div className="text-center text-xs text-muted flex flex-col items-center gap-1 py-2">
-                  <div className="w-8 h-8 rounded-lg bg-rose-500/10 text-rose-500 flex items-center justify-center font-bold text-base mb-1">
+                  <div className="w-9 h-9 rounded-xl bg-rose-500/10 text-rose-600 dark:text-rose-400 flex items-center justify-center font-bold text-lg mb-1 shadow-xs">
                     +
                   </div>
-                  <span>Drag deduction components here</span>
+                  <span className="font-medium">Drag deduction components here</span>
                 </div>
               ) : (
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5 w-full">
                   {deductionComponents.map((item) => (
                     <div
                       key={item.id}
-                      className="p-3 rounded-lg border border-rose-200 dark:border-rose-800/80 bg-card shadow-sm flex items-center justify-between gap-2"
+                      className="p-3 rounded-xl border border-rose-500/20 bg-card shadow-xs flex items-center justify-between gap-2 hover:shadow-md transition-shadow"
                     >
                       <div className="flex items-center gap-2.5 min-w-0">
                         <GripVertical className="w-4 h-4 text-muted shrink-0 opacity-40" />
                         <div className="min-w-0">
-                          <strong className="text-xs font-bold text-foreground truncate block">{item.name}</strong>
-                          <code className="text-[10px] font-mono text-rose-600 dark:text-rose-400 font-semibold">
+                          <strong className="text-xs font-bold text-foreground truncate block leading-tight">
+                            {item.name}
+                          </strong>
+                          <code className="text-[10px] font-mono text-rose-600 dark:text-rose-400 font-bold">
                             {item.outputVariable}
                           </code>
                         </div>
@@ -667,13 +687,13 @@ export function FormulaTab({ projectId, embedded = false }: { projectId: string;
 
           {/* Equals Circle Badge */}
           <div className="flex justify-center -my-2">
-            <span className="w-8 h-8 rounded-full bg-secondary border border-border flex items-center justify-center text-muted font-bold text-sm shadow-sm">
+            <span className="w-8 h-8 rounded-full bg-card border border-border text-indigo-600 dark:text-indigo-400 font-bold text-sm shadow-sm flex items-center justify-center">
               =
             </span>
           </div>
 
           {/* 3. Net Payable Output Card */}
-          <div className="p-4 rounded-xl bg-indigo-50/60 dark:bg-indigo-950/30 border border-indigo-200 dark:border-indigo-800/60 flex items-center justify-between gap-4">
+          <div className="p-4.5 rounded-2xl bg-gradient-to-br from-indigo-500/15 via-indigo-500/5 to-purple-500/10 border border-indigo-500/30 flex items-center justify-between gap-4 shadow-xs">
             <div className="space-y-1">
               <strong className="text-sm font-bold text-foreground block">Net Payable (Lương Thực Nhận)</strong>
               <code className="text-xs font-mono font-bold text-indigo-600 dark:text-indigo-400 block">
@@ -681,7 +701,7 @@ export function FormulaTab({ projectId, embedded = false }: { projectId: string;
               </code>
             </div>
 
-            <div className="w-10 h-10 rounded-xl bg-indigo-500/10 text-indigo-600 dark:text-indigo-400 border border-indigo-500/20 flex items-center justify-center shrink-0">
+            <div className="w-11 h-11 rounded-2xl bg-indigo-500/10 text-indigo-600 dark:text-indigo-400 border border-indigo-500/20 flex items-center justify-center shrink-0 shadow-xs">
               <Landmark className="w-5 h-5" />
             </div>
           </div>
@@ -689,7 +709,7 @@ export function FormulaTab({ projectId, embedded = false }: { projectId: string;
       </div>
 
       {/* SECTION BÊN DƯỚI: CONFIG CÔNG THỨC CHI TIẾT CHO TỪNG MỤC */}
-      <section className="bg-card border border-border rounded-xl p-5 shadow-sm space-y-4 mt-6">
+      <section className="bg-card border border-border rounded-2xl p-5.5 shadow-sm space-y-4 mt-6">
         <div className="flex items-center justify-between pb-3 border-b border-border">
           <div>
             <strong className="text-base font-bold text-foreground flex items-center gap-2">
@@ -716,11 +736,11 @@ export function FormulaTab({ projectId, embedded = false }: { projectId: string;
               return (
                 <div
                   key={formula.id}
-                  className="p-4 rounded-xl border border-border bg-secondary/20 hover:border-primary/40 transition-colors space-y-3"
+                  className="p-4.5 rounded-2xl border border-border bg-secondary/20 hover:border-primary/40 transition-colors space-y-3.5 shadow-xs"
                 >
                   <div className="flex flex-wrap items-center justify-between gap-3">
-                    <div className="flex items-center gap-2.5">
-                      <span className="w-6 h-6 rounded-full bg-secondary border border-border text-muted font-mono text-xs font-bold flex items-center justify-center shrink-0">
+                    <div className="flex items-center gap-3">
+                      <span className="w-7 h-7 rounded-full bg-secondary border border-border text-muted font-mono text-xs font-bold flex items-center justify-center shrink-0">
                         {String(idx + 1).padStart(2, "0")}
                       </span>
                       <div>
@@ -756,7 +776,7 @@ export function FormulaTab({ projectId, embedded = false }: { projectId: string;
                   </div>
 
                   {/* Formula Editor Row */}
-                  <div className="grid grid-cols-1 lg:grid-cols-12 gap-3 items-center pt-1">
+                  <div className="grid grid-cols-1 lg:grid-cols-12 gap-3.5 items-center pt-1">
                     <div className="lg:col-span-7 space-y-1.5">
                       <label className="form-field">
                         <span className="text-xs font-bold text-muted flex items-center justify-between">
@@ -764,7 +784,7 @@ export function FormulaTab({ projectId, embedded = false }: { projectId: string;
                           <small className="font-mono text-[10px]">Toán tử: +  -  *  /  (  )</small>
                         </span>
                         <input
-                          className="font-mono text-xs font-bold text-primary bg-card border border-input p-2 rounded-lg"
+                          className="font-mono text-xs font-bold text-primary bg-card border-2 border-primary/30 focus:border-primary focus:ring-4 focus:ring-primary/10 p-2.5 rounded-xl shadow-xs transition-all"
                           value={expressionToText(formula.expression)}
                           onChange={(e) => updateFormulaText(formula.id, e.target.value)}
                           placeholder="LUONG_CO_BAN / GIO_CHUAN * GIO_THUONG"
@@ -781,7 +801,7 @@ export function FormulaTab({ projectId, embedded = false }: { projectId: string;
                   </div>
 
                   {/* Quick Chips Bar */}
-                  <div className="flex items-center gap-1.5 flex-wrap pt-1 border-t border-border/50">
+                  <div className="flex items-center gap-1.5 flex-wrap pt-2 border-t border-border/50">
                     <span className="text-[11px] font-bold text-muted mr-1">Chèn nhanh biến số:</span>
                     {variables.slice(0, 7).map((v) => (
                       <button
@@ -791,7 +811,7 @@ export function FormulaTab({ projectId, embedded = false }: { projectId: string;
                           const current = expressionToText(formula.expression);
                           updateFormulaText(formula.id, `${current} ${v.code}`);
                         }}
-                        className="px-2 py-0.5 rounded bg-card hover:bg-primary-soft border border-border text-[11px] font-medium text-foreground transition-colors"
+                        className="px-2.5 py-1 rounded-lg bg-card hover:bg-primary-soft hover:border-primary border border-border text-[11px] font-semibold text-foreground hover:text-primary transition-all shadow-xs"
                       >
                         + {v.name}
                       </button>
