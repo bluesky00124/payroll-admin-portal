@@ -3,6 +3,7 @@
 import * as Switch from "@radix-ui/react-switch";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import {
+  AlertCircle,
   ArrowDown,
   ArrowUp,
   Building2,
@@ -528,6 +529,24 @@ export function FormulaTab({ projectId, embedded = false }: { projectId: string;
     [formulas]
   );
 
+  // Track which formula items have unsaved changes compared to server data
+  const modifiedFormulaIds = useMemo(() => {
+    const originalList = formulasQuery.data ?? [];
+    const originalMap = new Map(
+      originalList.map((f) => [f.id, expressionToFriendlyText(f.expression, variableNameMap)])
+    );
+    const modified = new Set<string>();
+
+    for (const f of formulas) {
+      const currentText = (rawTexts[f.id] ?? expressionToFriendlyText(f.expression, variableNameMap)).trim();
+      const originalText = (originalMap.get(f.id) ?? "").trim();
+      if (!originalMap.has(f.id) || currentText !== originalText) {
+        modified.add(f.id);
+      }
+    }
+    return modified;
+  }, [formulas, rawTexts, formulasQuery.data, variableNameMap]);
+
   // Add component to structure
   const addComponentToStructure = (item: LibraryComponentItem) => {
     if (existingOutputCodes.has(item.outputVariable.toUpperCase())) {
@@ -993,21 +1012,26 @@ export function FormulaTab({ projectId, embedded = false }: { projectId: string;
               </Button>
             </div>
 
-            <div className="divide-y divide-border">
+            <div className="p-4 space-y-3.5 bg-secondary/15">
               {formulas.length === 0 ? (
-                <div className="p-8 text-center text-xs text-muted">
+                <div className="p-8 text-center text-xs text-muted bg-card border border-border rounded-xl">
                   Chưa có mục nào trong cấu trúc lương. Hãy chọn/kéo thả các mục từ Thư viện Thành phần Lương ở bên trái.
                 </div>
               ) : (
                 formulas.map((formula, idx) => {
                   const isIncome = formula.category === "income";
                   const isEditing = editingFormulaIds.has(formula.id);
+                  const isModified = modifiedFormulaIds.has(formula.id);
 
                   return (
                     <div
                       key={formula.id}
-                      className={`p-4 transition-colors space-y-3 ${
-                        isEditing ? "bg-secondary/30" : "hover:bg-secondary/15"
+                      className={`rounded-xl border transition-all p-4 space-y-3.5 ${
+                        isModified
+                          ? "bg-amber-500/5 dark:bg-amber-950/20 border-border border-l-4 border-l-amber-500 shadow-xs"
+                          : isEditing
+                          ? "bg-card border-primary ring-1 ring-primary/20 shadow-sm"
+                          : "bg-card border-border hover:border-primary/40 shadow-2xs"
                       }`}
                     >
                       <div className="flex flex-wrap items-center justify-between gap-3">
@@ -1021,6 +1045,11 @@ export function FormulaTab({ projectId, embedded = false }: { projectId: string;
                           <Badge tone={isIncome ? "success" : formula.category === "deduction" ? "danger" : "info"}>
                             {categoryLabels[formula.category]}
                           </Badge>
+                          {isModified && (
+                            <Badge tone="warning">
+                              <AlertCircle className="w-3 h-3 inline mr-1" /> Chưa lưu
+                            </Badge>
+                          )}
                         </div>
 
                         <div className="flex items-center gap-1.5">
@@ -1046,7 +1075,7 @@ export function FormulaTab({ projectId, embedded = false }: { projectId: string;
 
                       {/* VIEW MODE SUMMARY */}
                       {!isEditing && (
-                        <div className="p-2.5 rounded-lg bg-secondary/30 border border-border flex items-center gap-2 text-xs">
+                        <div className="p-2.5 rounded-lg bg-secondary/40 border border-border/70 flex items-center gap-2 text-xs">
                           <span className="text-muted font-bold shrink-0">Biểu thức:</span>
                           <code className="font-mono text-xs font-bold text-primary truncate">
                             {getFormulaRawText(formula)}
@@ -1058,7 +1087,7 @@ export function FormulaTab({ projectId, embedded = false }: { projectId: string;
                       {isEditing && (
                         <div className="pt-3 border-t border-border space-y-3">
                           {/* Quick Chips Bar */}
-                          <div className="p-2 rounded-lg bg-secondary/30 border border-border flex items-center gap-2 flex-wrap">
+                          <div className="p-2.5 rounded-lg bg-secondary/40 border border-border/70 flex items-center gap-2 flex-wrap">
                             <span className="text-[11px] font-bold text-muted mr-1">Chèn nhanh biến số:</span>
                             {getSuggestedVariables(formula, variables).map((v) => (
                               <Button
