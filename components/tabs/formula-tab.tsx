@@ -3,27 +3,128 @@
 import * as Switch from "@radix-ui/react-switch";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import {
+  ArrowDown,
+  ArrowUp,
+  Building2,
+  Calculator,
   CheckCircle2,
-  CirclePlus,
+  Clock,
+  Coins,
   DollarSign,
+  GripVertical,
+  Home,
+  Landmark,
+  Minus,
   MinusCircle,
   Pencil,
   Plus,
   PlusCircle,
+  RotateCcw,
+  Save,
   Search,
+  Shield,
   Sparkles,
-  Trash2,
+  TrendingUp,
+  Users,
   Variable,
   Wand2,
   X,
 } from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
 import { useToast } from "@/components/providers";
-import { Badge, Button, ErrorState, LoadingBlock, Modal, SaveBar } from "@/components/ui";
+import { Badge, Button, ErrorState, LoadingBlock, SaveBar } from "@/components/ui";
 import { api } from "@/lib/api";
 import { expressionToText, parseExpressionText } from "@/lib/formula-engine";
 import type { SalaryFormula } from "@/lib/types";
 import { uid } from "@/lib/utils";
+
+interface LibraryComponentItem {
+  id: string;
+  code: string;
+  name: string;
+  outputVariable: string;
+  category: "income" | "deduction";
+  defaultFormulaText: string;
+  iconName: "basic" | "ot" | "bonus" | "housing" | "tax" | "insurance" | "union";
+}
+
+const libraryComponents: LibraryComponentItem[] = [
+  // Earnings
+  {
+    id: "lib-1",
+    code: "VAR_BASE_01",
+    name: "Basic Salary (Lương cơ bản)",
+    outputVariable: "LUONG_CO_BAN",
+    category: "income",
+    defaultFormulaText: "LUONG_CO_BAN / GIO_CHUAN * GIO_THUONG",
+    iconName: "basic",
+  },
+  {
+    id: "lib-2",
+    code: "CALC_OT_RATES",
+    name: "Overtime (OT - Lương tăng ca)",
+    outputVariable: "LUONG_OT_150",
+    category: "income",
+    defaultFormulaText: "NEN_TINH_OT / GIO_CHUAN * 1.5 * GIO_OT_150",
+    iconName: "ot",
+  },
+  {
+    id: "lib-3",
+    code: "VAR_BONUS_KPI",
+    name: "Performance Bonus (Thưởng KPI)",
+    outputVariable: "THUONG_KPI",
+    category: "income",
+    defaultFormulaText: "THUONG_DANG_KY * TY_LE_HOAN_THANH",
+    iconName: "bonus",
+  },
+  {
+    id: "lib-4",
+    code: "ALLOW_HOUSE_01",
+    name: "Housing Allowance (Phụ cấp nhà ở)",
+    outputVariable: "PC_NHA_O_CONG",
+    category: "income",
+    defaultFormulaText: "PC_NHA_O / GIO_CHUAN * GIO_THUONG",
+    iconName: "housing",
+  },
+  {
+    id: "lib-5",
+    code: "ALLOW_TRAVEL_01",
+    name: "Travel Allowance (Phụ cấp đi lại)",
+    outputVariable: "PC_DI_LAI_CONG",
+    category: "income",
+    defaultFormulaText: "PC_DI_LAI / GIO_CHUAN * GIO_THUONG",
+    iconName: "housing",
+  },
+
+  // Deductions
+  {
+    id: "lib-6",
+    code: "TAX_PIT_TIERS",
+    name: "Income Tax (Thuế TNCN)",
+    outputVariable: "THUE_TNCN",
+    category: "deduction",
+    defaultFormulaText: "THU_NHAP_CHIU_THUE * 0.05",
+    iconName: "tax",
+  },
+  {
+    id: "lib-7",
+    code: "DED_SOC_INS",
+    name: "Social Insurance (Bảo hiểm xã hội 10.5%)",
+    outputVariable: "BAO_HIEM_NV",
+    category: "deduction",
+    defaultFormulaText: "LUONG_DONG_BH * 0.105",
+    iconName: "insurance",
+  },
+  {
+    id: "lib-8",
+    code: "DED_UNION_FEE",
+    name: "Union Fee (Đoàn phí công đoàn 1%)",
+    outputVariable: "CONG_DOAN_NV",
+    category: "deduction",
+    defaultFormulaText: "LUONG_CO_BAN * 0.01",
+    iconName: "union",
+  },
+];
 
 const categoryLabels: Record<SalaryFormula["category"], string> = {
   income: "Thu nhập",
@@ -33,204 +134,26 @@ const categoryLabels: Record<SalaryFormula["category"], string> = {
   attendance: "Chấm công",
 };
 
-interface MasterSalaryItem {
-  id: string;
-  code: string;
-  name: string;
-  outputVariable: string;
-  category: SalaryFormula["category"];
-  defaultFormulaText: string;
-  description: string;
+function ComponentIcon({ name, className = "w-4 h-4" }: { name: string; className?: string }) {
+  switch (name) {
+    case "basic":
+      return <Coins className={className} />;
+    case "ot":
+      return <Clock className={className} />;
+    case "bonus":
+      return <TrendingUp className={className} />;
+    case "housing":
+      return <Home className={className} />;
+    case "tax":
+      return <MinusCircle className={className} />;
+    case "insurance":
+      return <Shield className={className} />;
+    case "union":
+      return <Users className={className} />;
+    default:
+      return <Coins className={className} />;
+  }
 }
-
-const masterSalaryItemsCatalog: MasterSalaryItem[] = [
-  {
-    id: "item-1",
-    code: "REGULAR_PAY",
-    name: "Lương theo ngày công",
-    outputVariable: "LUONG_NGAY_CONG",
-    category: "income",
-    defaultFormulaText: "LUONG_CO_BAN / GIO_CHUAN * GIO_THUONG",
-    description: "Lương cơ bản chia số giờ công chuẩn nhân số giờ công làm thực tế.",
-  },
-  {
-    id: "item-2",
-    code: "OT_150_PAY",
-    name: "Lương tăng ca ngày thường (150%)",
-    outputVariable: "LUONG_OT_150",
-    category: "income",
-    defaultFormulaText: "NEN_TINH_OT / GIO_CHUAN * 1.5 * GIO_OT_150",
-    description: "Tiền làm thêm ban ngày ngày làm việc bình thường.",
-  },
-  {
-    id: "item-3",
-    code: "OT_200_NIGHT",
-    name: "Lương tăng ca đêm ngày thường (200%)",
-    outputVariable: "LUONG_OT_NIGHT_200",
-    category: "income",
-    defaultFormulaText: "NEN_TINH_OT / GIO_CHUAN * 2.0 * GIO_OT_NIGHT_200",
-    description: "Tiền làm thêm ban đêm ngày làm việc bình thường.",
-  },
-  {
-    id: "item-4",
-    code: "OT_200_WEEKEND",
-    name: "Lương tăng ca ngày nghỉ (200%)",
-    outputVariable: "LUONG_OT_WEEKEND_200",
-    category: "income",
-    defaultFormulaText: "NEN_TINH_OT / GIO_CHUAN * 2.0 * GIO_OT_WEEKEND_200",
-    description: "Tiền làm thêm ban ngày ngày nghỉ hằng tuần.",
-  },
-  {
-    id: "item-5",
-    code: "OT_270_WEEKEND_NIGHT",
-    name: "Lương tăng ca đêm ngày nghỉ (270%)",
-    outputVariable: "LUONG_OT_WEEKEND_NIGHT_270",
-    category: "income",
-    defaultFormulaText: "NEN_TINH_OT / GIO_CHUAN * 2.7 * GIO_OT_WEEKEND_NIGHT_270",
-    description: "Tiền làm thêm ca đêm ngày nghỉ hằng tuần.",
-  },
-  {
-    id: "item-6",
-    code: "OT_300_HOLIDAY",
-    name: "Lương tăng ca ngày Lễ, Tết (300%)",
-    outputVariable: "LUONG_OT_HOLIDAY_300",
-    category: "income",
-    defaultFormulaText: "NEN_TINH_OT / GIO_CHUAN * 3.0 * GIO_OT_HOLIDAY_300",
-    description: "Tiền làm thêm ban ngày ngày nghỉ Lễ Tết.",
-  },
-  {
-    id: "item-7",
-    code: "OT_390_HOLIDAY_NIGHT",
-    name: "Lương tăng ca đêm ngày Lễ, Tết (390%)",
-    outputVariable: "LUONG_OT_HOLIDAY_NIGHT_390",
-    category: "income",
-    defaultFormulaText: "NEN_TINH_OT / GIO_CHUAN * 3.9 * GIO_OT_HOLIDAY_NIGHT_390",
-    description: "Tiền làm thêm ca đêm ngày nghỉ Lễ Tết.",
-  },
-  {
-    id: "item-8",
-    code: "ALLOWANCE_HOUSING",
-    name: "Phụ cấp nhà ở theo ngày công",
-    outputVariable: "PC_NHA_O_CONG",
-    category: "income",
-    defaultFormulaText: "PC_NHA_O / GIO_CHUAN * GIO_THUONG",
-    description: "Trợ cấp nhà ở phân bổ theo giờ công thực tế.",
-  },
-  {
-    id: "item-9",
-    code: "ALLOWANCE_TRAVEL",
-    name: "Phụ cấp đi lại theo ngày công",
-    outputVariable: "PC_DI_LAI_CONG",
-    category: "income",
-    defaultFormulaText: "PC_DI_LAI / GIO_CHUAN * GIO_THUONG",
-    description: "Trợ cấp đi lại phân bổ theo giờ công thực tế.",
-  },
-  {
-    id: "item-10",
-    code: "BONUS_ATTENDANCE",
-    name: "Thưởng chuyên cần tháng",
-    outputVariable: "THUONG_CHUYEN_CAN",
-    category: "income",
-    defaultFormulaText: "PC_CHUYEN_CAN",
-    description: "Thưởng đi làm đầy đủ không vi phạm kỷ luật.",
-  },
-  {
-    id: "item-11",
-    code: "INSURANCE_EMPLOYEE",
-    name: "Bảo hiểm bắt buộc trích nộp (10.5%)",
-    outputVariable: "BAO_HIEM_NV",
-    category: "deduction",
-    defaultFormulaText: "LUONG_DONG_BH * 0.105",
-    description: "Tổng BHXH (8%) + BHYT (1.5%) + BHTN (1%) người lao động đóng.",
-  },
-  {
-    id: "item-12",
-    code: "TAX_PIT",
-    name: "Thuế thu nhập cá nhân (TNCN)",
-    outputVariable: "THUE_TNCN",
-    category: "deduction",
-    defaultFormulaText: "THU_NHAP_CHIU_THUE * 0.05",
-    description: "Số tiền thuế TNCN trích nộp theo biểu thuế.",
-  },
-  {
-    id: "item-13",
-    code: "UNION_FEE",
-    name: "Kinh phí Công đoàn người lao động (1%)",
-    outputVariable: "CONG_DOAN_NV",
-    category: "deduction",
-    defaultFormulaText: "LUONG_CO_BAN * 0.01",
-    description: "Đoàn phí công đoàn trích nộp từ lương.",
-  },
-  {
-    id: "item-14",
-    code: "ADVANCE_PAYMENT",
-    name: "Khấu trừ tạm ứng lương",
-    outputVariable: "TAM_UNG_LUONG",
-    category: "deduction",
-    defaultFormulaText: "KHAU_TRU_TAM_UNG",
-    description: "Số tiền tạm ứng lương đã nhận trong kỳ.",
-  },
-  {
-    id: "item-15",
-    code: "GROSS_INCOME",
-    name: "Tổng thu nhập (Gross Pay)",
-    outputVariable: "TONG_THU_NHAP",
-    category: "aggregate",
-    defaultFormulaText: "LUONG_NGAY_CONG + LUONG_OT_150 + TONG_PHU_CAP",
-    description: "Tổng cộng các khoản thu nhập trước trích nộp.",
-  },
-  {
-    id: "item-16",
-    code: "TOTAL_DEDUCTIONS",
-    name: "Tổng các khoản khấu trừ",
-    outputVariable: "TONG_KHAU_TRU",
-    category: "deduction",
-    defaultFormulaText: "BAO_HIEM_NV + THUE_TNCN + KHAU_TRU_KHAC",
-    description: "Tổng các khoản trích nộp bảo hiểm, thuế và các khoản trừ khác.",
-  },
-  {
-    id: "item-17",
-    code: "NET_PAYMENT",
-    name: "Lương thực lãnh (Net Pay)",
-    outputVariable: "THUC_LANH",
-    category: "net",
-    defaultFormulaText: "TONG_THU_NHAP - TONG_KHAU_TRU",
-    description: "Số tiền chuyển khoản thực nhận vào tài khoản người lao động.",
-  },
-];
-
-const formulaSections = [
-  {
-    key: "income",
-    title: "1. Các khoản Thu nhập (Gross Pay)",
-    description: "Cấu hình công thức tính cho từng mục thu nhập, lương ngày công, tăng ca và phụ cấp",
-    accentStyle: "border-l-4 border-l-emerald-500 bg-gradient-to-r from-emerald-500/10 via-emerald-500/[0.02] to-transparent",
-    badgeTone: "success" as const,
-    iconBoxStyle: "bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border border-emerald-500/20",
-    icon: PlusCircle,
-    categories: ["income"],
-  },
-  {
-    key: "deduction",
-    title: "2. Các khoản Khấu trừ & Trích nộp (Deductions)",
-    description: "Cấu hình công thức tính cho từng mục bảo hiểm xã hội, thuế TNCN và các khoản giảm trừ",
-    accentStyle: "border-l-4 border-l-rose-500 bg-gradient-to-r from-rose-500/10 via-rose-500/[0.02] to-transparent",
-    badgeTone: "danger" as const,
-    iconBoxStyle: "bg-rose-500/10 text-rose-600 dark:text-rose-400 border border-rose-500/20",
-    icon: MinusCircle,
-    categories: ["deduction"],
-  },
-  {
-    key: "aggregate_net",
-    title: "3. Tổng hợp & Thực lãnh (Net Pay)",
-    description: "Cấu hình công thức cho Tổng thu nhập, Tổng khấu trừ và Số tiền thực lãnh",
-    accentStyle: "border-l-4 border-l-indigo-500 bg-gradient-to-r from-indigo-500/10 via-indigo-500/[0.02] to-transparent",
-    badgeTone: "info" as const,
-    iconBoxStyle: "bg-indigo-500/10 text-indigo-600 dark:text-indigo-400 border border-indigo-500/20",
-    icon: DollarSign,
-    categories: ["aggregate", "net"],
-  },
-];
 
 function FormulaCodeBadge({ text }: { text: string }) {
   if (!text) return null;
@@ -275,16 +198,16 @@ export function FormulaTab({ projectId, embedded = false }: { projectId: string;
   const variablesQuery = useQuery({ queryKey: ["formula-variables"], queryFn: api.getFormulaVariables });
 
   const [formulas, setFormulas] = useState<SalaryFormula[]>([]);
-  const [editingFormula, setEditingFormula] = useState<SalaryFormula | null>(null);
-  const [editingText, setEditingText] = useState("");
-  const [deleteTarget, setDeleteTarget] = useState<SalaryFormula | null>(null);
-  const [addModalOpen, setAddModalOpen] = useState(false);
-  const [addSearch, setAddSearch] = useState("");
-  const [addCategoryFilter, setAddCategoryFilter] = useState<string>("all");
-  const [variablesModalOpen, setVariablesModalOpen] = useState(false);
-  const [variableSearch, setVariableSearch] = useState("");
+  const [activeTab, setActiveTab] = useState<"grossToNet" | "netToGross" | "severance">("grossToNet");
+  const [filterSearch, setFilterSearch] = useState("");
+  const [prorateEnabled, setProrateEnabled] = useState(true);
   const [dirty, setDirty] = useState(false);
   const [validation, setValidation] = useState<{ valid: boolean; errors: string[] } | null>(null);
+
+  // Dragged component state
+  const [draggedItem, setDraggedItem] = useState<LibraryComponentItem | null>(null);
+  const [editingFormulaId, setEditingFormulaId] = useState<string | null>(null);
+  const [editingText, setEditingText] = useState("");
 
   useEffect(() => {
     if (formulasQuery.data) {
@@ -295,44 +218,45 @@ export function FormulaTab({ projectId, embedded = false }: { projectId: string;
   const variables = useMemo(() => variablesQuery.data ?? [], [variablesQuery.data]);
   const variableNameMap = useMemo(() => new Map(variables.map((item) => [item.code, item.name])), [variables]);
 
+  // Derived sections
+  const grossComponents = useMemo(() => formulas.filter((f) => f.category === "income"), [formulas]);
+  const deductionComponents = useMemo(() => formulas.filter((f) => f.category === "deduction"), [formulas]);
+  const netComponents = useMemo(
+    () => formulas.filter((f) => f.category === "aggregate" || f.category === "net"),
+    [formulas]
+  );
+
+  const filteredLibrary = useMemo(() => {
+    const q = filterSearch.toLowerCase().trim();
+    if (!q) return libraryComponents;
+    return libraryComponents.filter(
+      (item) =>
+        item.name.toLowerCase().includes(q) ||
+        item.code.toLowerCase().includes(q) ||
+        item.outputVariable.toLowerCase().includes(q)
+    );
+  }, [filterSearch]);
+
+  const earningsLibrary = useMemo(
+    () => filteredLibrary.filter((item) => item.category === "income"),
+    [filteredLibrary]
+  );
+  const deductionsLibrary = useMemo(
+    () => filteredLibrary.filter((item) => item.category === "deduction"),
+    [filteredLibrary]
+  );
+
   const existingOutputCodes = useMemo(
     () => new Set(formulas.map((f) => f.outputVariable.toUpperCase())),
     [formulas]
   );
 
-  const filteredCatalogItems = useMemo(() => {
-    return masterSalaryItemsCatalog.filter((item) => {
-      const matchCategory =
-        addCategoryFilter === "all" ||
-        (addCategoryFilter === "income" && item.category === "income") ||
-        (addCategoryFilter === "deduction" && item.category === "deduction") ||
-        (addCategoryFilter === "aggregate" && (item.category === "aggregate" || item.category === "net"));
-
-      const q = addSearch.toLowerCase().trim();
-      const matchSearch =
-        !q ||
-        item.name.toLowerCase().includes(q) ||
-        item.outputVariable.toLowerCase().includes(q) ||
-        item.description.toLowerCase().includes(q);
-
-      return matchCategory && matchSearch;
-    });
-  }, [addSearch, addCategoryFilter]);
-
-  const filteredVariables = useMemo(() => {
-    const q = variableSearch.toLowerCase().trim();
-    if (!q) return variables;
-    return variables.filter(
-      (v) => v.name.toLowerCase().includes(q) || v.code.toLowerCase().includes(q)
-    );
-  }, [variables, variableSearch]);
-
-  const toggleEnable = (id: string, enabled: boolean) => {
-    setFormulas((items) => items.map((item) => (item.id === id ? { ...item, enabled } : item)));
-    setDirty(true);
-  };
-
-  const handleAddCatalogItem = (item: MasterSalaryItem) => {
+  // Add component to structure
+  const addComponentToStructure = (item: LibraryComponentItem) => {
+    if (existingOutputCodes.has(item.outputVariable.toUpperCase())) {
+      notify(`Mục "${item.name}" đã có trong cấu trúc.`, "warning");
+      return;
+    }
     const newOrder = formulas.length + 1;
     const newFormula: SalaryFormula = {
       id: uid("formula"),
@@ -348,70 +272,24 @@ export function FormulaTab({ projectId, embedded = false }: { projectId: string;
     };
     setFormulas((prev) => [...prev, newFormula]);
     setDirty(true);
-    notify(`Đã thêm mục tính "${item.name}" vào dự án`);
+    notify(`Đã đưa "${item.name}" vào cấu trúc lương`);
   };
 
-  const handleCreateCustomItem = (defaultCategory: SalaryFormula["category"] = "income") => {
-    setAddModalOpen(false);
-    const newOrder = formulas.length + 1;
-    const newFormula: SalaryFormula = {
-      id: uid("formula"),
-      projectId,
-      code: `CUSTOM_${newOrder}`,
-      name: `Mục tính mới ${newOrder}`,
-      outputVariable: `MUC_TINH_${newOrder}`,
-      category: defaultCategory,
-      order: newOrder,
-      expression: { type: "variable", variableCode: "LUONG_CO_BAN" },
-      rounding: { mode: "nearest", precision: 1 },
-      enabled: true,
-    };
-    setEditingFormula(newFormula);
-    setEditingText("LUONG_CO_BAN / GIO_CHUAN * GIO_THUONG");
-  };
-
-  const openEditModal = (formula: SalaryFormula) => {
-    setEditingFormula(structuredClone(formula));
-    setEditingText(expressionToText(formula.expression));
-  };
-
-  const insertChipToFormula = (chip: string) => {
-    setEditingText((prev) => (prev ? `${prev.trim()} ${chip}` : chip));
-  };
-
-  const handleSaveModal = () => {
-    if (!editingFormula) return;
-    const parsedExpr = parseExpressionText(editingText);
-    const updated = {
-      ...editingFormula,
-      expression: parsedExpr,
-    };
-
-    setFormulas((items) => {
-      const exists = items.some((item) => item.id === updated.id);
-      if (exists) {
-        return items.map((item) => (item.id === updated.id ? updated : item));
-      }
-      return [...items, updated];
-    });
-    setEditingFormula(null);
+  const removeComponentFromStructure = (id: string) => {
+    setFormulas((prev) => prev.filter((item) => item.id !== id));
     setDirty(true);
-    notify(`Đã cập nhật công thức cho "${editingFormula.name}"`);
+    notify("Đã gỡ mục khỏi cấu trúc");
   };
 
-  const handleDeleteConfirmed = () => {
-    if (!deleteTarget) return;
-    if (formulas.length <= 1) {
-      notify("Dự án phải giữ tối thiểu 1 mục tính toán.", "warning");
-      setDeleteTarget(null);
-      return;
-    }
-    setFormulas((items) =>
-      items.filter((item) => item.id !== deleteTarget.id).map((item, idx) => ({ ...item, order: idx + 1 }))
-    );
-    setDeleteTarget(null);
+  const updateFormulaText = (id: string, text: string) => {
+    const parsed = parseExpressionText(text);
+    setFormulas((prev) => prev.map((f) => (f.id === id ? { ...f, expression: parsed } : f)));
     setDirty(true);
-    notify("Đã gỡ mục tính khỏi dự án");
+  };
+
+  const toggleEnable = (id: string, enabled: boolean) => {
+    setFormulas((items) => items.map((item) => (item.id === id ? { ...item, enabled } : item)));
+    setDirty(true);
   };
 
   const cancel = () => {
@@ -426,7 +304,7 @@ export function FormulaTab({ projectId, embedded = false }: { projectId: string;
       queryClient.setQueryData(["formulas", projectId], saved);
       setFormulas(structuredClone(saved));
       setDirty(false);
-      notify("Đã lưu cấu hình công thức lương của dự án!");
+      notify("Đã lưu cấu hình công thức lương thành công!");
     },
     onError: (error: Error) => notify(error.message, "error"),
   });
@@ -443,19 +321,11 @@ export function FormulaTab({ projectId, embedded = false }: { projectId: string;
     onError: (error: Error) => notify(error.message, "error"),
   });
 
-  const humanReadableFormula = useMemo(() => {
-    if (!editingText) return "";
-    return editingText
-      .split(/\s+/)
-      .map((token) => variableNameMap.get(token) ?? token)
-      .join(" ");
-  }, [editingText, variableNameMap]);
-
-  if (formulasQuery.isLoading || variablesQuery.isLoading) return <LoadingBlock rows={6} />;
+  if (formulasQuery.isLoading || variablesQuery.isLoading) return <LoadingBlock rows={8} />;
   if (formulasQuery.isError || variablesQuery.isError) {
     return (
       <ErrorState
-        message="Không thể tải bộ công thức."
+        message="Không thể tải cấu hình công thức."
         retry={() => {
           formulasQuery.refetch();
           variablesQuery.refetch();
@@ -465,51 +335,33 @@ export function FormulaTab({ projectId, embedded = false }: { projectId: string;
   }
 
   return (
-    <>
-      {embedded ? (
-        <div className="subsection-heading">
-          <div>
-            <span className="section-kicker">CÔNG THỨC LƯƠNG</span>
-            <h3>Cấu hình công thức tính cho từng mục lương</h3>
-            <p>Thêm mục tính lương vào dự án và tùy chỉnh biểu thức tính toán cho từng mục.</p>
-          </div>
-          <div className="heading-actions">
-            <Button onClick={() => setVariablesModalOpen(true)}>
-              <Variable className="w-4 h-4" /> Tra cứu biến số
-            </Button>
-            <Button onClick={() => validateMutation.mutate()} disabled={validateMutation.isPending}>
-              <CheckCircle2 /> Kiểm tra hợp lệ
-            </Button>
-            <Button variant="primary" onClick={() => setAddModalOpen(true)}>
-              <CirclePlus /> Thêm mục tính lương
-            </Button>
-          </div>
+    <div className="space-y-6">
+      {/* Top Header */}
+      <div className="flex flex-wrap items-center justify-between gap-4 pb-4 border-b border-border">
+        <div>
+          <span className="text-[11px] font-bold text-primary tracking-widest uppercase block mb-1">
+            PAYROLL ENGINE
+          </span>
+          <h2 className="text-2xl font-bold text-foreground tracking-tight">Formula Configuration</h2>
+          <p className="text-xs text-muted mt-0.5">
+            Configure structural payroll components and formulas for project salary calculation.
+          </p>
         </div>
-      ) : (
-        <div className="tab-heading">
-          <div>
-            <span className="section-kicker">CÔNG THỨC LƯƠNG</span>
-            <h2>Cấu hình công thức tính cho từng mục lương</h2>
-            <p>Thêm mục tính lương vào dự án và tùy chỉnh biểu thức tính toán cho từng mục.</p>
-          </div>
-          <div className="heading-actions">
-            <Button onClick={() => setVariablesModalOpen(true)}>
-              <Variable className="w-4 h-4" /> Tra cứu biến số
-            </Button>
-            <Button onClick={() => validateMutation.mutate()} disabled={validateMutation.isPending}>
-              <CheckCircle2 /> Kiểm tra hợp lệ
-            </Button>
-            <Button variant="primary" onClick={() => setAddModalOpen(true)}>
-              <CirclePlus /> Thêm mục tính lương
-            </Button>
-          </div>
-        </div>
-      )}
 
-      {/* Validation alert banner */}
+        <div className="flex items-center gap-2">
+          <Button variant="secondary" onClick={cancel} disabled={!dirty}>
+            Discard
+          </Button>
+          <Button variant="primary" onClick={() => saveMutation.mutate()} disabled={saveMutation.isPending}>
+            <Save className="w-4 h-4" /> Save Configuration
+          </Button>
+        </div>
+      </div>
+
+      {/* Validation Banner */}
       {validation && (
         <div
-          className={`mb-4 p-3.5 rounded-lg border flex items-center justify-between gap-3 ${
+          className={`p-3.5 rounded-xl border flex items-center justify-between gap-3 ${
             validation.valid
               ? "bg-emerald-50 dark:bg-emerald-950/40 border-emerald-200 text-emerald-800 dark:text-emerald-300"
               : "bg-amber-50 dark:bg-amber-950/40 border-amber-200 text-amber-800 dark:text-amber-300"
@@ -532,416 +384,427 @@ export function FormulaTab({ projectId, embedded = false }: { projectId: string;
         </div>
       )}
 
-      {/* Grouped Item Formula Sections */}
-      <div className="space-y-6">
-        {formulaSections.map((sec) => {
-          const sectionFormulas = formulas.filter((item) => sec.categories.includes(item.category));
-          const Icon = sec.icon;
-
-          return (
-            <div
-              key={sec.key}
-              className={`content-card overflow-hidden transition-all shadow-sm ${sec.accentStyle}`}
-            >
-              {/* Section Header */}
-              <div className="p-4 flex items-center justify-between gap-3 border-b border-border/60">
-                <div className="flex items-center gap-3">
-                  <div className={`w-9 h-9 rounded-xl flex items-center justify-center shrink-0 ${sec.iconBoxStyle}`}>
-                    <Icon className="w-5 h-5" />
-                  </div>
-                  <div>
-                    <div className="flex items-center gap-2">
-                      <strong className="text-sm font-bold text-foreground">{sec.title}</strong>
-                      <Badge tone={sec.badgeTone}>{sectionFormulas.length} mục</Badge>
-                    </div>
-                    <small className="text-xs text-muted block mt-0.5">{sec.description}</small>
-                  </div>
-                </div>
-
-                <Button
-                  size="sm"
-                  variant="ghost"
-                  className="text-xs"
-                  onClick={() => setAddModalOpen(true)}
-                >
-                  <CirclePlus className="w-3.5 h-3.5" /> Thêm mục tính lương
-                </Button>
-              </div>
-
-              {/* Table */}
-              <div className="table-scroll bg-card">
-                <table className="data-table">
-                  <thead>
-                    <tr>
-                      <th className="w-12 text-center">STT</th>
-                      <th>Tên mục lương / chế độ</th>
-                      <th>Mã biến kết quả</th>
-                      <th>Biểu thức công thức tính toán</th>
-                      <th className="w-24 text-center">Áp dụng</th>
-                      <th className="w-32 text-right">Thao tác</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {sectionFormulas.length === 0 ? (
-                      <tr>
-                        <td colSpan={6} className="text-center py-8 text-xs text-muted">
-                          Chưa có mục nào trong nhóm này. Bấm <strong>"+ Thêm mục tính lương"</strong> để bổ sung.
-                        </td>
-                      </tr>
-                    ) : (
-                      sectionFormulas.map((formula, index) => (
-                        <tr key={formula.id} className={!formula.enabled ? "opacity-50" : ""}>
-                          <td className="text-center font-mono text-xs text-muted font-medium">
-                            {index + 1}
-                          </td>
-                          <td>
-                            <strong className="text-foreground font-semibold text-sm">
-                              {formula.name}
-                            </strong>
-                          </td>
-                          <td>
-                            <code className="text-xs font-mono text-primary font-bold px-2 py-0.5 rounded bg-primary-soft/60 border border-primary/20">
-                              {formula.outputVariable}
-                            </code>
-                          </td>
-                          <td>
-                            <FormulaCodeBadge text={expressionToText(formula.expression)} />
-                          </td>
-                          <td className="text-center">
-                            <Switch.Root
-                              className="switch-root inline-block"
-                              checked={formula.enabled}
-                              onCheckedChange={(enabled) => toggleEnable(formula.id, enabled)}
-                              aria-label="Bật tắt công thức"
-                            >
-                              <Switch.Thumb />
-                            </Switch.Root>
-                          </td>
-                          <td className="text-right">
-                            <div className="row-actions justify-end">
-                              <Button
-                                size="sm"
-                                variant="secondary"
-                                onClick={() => openEditModal(formula)}
-                                title="Sửa công thức"
-                              >
-                                <Pencil className="w-3.5 h-3.5" /> Sửa
-                              </Button>
-                              <button
-                                type="button"
-                                onClick={() => setDeleteTarget(formula)}
-                                className="button button-ghost button-icon"
-                                title="Gỡ khỏi dự án"
-                              >
-                                <Trash2 className="w-4 h-4 text-destructive" />
-                              </button>
-                            </div>
-                          </td>
-                        </tr>
-                      ))
-                    )}
-                  </tbody>
-                </table>
-              </div>
-            </div>
-          );
-        })}
-      </div>
-
-      {/* Add Salary Item Modal (Catalog & Custom) */}
-      <Modal
-        open={addModalOpen}
-        onOpenChange={setAddModalOpen}
-        title="Thêm mục tính lương vào dự án"
-        description={`Chọn mục tính lương/chế độ từ danh mục hệ thống để thêm vào bảng tính (${filteredCatalogItems.length} mục danh mục).`}
-        size="lg"
-        footer={
-          <div className="flex items-center justify-between w-full">
-            <Button variant="secondary" onClick={() => handleCreateCustomItem("income")}>
-              <Plus className="w-4 h-4" /> Tạo mục tính tùy chỉnh mới
-            </Button>
-            <Button onClick={() => setAddModalOpen(false)}>Đóng</Button>
-          </div>
-        }
-      >
-        <div className="space-y-4">
-          {/* Full-width Search & Category Filter */}
-          <div className="flex flex-col sm:flex-row items-center gap-3">
-            <label className="search-field w-full flex-1">
-              <Search />
-              <input
-                placeholder="Tìm kiếm mục tính lương theo tên hoặc mã biến..."
-                value={addSearch}
-                onChange={(e) => setAddSearch(e.target.value)}
-              />
-            </label>
-
-            <div className="flex items-center gap-1 bg-secondary/50 p-1 rounded-lg border border-border shrink-0">
-              <button
-                type="button"
-                onClick={() => setAddCategoryFilter("all")}
-                className={`px-2.5 py-1 text-xs font-semibold rounded ${
-                  addCategoryFilter === "all" ? "bg-primary text-white" : "text-muted hover:text-foreground"
-                }`}
-              >
-                Tất cả
-              </button>
-              <button
-                type="button"
-                onClick={() => setAddCategoryFilter("income")}
-                className={`px-2.5 py-1 text-xs font-semibold rounded ${
-                  addCategoryFilter === "income" ? "bg-primary text-white" : "text-muted hover:text-foreground"
-                }`}
-              >
-                Thu nhập
-              </button>
-              <button
-                type="button"
-                onClick={() => setAddCategoryFilter("deduction")}
-                className={`px-2.5 py-1 text-xs font-semibold rounded ${
-                  addCategoryFilter === "deduction" ? "bg-primary text-white" : "text-muted hover:text-foreground"
-                }`}
-              >
-                Khấu trừ
-              </button>
-              <button
-                type="button"
-                onClick={() => setAddCategoryFilter("aggregate")}
-                className={`px-2.5 py-1 text-xs font-semibold rounded ${
-                  addCategoryFilter === "aggregate" ? "bg-primary text-white" : "text-muted hover:text-foreground"
-                }`}
-              >
-                Tổng hợp / Net
-              </button>
-            </div>
+      {/* Main Workspace Layout Grid */}
+      <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 items-start">
+        {/* Left Column: Components Library */}
+        <aside className="lg:col-span-4 bg-card border border-border rounded-xl p-4 shadow-sm space-y-4">
+          <div className="flex items-center justify-between">
+            <strong className="text-sm font-bold text-foreground">Components Library</strong>
           </div>
 
-          {/* Master Salary Items Cards List */}
-          <div className="max-h-[420px] overflow-y-auto space-y-2.5 pr-1">
-            {filteredCatalogItems.length === 0 ? (
-              <div className="p-8 text-center text-xs text-muted">
-                Không tìm thấy mục tính lương phù hợp từ khóa <strong>"{addSearch}"</strong>.
-              </div>
-            ) : (
-              filteredCatalogItems.map((item) => {
+          {/* Search Filter */}
+          <label className="search-field w-full">
+            <Search className="w-4 h-4 text-muted" />
+            <input
+              placeholder="Filter items..."
+              value={filterSearch}
+              onChange={(e) => setFilterSearch(e.target.value)}
+            />
+          </label>
+
+          {/* Group 1: EARNINGS */}
+          <div className="space-y-2">
+            <div className="flex items-center justify-between text-xs font-bold tracking-wider text-muted uppercase">
+              <span>EARNINGS (LƯƠNG, PHỤ CẤP)</span>
+              <span className="w-5 h-5 rounded-full bg-primary/10 text-primary text-[10px] flex items-center justify-center font-mono">
+                {earningsLibrary.length}
+              </span>
+            </div>
+
+            <div className="space-y-2">
+              {earningsLibrary.map((item) => {
                 const isAdded = existingOutputCodes.has(item.outputVariable.toUpperCase());
 
                 return (
                   <div
                     key={item.id}
-                    className={`p-3.5 rounded-xl border transition-all flex flex-col sm:flex-row sm:items-center justify-between gap-3 ${
+                    draggable={!isAdded}
+                    onDragStart={() => setDraggedItem(item)}
+                    onDragEnd={() => setDraggedItem(null)}
+                    className={`p-3 rounded-xl border transition-all flex items-center justify-between gap-3 ${
                       isAdded
-                        ? "bg-secondary/40 border-border opacity-60 cursor-not-allowed"
-                        : "bg-card hover:border-primary/50 border-border shadow-sm hover:-translate-y-0.5"
+                        ? "bg-secondary/40 border-border opacity-50 cursor-not-allowed"
+                        : "bg-card hover:border-primary/50 border-border shadow-sm cursor-grab hover:-translate-y-0.5"
                     }`}
                   >
-                    <div className="space-y-1 min-w-0 flex-1">
-                      <div className="flex items-center gap-2 flex-wrap">
-                        <strong className="text-sm font-bold text-foreground">{item.name}</strong>
-                        <Badge tone="info">{categoryLabels[item.category]}</Badge>
-                        <code className="text-xs font-mono text-primary font-semibold">{item.outputVariable}</code>
-                      </div>
-
-                      <p className="text-xs text-muted leading-relaxed">{item.description}</p>
-
-                      <div className="mt-1">
-                        <FormulaCodeBadge text={item.defaultFormulaText} />
+                    <div className="flex items-center gap-2.5 min-w-0">
+                      <GripVertical className="w-4 h-4 text-muted shrink-0 opacity-50" />
+                      <div className="min-w-0">
+                        <strong className="text-xs font-bold text-foreground truncate block">{item.name}</strong>
+                        <code className="text-[10px] font-mono text-muted">{item.code}</code>
                       </div>
                     </div>
 
-                    <div className="shrink-0">
-                      {isAdded ? (
-                        <Button disabled size="sm" variant="ghost" className="opacity-70 cursor-not-allowed">
-                          Đã có trong dự án
-                        </Button>
-                      ) : (
-                        <Button
-                          size="sm"
-                          variant="primary"
-                          onClick={() => handleAddCatalogItem(item)}
-                        >
-                          <Plus className="w-3.5 h-3.5" /> Thêm vào dự án
-                        </Button>
-                      )}
-                    </div>
+                    <button
+                      type="button"
+                      disabled={isAdded}
+                      onClick={() => addComponentToStructure(item)}
+                      className="w-7 h-7 rounded-lg bg-primary/10 text-primary hover:bg-primary hover:text-white flex items-center justify-center shrink-0 transition-colors disabled:opacity-30 disabled:pointer-events-none"
+                      title="Thêm vào cấu trúc"
+                    >
+                      <Plus className="w-4 h-4" />
+                    </button>
                   </div>
                 );
-              })
-            )}
+              })}
+            </div>
           </div>
-        </div>
-      </Modal>
 
-      {/* Variables Catalog Reference Modal */}
-      <Modal
-        open={variablesModalOpen}
-        onOpenChange={setVariablesModalOpen}
-        title="Danh mục biến số dữ liệu hệ thống"
-        description="Tra cứu tất cả mã biến số có sẵn dùng để tùy chỉnh công thức tính lương."
-        size="lg"
-        footer={<Button onClick={() => setVariablesModalOpen(false)}>Đóng</Button>}
-      >
-        <div className="space-y-4">
-          <label className="search-field w-full">
-            <Search />
-            <input
-              placeholder="Tìm biến số theo tên hoặc mã (LUONG_CO_BAN, GIO_CHUAN...)"
-              value={variableSearch}
-              onChange={(e) => setVariableSearch(e.target.value)}
-            />
-          </label>
-
-          <div className="max-h-[380px] overflow-y-auto space-y-2 pr-1">
-            {filteredVariables.map((v) => (
-              <div
-                key={v.code}
-                className="p-3 rounded-lg border border-border bg-card flex items-center justify-between gap-3"
-              >
-                <div>
-                  <div className="flex items-center gap-2">
-                    <strong className="text-xs font-bold text-foreground">{v.name}</strong>
-                    <code className="text-xs font-mono text-primary font-bold">{v.code}</code>
-                  </div>
-                  <small className="text-xs text-muted block mt-0.5">
-                    Đơn vị: {v.unit} · Giá trị mẫu: {v.sampleValue}
-                  </small>
-                </div>
-                {editingFormula && (
-                  <Button
-                    size="sm"
-                    variant="ghost"
-                    onClick={() => {
-                      setVariablesModalOpen(false);
-                      insertChipToFormula(v.code);
-                    }}
-                  >
-                    + Chèn biến
-                  </Button>
-                )}
-              </div>
-            ))}
-          </div>
-        </div>
-      </Modal>
-
-      {/* Item Formula Customizer Modal */}
-      <Modal
-        open={Boolean(editingFormula)}
-        onOpenChange={(open) => !open && setEditingFormula(null)}
-        title={`Cấu hình công thức: ${editingFormula?.name}`}
-        description={`Mục tính: ${editingFormula?.name} (${editingFormula?.outputVariable})`}
-        size="lg"
-        footer={
-          <>
-            <Button onClick={() => setEditingFormula(null)}>Hủy</Button>
-            <Button variant="primary" onClick={handleSaveModal}>
-              Lưu công thức
-            </Button>
-          </>
-        }
-      >
-        {editingFormula && (
-          <div className="space-y-4">
-            <div className="p-3.5 rounded-xl bg-gradient-to-r from-primary-soft/80 to-secondary border border-primary/20 flex items-center justify-between">
-              <div>
-                <strong className="text-sm font-bold text-foreground block">{editingFormula.name}</strong>
-                <code className="text-xs font-mono text-primary font-bold">{editingFormula.outputVariable}</code>
-              </div>
-              <Badge tone="info">{categoryLabels[editingFormula.category]}</Badge>
+          {/* Group 2: DEDUCTIONS */}
+          <div className="space-y-2 pt-2 border-t border-border">
+            <div className="flex items-center justify-between text-xs font-bold tracking-wider text-muted uppercase">
+              <span>DEDUCTIONS (KHẤU TRỪ)</span>
+              <span className="w-5 h-5 rounded-full bg-rose-500/10 text-rose-500 text-[10px] flex items-center justify-center font-mono">
+                {deductionsLibrary.length}
+              </span>
             </div>
 
-            {/* Formula Input Box (Excel Style) */}
             <div className="space-y-2">
-              <label className="form-field">
-                <span className="flex items-center justify-between">
-                  <strong>Biểu thức công thức tính toán (Cú pháp Excel)</strong>
-                  <small className="text-muted font-mono text-[11px]">Toán tử: +  -  *  /  (  )</small>
-                </span>
-                <input
-                  className="font-mono text-sm font-bold text-primary bg-card border-2 border-primary/40 focus:border-primary p-3 rounded-xl shadow-sm"
-                  value={editingText}
-                  onChange={(e) => setEditingText(e.target.value)}
-                  placeholder="LUONG_CO_BAN / GIO_CHUAN * GIO_THUONG"
-                />
-              </label>
+              {deductionsLibrary.map((item) => {
+                const isAdded = existingOutputCodes.has(item.outputVariable.toUpperCase());
 
-              {/* Live Syntax Badge Preview */}
-              <div className="p-3 rounded-xl bg-slate-950 text-slate-100 space-y-1.5 border border-slate-800">
-                <span className="text-[11px] font-bold text-sky-400 uppercase tracking-wider block">
-                  Biểu thức trực quan:
-                </span>
-                <FormulaCodeBadge text={editingText} />
+                return (
+                  <div
+                    key={item.id}
+                    draggable={!isAdded}
+                    onDragStart={() => setDraggedItem(item)}
+                    onDragEnd={() => setDraggedItem(null)}
+                    className={`p-3 rounded-xl border transition-all flex items-center justify-between gap-3 ${
+                      isAdded
+                        ? "bg-secondary/40 border-border opacity-50 cursor-not-allowed"
+                        : "bg-card hover:border-rose-400 border-border shadow-sm cursor-grab hover:-translate-y-0.5"
+                    }`}
+                  >
+                    <div className="flex items-center gap-2.5 min-w-0">
+                      <GripVertical className="w-4 h-4 text-muted shrink-0 opacity-50" />
+                      <div className="min-w-0">
+                        <strong className="text-xs font-bold text-foreground truncate block">{item.name}</strong>
+                        <code className="text-[10px] font-mono text-muted">{item.code}</code>
+                      </div>
+                    </div>
+
+                    <button
+                      type="button"
+                      disabled={isAdded}
+                      onClick={() => addComponentToStructure(item)}
+                      className="w-7 h-7 rounded-lg bg-rose-500/10 text-rose-500 hover:bg-rose-500 hover:text-white flex items-center justify-center shrink-0 transition-colors disabled:opacity-30 disabled:pointer-events-none"
+                      title="Thêm vào cấu trúc"
+                    >
+                      <Plus className="w-4 h-4" />
+                    </button>
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+        </aside>
+
+        {/* Right Column: Visual Structure Drag & Drop Canvas */}
+        <section className="lg:col-span-8 bg-card border border-border rounded-xl p-5 shadow-sm space-y-6">
+          {/* Tab Switcher */}
+          <div className="flex items-center gap-6 border-b border-border pb-3">
+            <button
+              type="button"
+              onClick={() => setActiveTab("grossToNet")}
+              className={`text-xs font-bold transition-all relative pb-2 ${
+                activeTab === "grossToNet" ? "text-primary border-b-2 border-primary" : "text-muted hover:text-foreground"
+              }`}
+            >
+              Gross to Net
+            </button>
+            <button
+              type="button"
+              onClick={() => setActiveTab("netToGross")}
+              className={`text-xs font-bold transition-all relative pb-2 ${
+                activeTab === "netToGross" ? "text-primary border-b-2 border-primary" : "text-muted hover:text-foreground"
+              }`}
+            >
+              Net to Gross
+            </button>
+            <button
+              type="button"
+              onClick={() => setActiveTab("severance")}
+              className={`text-xs font-bold transition-all relative pb-2 ${
+                activeTab === "severance" ? "text-primary border-b-2 border-primary" : "text-muted hover:text-foreground"
+              }`}
+            >
+              Severance
+            </button>
+          </div>
+
+          {/* 1. Gross Earnings Structure Box */}
+          <div className="border-l-4 border-l-sky-500 bg-sky-50/20 dark:bg-sky-950/10 rounded-r-xl border border-sky-200 dark:border-sky-800/60 p-4 space-y-3">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-2">
+                <Calculator className="w-4 h-4 text-sky-600 dark:text-sky-400" />
+                <strong className="text-sm font-bold text-foreground">Gross Earnings Structure</strong>
               </div>
 
-              {/* Human Readable Preview */}
-              {humanReadableFormula && (
-                <div className="p-3 rounded-xl bg-primary-soft/40 border border-primary/20 text-xs text-muted-strong flex items-center gap-2">
-                  <Wand2 className="w-4 h-4 text-primary shrink-0" />
-                  <span>
-                    <strong>Dịch nghĩa tiếng Việt: </strong> {humanReadableFormula}
-                  </span>
+              <div className="flex items-center gap-2">
+                <span className="text-xs text-muted font-medium">Prorate</span>
+                <Switch.Root
+                  className="switch-root"
+                  checked={prorateEnabled}
+                  onCheckedChange={setProrateEnabled}
+                  aria-label="Prorate"
+                >
+                  <Switch.Thumb />
+                </Switch.Root>
+              </div>
+            </div>
+
+            {/* Dropzone Container */}
+            <div
+              onDragOver={(e) => e.preventDefault()}
+              onDrop={() => {
+                if (draggedItem && draggedItem.category === "income") {
+                  addComponentToStructure(draggedItem);
+                }
+              }}
+              className="border-2 border-dashed border-sky-300 dark:border-sky-800 rounded-xl p-4 min-h-[110px] flex flex-col items-center justify-center gap-2 transition-colors bg-card/60"
+            >
+              {grossComponents.length === 0 ? (
+                <div className="text-center text-xs text-muted flex flex-col items-center gap-1 py-2">
+                  <div className="w-8 h-8 rounded-lg bg-sky-500/10 text-sky-500 flex items-center justify-center font-bold text-base mb-1">
+                    +
+                  </div>
+                  <span>Drag earning components here</span>
+                </div>
+              ) : (
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5 w-full">
+                  {grossComponents.map((item) => (
+                    <div
+                      key={item.id}
+                      className="p-3 rounded-lg border border-sky-200 dark:border-sky-800/80 bg-card shadow-sm flex items-center justify-between gap-2"
+                    >
+                      <div className="flex items-center gap-2.5 min-w-0">
+                        <GripVertical className="w-4 h-4 text-muted shrink-0 opacity-40" />
+                        <div className="min-w-0">
+                          <strong className="text-xs font-bold text-foreground truncate block">{item.name}</strong>
+                          <code className="text-[10px] font-mono text-sky-600 dark:text-sky-400 font-semibold">
+                            {item.outputVariable}
+                          </code>
+                        </div>
+                      </div>
+                      <button
+                        type="button"
+                        onClick={() => removeComponentFromStructure(item.id)}
+                        className="text-muted hover:text-destructive p-1 rounded transition-colors"
+                        title="Gỡ khỏi cấu trúc"
+                      >
+                        <X className="w-3.5 h-3.5" />
+                      </button>
+                    </div>
+                  ))}
                 </div>
               )}
             </div>
+          </div>
 
-            {/* Quick Click Chips */}
-            <div className="space-y-2.5 pt-1">
-              <span className="text-xs font-bold text-muted block">Nhấp chọn biến & toán tử để chèn nhanh vào vị trí:</span>
+          {/* Minus Circle Badge between boxes */}
+          <div className="flex justify-center -my-2">
+            <span className="w-8 h-8 rounded-full bg-secondary border border-border flex items-center justify-center text-muted font-bold text-base shadow-sm">
+              <Minus className="w-4 h-4" />
+            </span>
+          </div>
 
-              {/* Operators Chips */}
-              <div className="flex items-center gap-1.5 flex-wrap">
-                <span className="text-xs text-muted mr-1 font-semibold">Toán tử:</span>
-                {["+", "-", "*", "/", "(", ")"].map((op) => (
-                  <button
-                    key={op}
-                    type="button"
-                    onClick={() => insertChipToFormula(op)}
-                    className="w-8 h-8 rounded-lg bg-primary text-white font-mono font-bold text-sm hover:bg-primary-hover shadow-sm hover:scale-105 active:scale-95 transition-transform flex items-center justify-center"
-                  >
-                    {op === "*" ? "×" : op === "/" ? "÷" : op}
-                  </button>
-                ))}
-              </div>
-
-              {/* Variables Chips */}
-              <div className="flex items-center gap-1.5 flex-wrap pt-1">
-                <span className="text-xs text-muted mr-1 font-semibold">Biến số hệ thống:</span>
-                {variables.map((v) => (
-                  <button
-                    key={v.code}
-                    type="button"
-                    onClick={() => insertChipToFormula(v.code)}
-                    className="px-2.5 py-1 rounded-lg bg-card hover:bg-primary-soft hover:border-primary border border-border text-xs font-semibold text-foreground hover:text-primary transition-all shadow-sm"
-                  >
-                    + {v.name} ({v.code})
-                  </button>
-                ))}
+          {/* 2. Deductions Structure Box */}
+          <div className="border-l-4 border-l-rose-500 bg-rose-50/20 dark:bg-rose-950/10 rounded-r-xl border border-rose-200 dark:border-rose-800/60 p-4 space-y-3">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-2">
+                <Shield className="w-4 h-4 text-rose-600 dark:text-rose-400" />
+                <strong className="text-sm font-bold text-foreground">Deductions Structure</strong>
               </div>
             </div>
-          </div>
-        )}
-      </Modal>
 
-      {/* Delete confirmation modal */}
-      <Modal
-        open={Boolean(deleteTarget)}
-        onOpenChange={(open) => !open && setDeleteTarget(null)}
-        title="Gỡ mục tính toán khỏi dự án?"
-        description={deleteTarget?.name}
-        size="sm"
-        footer={
-          <>
-            <Button onClick={() => setDeleteTarget(null)}>Hủy</Button>
-            <Button variant="danger" onClick={handleDeleteConfirmed}>
-              Gỡ mục tính
-            </Button>
-          </>
-        }
-      >
-        <p className="modal-note">Mục tính toán này sẽ được loại khỏi bảng tính lương của dự án.</p>
-      </Modal>
+            {/* Dropzone Container */}
+            <div
+              onDragOver={(e) => e.preventDefault()}
+              onDrop={() => {
+                if (draggedItem && draggedItem.category === "deduction") {
+                  addComponentToStructure(draggedItem);
+                }
+              }}
+              className="border-2 border-dashed border-rose-300 dark:border-rose-800 rounded-xl p-4 min-h-[110px] flex flex-col items-center justify-center gap-2 transition-colors bg-card/60"
+            >
+              {deductionComponents.length === 0 ? (
+                <div className="text-center text-xs text-muted flex flex-col items-center gap-1 py-2">
+                  <div className="w-8 h-8 rounded-lg bg-rose-500/10 text-rose-500 flex items-center justify-center font-bold text-base mb-1">
+                    +
+                  </div>
+                  <span>Drag deduction components here</span>
+                </div>
+              ) : (
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5 w-full">
+                  {deductionComponents.map((item) => (
+                    <div
+                      key={item.id}
+                      className="p-3 rounded-lg border border-rose-200 dark:border-rose-800/80 bg-card shadow-sm flex items-center justify-between gap-2"
+                    >
+                      <div className="flex items-center gap-2.5 min-w-0">
+                        <GripVertical className="w-4 h-4 text-muted shrink-0 opacity-40" />
+                        <div className="min-w-0">
+                          <strong className="text-xs font-bold text-foreground truncate block">{item.name}</strong>
+                          <code className="text-[10px] font-mono text-rose-600 dark:text-rose-400 font-semibold">
+                            {item.outputVariable}
+                          </code>
+                        </div>
+                      </div>
+                      <button
+                        type="button"
+                        onClick={() => removeComponentFromStructure(item.id)}
+                        className="text-muted hover:text-destructive p-1 rounded transition-colors"
+                        title="Gỡ khỏi cấu trúc"
+                      >
+                        <X className="w-3.5 h-3.5" />
+                      </button>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+          </div>
+
+          {/* Equals Circle Badge */}
+          <div className="flex justify-center -my-2">
+            <span className="w-8 h-8 rounded-full bg-secondary border border-border flex items-center justify-center text-muted font-bold text-sm shadow-sm">
+              =
+            </span>
+          </div>
+
+          {/* 3. Net Payable Output Card */}
+          <div className="p-4 rounded-xl bg-indigo-50/60 dark:bg-indigo-950/30 border border-indigo-200 dark:border-indigo-800/60 flex items-center justify-between gap-4">
+            <div className="space-y-1">
+              <strong className="text-sm font-bold text-foreground block">Net Payable (Lương Thực Nhận)</strong>
+              <code className="text-xs font-mono font-bold text-indigo-600 dark:text-indigo-400 block">
+                FINAL_NET_PAY = GROSS_EARNINGS - TOTAL_DEDUCTIONS
+              </code>
+            </div>
+
+            <div className="w-10 h-10 rounded-xl bg-indigo-500/10 text-indigo-600 dark:text-indigo-400 border border-indigo-500/20 flex items-center justify-center shrink-0">
+              <Landmark className="w-5 h-5" />
+            </div>
+          </div>
+        </section>
+      </div>
+
+      {/* SECTION BÊN DƯỚI: CONFIG CÔNG THỨC CHI TIẾT CHO TỪNG MỤC */}
+      <section className="bg-card border border-border rounded-xl p-5 shadow-sm space-y-4 mt-6">
+        <div className="flex items-center justify-between pb-3 border-b border-border">
+          <div>
+            <strong className="text-base font-bold text-foreground flex items-center gap-2">
+              <Wand2 className="w-5 h-5 text-primary" /> Cấu hình công thức chi tiết từng mục trong cấu trúc
+            </strong>
+            <p className="text-xs text-muted mt-0.5">
+              Thiết lập hoặc tùy chỉnh chuỗi công thức tính toán dạng Excel cho từng thành phần lương đã kéo thả ở trên.
+            </p>
+          </div>
+          <Button variant="secondary" size="sm" onClick={() => validateMutation.mutate()}>
+            <CheckCircle2 className="w-4 h-4" /> Kiểm tra tất cả
+          </Button>
+        </div>
+
+        <div className="space-y-4">
+          {formulas.length === 0 ? (
+            <div className="p-8 text-center text-xs text-muted">
+              Chưa có mục nào trong cấu trúc lương. Hãy chọn/kéo thả các mục từ <strong>Components Library</strong> ở trên.
+            </div>
+          ) : (
+            formulas.map((formula, idx) => {
+              const isIncome = formula.category === "income";
+
+              return (
+                <div
+                  key={formula.id}
+                  className="p-4 rounded-xl border border-border bg-secondary/20 hover:border-primary/40 transition-colors space-y-3"
+                >
+                  <div className="flex flex-wrap items-center justify-between gap-3">
+                    <div className="flex items-center gap-2.5">
+                      <span className="w-6 h-6 rounded-full bg-secondary border border-border text-muted font-mono text-xs font-bold flex items-center justify-center shrink-0">
+                        {String(idx + 1).padStart(2, "0")}
+                      </span>
+                      <div>
+                        <strong className="text-sm font-bold text-foreground block">{formula.name}</strong>
+                        <code className="text-xs font-mono text-primary font-bold">{formula.outputVariable}</code>
+                      </div>
+                      <Badge tone={isIncome ? "success" : formula.category === "deduction" ? "danger" : "info"}>
+                        {categoryLabels[formula.category]}
+                      </Badge>
+                    </div>
+
+                    <div className="flex items-center gap-3">
+                      <span className="text-xs text-muted font-semibold">
+                        {formula.enabled ? "Áp dụng" : "Tắt"}
+                      </span>
+                      <Switch.Root
+                        className="switch-root"
+                        checked={formula.enabled}
+                        onCheckedChange={(enabled) => toggleEnable(formula.id, enabled)}
+                        aria-label="Bật tắt công thức"
+                      >
+                        <Switch.Thumb />
+                      </Switch.Root>
+                      <button
+                        type="button"
+                        onClick={() => removeComponentFromStructure(formula.id)}
+                        className="p-1 rounded text-muted hover:text-destructive transition-colors"
+                        title="Gỡ khỏi cấu trúc"
+                      >
+                        <X className="w-4 h-4" />
+                      </button>
+                    </div>
+                  </div>
+
+                  {/* Formula Editor Row */}
+                  <div className="grid grid-cols-1 lg:grid-cols-12 gap-3 items-center pt-1">
+                    <div className="lg:col-span-7 space-y-1.5">
+                      <label className="form-field">
+                        <span className="text-xs font-bold text-muted flex items-center justify-between">
+                          <span>Công thức tính toán (Cú pháp Excel)</span>
+                          <small className="font-mono text-[10px]">Toán tử: +  -  *  /  (  )</small>
+                        </span>
+                        <input
+                          className="font-mono text-xs font-bold text-primary bg-card border border-input p-2 rounded-lg"
+                          value={expressionToText(formula.expression)}
+                          onChange={(e) => updateFormulaText(formula.id, e.target.value)}
+                          placeholder="LUONG_CO_BAN / GIO_CHUAN * GIO_THUONG"
+                        />
+                      </label>
+                    </div>
+
+                    <div className="lg:col-span-5">
+                      <span className="text-[11px] font-bold text-muted block mb-1">
+                        Biểu thức trực quan:
+                      </span>
+                      <FormulaCodeBadge text={expressionToText(formula.expression)} />
+                    </div>
+                  </div>
+
+                  {/* Quick Chips Bar */}
+                  <div className="flex items-center gap-1.5 flex-wrap pt-1 border-t border-border/50">
+                    <span className="text-[11px] font-bold text-muted mr-1">Chèn nhanh biến số:</span>
+                    {variables.slice(0, 7).map((v) => (
+                      <button
+                        key={v.code}
+                        type="button"
+                        onClick={() => {
+                          const current = expressionToText(formula.expression);
+                          updateFormulaText(formula.id, `${current} ${v.code}`);
+                        }}
+                        className="px-2 py-0.5 rounded bg-card hover:bg-primary-soft border border-border text-[11px] font-medium text-foreground transition-colors"
+                      >
+                        + {v.name}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+              );
+            })
+          )}
+        </div>
+      </section>
 
       <SaveBar visible={dirty} saving={saveMutation.isPending} onSave={() => saveMutation.mutate()} onCancel={cancel} />
-    </>
+    </div>
   );
 }
