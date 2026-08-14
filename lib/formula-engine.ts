@@ -208,68 +208,6 @@ export interface TokenRange {
   name: string;
 }
 
-export interface FormulaTokenItem {
-  id: string;
-  type: "variable" | "operator" | "number" | "unknown";
-  text: string;
-}
-
-export function tokenizeFormulaText(text: string): FormulaTokenItem[] {
-  if (!text || !text.trim()) return [];
-
-  const tokens: FormulaTokenItem[] = [];
-  const ranges = findVariableRanges(text);
-
-  let currentIdx = 0;
-  let rangeIdx = 0;
-
-  while (currentIdx < text.length) {
-    if (rangeIdx < ranges.length && currentIdx === ranges[rangeIdx].start) {
-      const r = ranges[rangeIdx];
-      tokens.push({
-        id: `var-${currentIdx}-${r.name}`,
-        type: "variable",
-        text: r.name,
-      });
-      currentIdx = r.end;
-      rangeIdx++;
-      continue;
-    }
-
-    const nextVarStart = rangeIdx < ranges.length ? ranges[rangeIdx].start : text.length;
-    const segment = text.slice(currentIdx, nextVarStart);
-
-    const parts = segment.split(/(\s+|[+\-*/()])/).filter(Boolean);
-
-    for (const part of parts) {
-      if (/^\s+$/.test(part)) continue;
-      if (["+", "-", "*", "/", "(", ")"].includes(part)) {
-        tokens.push({
-          id: `op-${currentIdx}-${Math.random()}`,
-          type: "operator",
-          text: part,
-        });
-      } else if (/^\d+(\.\d+)?%?$/.test(part)) {
-        tokens.push({
-          id: `num-${currentIdx}-${Math.random()}`,
-          type: "number",
-          text: part,
-        });
-      } else {
-        tokens.push({
-          id: `unknown-${currentIdx}-${Math.random()}`,
-          type: "unknown",
-          text: part,
-        });
-      }
-    }
-
-    currentIdx = nextVarStart;
-  }
-
-  return tokens;
-}
-
 export function findVariableRanges(text: string): TokenRange[] {
   const ranges: TokenRange[] = [];
   const sortedNames = [...knownVariableNames].sort((a, b) => b.length - a.length);
@@ -289,6 +227,72 @@ export function findVariableRanges(text: string): TokenRange[] {
   });
 
   return ranges.sort((a, b) => a.start - b.start);
+}
+
+export interface VisualToken {
+  id: string;
+  type: "variable" | "operator" | "number" | "unknown";
+  text: string;
+}
+
+export function tokenizeFriendlyText(text: string): VisualToken[] {
+  if (!text || !text.trim()) return [];
+  const ranges = findVariableRanges(text);
+  ranges.sort((a, b) => a.start - b.start);
+
+  const tokens: VisualToken[] = [];
+  let lastIndex = 0;
+  let idCounter = 1;
+
+  const pushNonVarText = (segment: string) => {
+    const rawTokens = segment.split(/(\s+)/);
+    for (const raw of rawTokens) {
+      if (!raw || /^\s+$/.test(raw)) continue;
+      if (["+", "-", "*", "/", "×", "÷", "(", ")"].includes(raw)) {
+        tokens.push({
+          id: `tok-${idCounter++}-${Math.random().toString(36).substring(2, 7)}`,
+          type: "operator",
+          text: raw === "*" ? "×" : raw === "/" ? "÷" : raw,
+        });
+      } else if (/^\d+(\.\d+)?%?$/.test(raw)) {
+        tokens.push({
+          id: `tok-${idCounter++}-${Math.random().toString(36).substring(2, 7)}`,
+          type: "number",
+          text: raw,
+        });
+      } else {
+        tokens.push({
+          id: `tok-${idCounter++}-${Math.random().toString(36).substring(2, 7)}`,
+          type: "unknown",
+          text: raw,
+        });
+      }
+    }
+  };
+
+  for (const r of ranges) {
+    if (r.start > lastIndex) {
+      pushNonVarText(text.slice(lastIndex, r.start));
+    }
+    tokens.push({
+      id: `tok-${idCounter++}-${Math.random().toString(36).substring(2, 7)}`,
+      type: "variable",
+      text: r.name,
+    });
+    lastIndex = r.end;
+  }
+
+  if (lastIndex < text.length) {
+    pushNonVarText(text.slice(lastIndex));
+  }
+
+  return tokens;
+}
+
+export function tokensToFriendlyText(tokens: VisualToken[]): string {
+  return tokens
+    .map((t) => (t.type === "operator" ? (t.text === "×" ? "*" : t.text === "÷" ? "/" : t.text) : t.text))
+    .join(" ");
 }
 
 export function expressionToText(node: ExpressionNode): string {

@@ -11,6 +11,7 @@ import {
   CheckCircle2,
   ChevronUp,
   Clock,
+  Code2,
   Coins,
   DollarSign,
   GripVertical,
@@ -27,6 +28,7 @@ import {
   Search,
   Shield,
   Sparkles,
+  Trash2,
   TrendingUp,
   Users,
   Variable,
@@ -37,7 +39,14 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import { useToast } from "@/components/providers";
 import { Badge, Button, ErrorState, LoadingBlock, SaveBar } from "@/components/ui";
 import { api } from "@/lib/api";
-import { expressionToFriendlyText, expressionToText, findVariableRanges, parseExpressionText } from "@/lib/formula-engine";
+import {
+  expressionToFriendlyText,
+  expressionToText,
+  findVariableRanges,
+  parseExpressionText,
+  tokenizeFriendlyText,
+  tokensToFriendlyText,
+} from "@/lib/formula-engine";
 import type { SalaryFormula } from "@/lib/types";
 import { uid } from "@/lib/utils";
 
@@ -385,148 +394,6 @@ function FormulaCodeBadge({ text, variableNameMap }: { text: string; variableNam
   );
 }
 
-function LiveSyntaxPreview({ text }: { text: string }) {
-  if (!text.trim()) return null;
-  const tokens = text.split(/(\s+)/);
-
-  return (
-    <div className="p-2.5 rounded-lg bg-secondary/40 border border-border/50 flex items-center gap-1.5 flex-wrap text-xs font-mono">
-      <span className="text-[10px] uppercase font-extrabold text-muted mr-1 tracking-wider shrink-0">Hiển thị cú pháp:</span>
-      {tokens.map((tok, idx) => {
-        if (/^\s+$/.test(tok)) return null;
-        if (["+", "-", "*", "/", "(", ")"].includes(tok)) {
-          return (
-            <span key={idx} className="px-1.5 py-0.5 rounded bg-card border border-border/60 text-emerald-600 dark:text-emerald-400 font-extrabold text-xs">
-              {tok === "*" ? "×" : tok === "/" ? "÷" : tok}
-            </span>
-          );
-        }
-        if (/^\d+(\.\d+)?%?$/.test(tok)) {
-          return (
-            <span key={idx} className="px-1.5 py-0.5 rounded bg-amber-500/10 text-amber-600 dark:text-amber-400 font-bold text-xs">
-              {tok}
-            </span>
-          );
-        }
-        return (
-          <span key={idx} className="px-2 py-0.5 rounded-md bg-primary/10 border border-primary/20 text-primary font-semibold text-xs inline-flex items-center gap-1">
-            {tok}
-          </span>
-        );
-      })}
-    </div>
-  );
-}
-
-function InlineTokenFormulaEditor({
-  formulaId,
-  value,
-  onChange,
-  onKeyDown,
-  inputRef,
-  placeholder = "Nhập công thức hoặc chọn các biến số ở trên...",
-}: {
-  formulaId: string;
-  value: string;
-  onChange: (val: string) => void;
-  onKeyDown: (e: React.KeyboardEvent<HTMLInputElement>, id: string, val: string) => void;
-  inputRef: (el: HTMLInputElement | null) => void;
-  placeholder?: string;
-}) {
-  const tokens = useMemo(() => {
-    if (!value.trim()) return [];
-    const rawTokens = value.split(/(\s+)/);
-    const result: { id: string; type: "var" | "op" | "num"; text: string }[] = [];
-
-    rawTokens.forEach((tok, idx) => {
-      if (/^\s+$/.test(tok)) return;
-      if (["+", "-", "*", "/", "(", ")"].includes(tok)) {
-        result.push({ id: `op-${idx}-${tok}`, type: "op", text: tok });
-      } else if (/^\d+(\.\d+)?%?$/.test(tok)) {
-        result.push({ id: `num-${idx}-${tok}`, type: "num", text: tok });
-      } else {
-        result.push({ id: `var-${idx}-${tok}`, type: "var", text: tok });
-      }
-    });
-
-    return result;
-  }, [value]);
-
-  const removeToken = (tokenText: string) => {
-    const escaped = tokenText.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
-    const regex = new RegExp(`\\b${escaped}\\b`, "g");
-    const next = value.replace(regex, "").replace(/\s+/g, " ").trim();
-    onChange(next);
-  };
-
-  return (
-    <div
-      onClick={() => {
-        const el = document.getElementById(`inline-input-${formulaId}`) as HTMLInputElement;
-        if (el) el.focus();
-      }}
-      className="min-h-[46px] p-2 bg-card border border-input rounded-xl focus-within:border-primary focus-within:ring-2 focus-within:ring-primary/15 transition-all shadow-xs flex items-center gap-1.5 flex-wrap cursor-text"
-    >
-      <span className="px-2.5 py-1 bg-secondary/70 text-primary font-serif italic font-extrabold text-xs rounded-md shrink-0 select-none mr-0.5">
-        fx
-      </span>
-
-      {tokens.map((tok) => {
-        if (tok.type === "op") {
-          return (
-            <span
-              key={tok.id}
-              className="px-2 py-0.5 rounded-md bg-secondary/80 text-emerald-600 dark:text-emerald-400 font-mono font-extrabold text-xs select-none"
-            >
-              {tok.text === "*" ? "×" : tok.text === "/" ? "÷" : tok.text}
-            </span>
-          );
-        }
-        if (tok.type === "num") {
-          return (
-            <span
-              key={tok.id}
-              className="px-2 py-0.5 rounded-md bg-amber-500/10 text-amber-600 dark:text-amber-400 font-mono font-bold text-xs select-none"
-            >
-              {tok.text}
-            </span>
-          );
-        }
-        return (
-          <span
-            key={tok.id}
-            className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-primary/10 border border-primary/25 text-primary font-semibold text-xs shadow-2xs select-none"
-          >
-            <span>{tok.text}</span>
-            <button
-              type="button"
-              onMouseDown={(e) => e.preventDefault()}
-              onClick={(e) => {
-                e.stopPropagation();
-                removeToken(tok.text);
-              }}
-              className="text-primary/70 hover:text-destructive hover:bg-primary/20 rounded-full p-0.5 transition-colors"
-              title={`Xóa "${tok.text}"`}
-            >
-              <X className="w-3 h-3" />
-            </button>
-          </span>
-        );
-      })}
-
-      <input
-        id={`inline-input-${formulaId}`}
-        ref={inputRef}
-        className="flex-1 min-w-[120px] bg-transparent p-1 font-mono text-xs font-bold text-primary focus:outline-none placeholder:text-muted/40"
-        value={value}
-        onChange={(e) => onChange(e.target.value)}
-        onKeyDown={(e) => onKeyDown(e, formulaId, value)}
-        placeholder={tokens.length === 0 ? placeholder : ""}
-      />
-    </div>
-  );
-}
-
 function getSuggestedVariables(formula: SalaryFormula, variablesCatalog: { code: string; name: string }[]) {
   const code = (formula.code || formula.outputVariable || "").toUpperCase();
 
@@ -624,6 +491,7 @@ export function FormulaTab({ projectId, embedded = false }: { projectId: string;
   const [prorateEnabled, setProrateEnabled] = useState(true);
   const [dirty, setDirty] = useState(false);
   const [validation, setValidation] = useState<{ valid: boolean; errors: string[] } | null>(null);
+  const [editorMode, setEditorMode] = useState<Record<string, "visual" | "raw">>({});
 
   // Dragged component state
   const [draggedItem, setDraggedItem] = useState<LibraryComponentItem | null>(null);
@@ -1265,95 +1133,207 @@ export function FormulaTab({ projectId, embedded = false }: { projectId: string;
                         </div>
                       )}
 
-                      {/* EDIT MODE PANEL */}
+                      {/* EDIT MODE PANEL - INTERACTIVE VISUAL FORMULA BUILDER */}
                       {isEditing && (
-                        <div className="pt-3 border-t border-border space-y-3">
-                          {/* Quick Chips Bar */}
-                          <div className="p-2.5 rounded-lg bg-secondary/40 border border-border/30 flex items-center gap-2 flex-wrap">
-                            <span className="text-[11px] font-bold text-muted mr-1">Chèn nhanh biến số:</span>
-                            {getSuggestedVariables(formula, variables).map((v) => (
-                              <Button
-                                key={v.code}
-                                type="button"
-                                variant="secondary"
-                                size="sm"
-                                onMouseDown={(e) => e.preventDefault()}
-                                onClick={() => {
-                                  const current = getFormulaRawText(formula);
-                                  const next = current ? `${current} ${v.name}` : v.name;
-                                  updateFormulaText(formula.id, next);
+                        <div className="pt-3 border-t border-border space-y-3.5">
+                          {(() => {
+                            const rawText = getFormulaRawText(formula);
+                            const mode = editorMode[formula.id] ?? "visual";
+                            const tokens = tokenizeFriendlyText(rawText);
 
-                                  const inputEl = inputRefs.current[formula.id];
-                                  if (inputEl) {
-                                    inputEl.focus();
-                                    const pos = next.length;
-                                    requestAnimationFrame(() => {
-                                      inputEl.setSelectionRange(pos, pos);
-                                    });
-                                  }
-                                }}
-                                className="h-7 px-2 text-[11px]"
-                              >
-                                {v.name}
-                              </Button>
-                            ))}
-                          </div>
+                            const updateFromTokens = (nextTokens: typeof tokens) => {
+                              updateFormulaText(formula.id, tokensToFriendlyText(nextTokens));
+                            };
 
-                          {/* Formula Editor Input Container */}
-                          <div className="space-y-2 pt-1">
-                            <div className="flex items-center justify-between">
-                              <span className="text-xs font-bold text-foreground flex items-center gap-1.5">
-                                <Calculator className="w-3.5 h-3.5 text-primary" /> Công thức tính toán
-                              </span>
-                              
-                              {/* Quick Operators Toolbar */}
-                              <div className="flex items-center gap-1">
-                                <span className="text-[10px] font-bold text-muted mr-1">Toán tử nhanh:</span>
-                                {["+", "-", "*", "/", "(", ")"].map((op) => (
-                                  <Button
-                                    key={op}
-                                    type="button"
-                                    variant="secondary"
-                                    size="sm"
-                                    onMouseDown={(e) => e.preventDefault()}
-                                    onClick={() => {
-                                      const current = getFormulaRawText(formula);
-                                      const next = current ? `${current} ${op} ` : `${op} `;
-                                      updateFormulaText(formula.id, next);
+                            const removeToken = (tokenIdx: number) => {
+                              const next = tokens.filter((_, i) => i !== tokenIdx);
+                              updateFromTokens(next);
+                            };
 
-                                      const inputEl = inputRefs.current[formula.id];
-                                      if (inputEl) {
-                                        inputEl.focus();
-                                        const pos = next.length;
-                                        requestAnimationFrame(() => {
-                                          inputEl.setSelectionRange(pos, pos);
-                                        });
+                            const appendTokenText = (textToAdd: string) => {
+                              const current = getFormulaRawText(formula).trim();
+                              const next = current ? `${current} ${textToAdd}` : textToAdd;
+                              updateFormulaText(formula.id, next);
+                            };
+
+                            return (
+                              <>
+                                {/* Header Bar: Mode Switcher & Guide */}
+                                <div className="flex items-center justify-between gap-2 flex-wrap pb-1">
+                                  <span className="text-xs font-bold text-foreground flex items-center gap-1.5">
+                                    <Sparkles className="w-4 h-4 text-primary" /> Xây dựng công thức trực quan
+                                  </span>
+                                  <div className="flex items-center gap-1 bg-secondary/60 p-0.5 rounded-lg border border-border">
+                                    <Button
+                                      type="button"
+                                      variant={mode === "visual" ? "primary" : "ghost"}
+                                      size="sm"
+                                      onClick={() =>
+                                        setEditorMode((prev) => ({ ...prev, [formula.id]: "visual" }))
                                       }
-                                    }}
-                                    className="h-6 w-6 p-0 text-xs font-mono font-extrabold"
-                                    title={`Chèn toán tử ${op}`}
-                                  >
-                                    {op === "*" ? "×" : op === "/" ? "÷" : op}
-                                  </Button>
-                                ))}
-                              </div>
-                            </div>
+                                      className="h-6 px-2 text-[11px] font-bold"
+                                    >
+                                      <Sparkles className="w-3 h-3 mr-1" /> Khối trực quan
+                                    </Button>
+                                    <Button
+                                      type="button"
+                                      variant={mode === "raw" ? "primary" : "ghost"}
+                                      size="sm"
+                                      onClick={() => setEditorMode((prev) => ({ ...prev, [formula.id]: "raw" }))}
+                                      className="h-6 px-2 text-[11px] font-bold"
+                                    >
+                                      <Code2 className="w-3 h-3 mr-1" /> Văn bản Excel
+                                    </Button>
+                                  </div>
+                                </div>
 
-                            {/* Inline Token Formula Editor */}
-                            <InlineTokenFormulaEditor
-                              formulaId={formula.id}
-                              value={getFormulaRawText(formula)}
-                              onChange={(val) => updateFormulaText(formula.id, val)}
-                              onKeyDown={(e, id, val) => handleFormulaKeyDown(e, id, val)}
-                              inputRef={(el) => {
-                                inputRefs.current[formula.id] = el;
-                              }}
-                            />
-                          </div>
+                                {/* VISUAL TOKEN BUILDER CANVAS */}
+                                {mode === "visual" && (
+                                  <div className="space-y-3">
+                                    {/* Dropzone Canvas */}
+                                    <div
+                                      onDragOver={(e) => e.preventDefault()}
+                                      onDrop={(e) => {
+                                        e.preventDefault();
+                                        const varName = e.dataTransfer.getData("text/plain");
+                                        if (varName) {
+                                          appendTokenText(varName);
+                                        }
+                                      }}
+                                      className="min-h-[72px] rounded-xl border-2 border-dashed border-primary/30 bg-primary/5 p-3 flex flex-wrap items-center gap-2 transition-all shadow-inner"
+                                    >
+                                      {tokens.length === 0 ? (
+                                        <div className="text-center text-xs text-muted w-full py-3 flex flex-col items-center gap-1 opacity-70">
+                                          <span>Kéo thả biến số vào đây hoặc bấm các nút bên dưới để ghép công thức</span>
+                                        </div>
+                                      ) : (
+                                        tokens.map((tok, tIdx) => {
+                                          const isVar = tok.type === "variable";
+                                          const isOp = tok.type === "operator";
+                                          const isNum = tok.type === "number";
 
-                          <span className="text-[11px] text-muted opacity-80 block pt-0.5">
-                            * Thay đổi được áp dụng tạm thời. Nhấn nút <strong>Lưu cấu hình</strong> ở phía trên để lưu chính thức vào hệ thống.
-                          </span>
+                                          return (
+                                            <span
+                                              key={tok.id}
+                                              draggable
+                                              onDragStart={(e) => {
+                                                e.dataTransfer.setData("text/plain", tok.text);
+                                              }}
+                                              className={`px-3 py-1.5 rounded-lg border font-mono text-xs font-bold inline-flex items-center gap-2 shadow-2xs group transition-all select-none ${
+                                                isVar
+                                                  ? "bg-sky-500/10 text-sky-700 dark:text-sky-300 border-sky-500/30 hover:border-sky-500 cursor-grab"
+                                                  : isOp
+                                                  ? "bg-emerald-500/10 text-emerald-700 dark:text-emerald-300 border-emerald-500/30 font-black text-sm"
+                                                  : isNum
+                                                  ? "bg-amber-500/10 text-amber-700 dark:text-amber-300 border-amber-500/30"
+                                                  : "bg-secondary text-foreground border-border"
+                                              }`}
+                                            >
+                                              <span>{tok.text}</span>
+                                              <button
+                                                type="button"
+                                                onClick={() => removeToken(tIdx)}
+                                                className="p-0.5 rounded hover:bg-black/10 dark:hover:bg-white/10 text-muted hover:text-destructive transition-colors"
+                                                title="Kéo ra hoặc bấm để xóa khỏi công thức"
+                                              >
+                                                <X className="w-3.5 h-3.5" />
+                                              </button>
+                                            </span>
+                                          );
+                                        })
+                                      )}
+                                    </div>
+
+                                    {/* Quick Operators & Numbers Toolbar */}
+                                    <div className="p-2.5 rounded-xl bg-secondary/40 border border-border/30 space-y-2">
+                                      <div className="flex items-center justify-between gap-2 flex-wrap">
+                                        <div className="flex items-center gap-1.5 flex-wrap">
+                                          <span className="text-[11px] font-bold text-muted mr-1">Toán tử:</span>
+                                          {["+", "-", "*", "/", "(", ")"].map((op) => (
+                                            <Button
+                                              key={op}
+                                              type="button"
+                                              variant="secondary"
+                                              size="sm"
+                                              onMouseDown={(e) => e.preventDefault()}
+                                              onClick={() => appendTokenText(op === "*" ? "×" : op === "/" ? "÷" : op)}
+                                              className="h-7 w-8 font-black text-xs font-mono text-emerald-600 dark:text-emerald-400 bg-emerald-500/10 hover:bg-emerald-500/20 border-emerald-500/30"
+                                            >
+                                              {op === "*" ? "×" : op === "/" ? "÷" : op}
+                                            </Button>
+                                          ))}
+                                        </div>
+
+                                        <div className="flex items-center gap-1.5 flex-wrap">
+                                          <span className="text-[11px] font-bold text-muted mr-1">Hệ số nhanh:</span>
+                                          {["1.5", "2.0", "3.0", "100", "0.08"].map((num) => (
+                                            <Button
+                                              key={num}
+                                              type="button"
+                                              variant="secondary"
+                                              size="sm"
+                                              onMouseDown={(e) => e.preventDefault()}
+                                              onClick={() => appendTokenText(num)}
+                                              className="h-7 px-2 font-mono font-bold text-[11px] text-amber-600 dark:text-amber-400 bg-amber-500/10 hover:bg-amber-500/20 border-amber-500/30"
+                                            >
+                                              {num}
+                                            </Button>
+                                          ))}
+                                        </div>
+                                      </div>
+
+                                      {/* Draggable & Clickable Variables Chips */}
+                                      <div className="pt-2 border-t border-border/40 flex items-center gap-1.5 flex-wrap">
+                                        <span className="text-[11px] font-bold text-muted mr-1">Chèn nhanh biến số:</span>
+                                        {getSuggestedVariables(formula, variables).map((v) => (
+                                          <Button
+                                            key={v.code}
+                                            type="button"
+                                            variant="secondary"
+                                            size="sm"
+                                            draggable
+                                            onDragStart={(e) => e.dataTransfer.setData("text/plain", v.name)}
+                                            onMouseDown={(e) => e.preventDefault()}
+                                            onClick={() => appendTokenText(v.name)}
+                                            className="h-7 px-2.5 text-[11px] font-medium bg-sky-500/10 text-sky-700 dark:text-sky-300 border-sky-500/30 hover:bg-sky-500/20 cursor-grab"
+                                            title="Kéo thả vào ô trên hoặc bấm để thêm"
+                                          >
+                                            + {v.name}
+                                          </Button>
+                                        ))}
+                                      </div>
+                                    </div>
+                                  </div>
+                                )}
+
+                                {/* RAW EXCEL TEXT INPUT MODE */}
+                                {mode === "raw" && (
+                                  <div className="space-y-1.5 pt-1">
+                                    <label className="form-field">
+                                      <span className="text-xs font-bold text-muted flex items-center justify-between">
+                                        <span className="text-foreground font-bold">Công thức tính toán (Cú pháp Excel)</span>
+                                        <small className="font-mono text-[10px]">Toán tử: +  -  *  /  (  )</small>
+                                      </span>
+                                      <input
+                                        ref={(el) => {
+                                          inputRefs.current[formula.id] = el;
+                                        }}
+                                        className="font-mono text-xs font-bold text-primary bg-card border border-input focus:border-primary p-2.5 rounded-lg w-full transition-colors"
+                                        value={getFormulaRawText(formula)}
+                                        onChange={(e) => updateFormulaText(formula.id, e.target.value)}
+                                        onKeyDown={(e) => handleFormulaKeyDown(e, formula.id, getFormulaRawText(formula))}
+                                        placeholder="Lương cơ bản / Giờ chuẩn * Giờ thưởng"
+                                      />
+                                    </label>
+                                  </div>
+                                )}
+
+                                <span className="text-[11px] text-muted opacity-80 block pt-0.5">
+                                  * Thay đổi được áp dụng tạm thời. Nhấn nút <strong>Lưu cấu hình</strong> ở phía trên để lưu chính thức vào hệ thống.
+                                </span>
+                              </>
+                            );
+                          })()}
                         </div>
                       )}
                     </div>
