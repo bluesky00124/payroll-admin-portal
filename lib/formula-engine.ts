@@ -208,6 +208,68 @@ export interface TokenRange {
   name: string;
 }
 
+export interface FormulaTokenItem {
+  id: string;
+  type: "variable" | "operator" | "number" | "unknown";
+  text: string;
+}
+
+export function tokenizeFormulaText(text: string): FormulaTokenItem[] {
+  if (!text || !text.trim()) return [];
+
+  const tokens: FormulaTokenItem[] = [];
+  const ranges = findVariableRanges(text);
+
+  let currentIdx = 0;
+  let rangeIdx = 0;
+
+  while (currentIdx < text.length) {
+    if (rangeIdx < ranges.length && currentIdx === ranges[rangeIdx].start) {
+      const r = ranges[rangeIdx];
+      tokens.push({
+        id: `var-${currentIdx}-${r.name}`,
+        type: "variable",
+        text: r.name,
+      });
+      currentIdx = r.end;
+      rangeIdx++;
+      continue;
+    }
+
+    const nextVarStart = rangeIdx < ranges.length ? ranges[rangeIdx].start : text.length;
+    const segment = text.slice(currentIdx, nextVarStart);
+
+    const parts = segment.split(/(\s+|[+\-*/()])/).filter(Boolean);
+
+    for (const part of parts) {
+      if (/^\s+$/.test(part)) continue;
+      if (["+", "-", "*", "/", "(", ")"].includes(part)) {
+        tokens.push({
+          id: `op-${currentIdx}-${Math.random()}`,
+          type: "operator",
+          text: part,
+        });
+      } else if (/^\d+(\.\d+)?%?$/.test(part)) {
+        tokens.push({
+          id: `num-${currentIdx}-${Math.random()}`,
+          type: "number",
+          text: part,
+        });
+      } else {
+        tokens.push({
+          id: `unknown-${currentIdx}-${Math.random()}`,
+          type: "unknown",
+          text: part,
+        });
+      }
+    }
+
+    currentIdx = nextVarStart;
+  }
+
+  return tokens;
+}
+
 export function findVariableRanges(text: string): TokenRange[] {
   const ranges: TokenRange[] = [];
   const sortedNames = [...knownVariableNames].sort((a, b) => b.length - a.length);
