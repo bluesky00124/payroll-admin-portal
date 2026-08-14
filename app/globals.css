@@ -476,6 +476,84 @@ button:disabled { cursor: not-allowed; opacity: .5; }
 .validation-result.valid { color: var(--success); background: var(--success-soft); border-color: color-mix(in srgb, var(--success) 25%, transparent); }
 .validation-result.invalid { color: var(--warning); background: var(--warning-soft); border-color: color-mix(in srgb, var(--warning) 25%, transparent); }
 
+/* Formula Tab Design Tokens & Layout Helpers */
+.formula-flow-node-income {
+  background: color-mix(in srgb, var(--success-soft) 40%, var(--card));
+  border: 1px solid color-mix(in srgb, var(--success) 22%, var(--border));
+  border-left: 4px solid var(--success);
+  border-radius: var(--radius);
+}
+
+.formula-flow-node-deduction {
+  background: color-mix(in srgb, var(--destructive-soft) 40%, var(--card));
+  border: 1px solid color-mix(in srgb, var(--destructive) 22%, var(--border));
+  border-left: 4px solid var(--destructive);
+  border-radius: var(--radius);
+}
+
+.formula-net-card {
+  background: var(--primary-soft);
+  border: 1px solid color-mix(in srgb, var(--primary) 25%, var(--border));
+  border-radius: var(--radius);
+}
+
+.formula-connector-ring {
+  position: relative;
+  z-index: 10;
+  box-shadow: 0 0 0 3px var(--card), var(--shadow-sm);
+}
+
+.formula-card-income {
+  background: var(--card);
+  border: 1px solid var(--border);
+  border-left: 4px solid var(--success);
+  border-radius: var(--radius);
+}
+
+.formula-card-deduction {
+  background: var(--card);
+  border: 1px solid var(--border);
+  border-left: 4px solid var(--destructive);
+  border-radius: var(--radius);
+}
+
+.formula-card-net {
+  background: var(--card);
+  border: 1px solid var(--border);
+  border-left: 4px solid var(--primary);
+  border-radius: var(--radius);
+}
+
+.formula-code-editor-input {
+  font-family: var(--font-mono);
+  font-size: 13px;
+  font-weight: 600;
+  background: color-mix(in srgb, var(--card) 40%, var(--secondary) 60%);
+  color: var(--foreground);
+  border: 1px solid var(--input);
+  border-radius: var(--radius-sm);
+  padding: 8px 12px;
+  transition: all 0.2s ease;
+}
+
+.formula-code-editor-input:focus {
+  border-color: var(--primary);
+  background: var(--card);
+  box-shadow: 0 0 0 3px var(--ring), 0 0 12px color-mix(in srgb, var(--primary) 15%, transparent);
+}
+
+.quick-chip {
+  transition: all 0.15s ease;
+}
+
+.quick-chip:hover {
+  transform: translateY(-1px);
+  border-color: var(--primary);
+  color: var(--primary);
+  background: var(--primary-soft);
+  box-shadow: 0 2px 8px rgba(35, 94, 231, 0.12);
+}
+
 /* Sources */
 .source-summary-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; margin-bottom: 14px; }
 .source-summary-grid article { min-height: 76px; display: flex; align-items: center; gap: 12px; padding: 14px 16px; border: 1px solid var(--border); border-radius: var(--radius); background: var(--card); }
