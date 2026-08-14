@@ -47,6 +47,8 @@ interface LibraryComponentItem {
   category: "income" | "deduction";
   defaultFormulaText: string;
   iconName: "basic" | "ot" | "bonus" | "housing" | "tax" | "insurance" | "union";
+  tagText: string;
+  description: string;
 }
 
 const libraryComponents: LibraryComponentItem[] = [
@@ -54,76 +56,92 @@ const libraryComponents: LibraryComponentItem[] = [
   {
     id: "lib-1",
     code: "VAR_BASE_01",
-    name: "Basic Salary (Lương cơ bản)",
+    name: "Basic Salary",
     outputVariable: "LUONG_CO_BAN",
     category: "income",
     defaultFormulaText: "LUONG_CO_BAN / GIO_CHUAN * GIO_THUONG",
     iconName: "basic",
+    tagText: "Cố định",
+    description: "Lương cơ bản tháng phân bổ theo giờ làm thực tế.",
   },
   {
     id: "lib-2",
     code: "CALC_OT_RATES",
-    name: "Overtime (OT - Lương tăng ca)",
+    name: "Overtime (OT)",
     outputVariable: "LUONG_OT_150",
     category: "income",
     defaultFormulaText: "NEN_TINH_OT / GIO_CHUAN * 1.5 * GIO_OT_150",
     iconName: "ot",
+    tagText: "Theo giờ OT",
+    description: "Tiền làm thêm ca ngày/đêm theo hệ số 1.5, 2.0, 3.0.",
   },
   {
     id: "lib-3",
     code: "VAR_BONUS_KPI",
-    name: "Performance Bonus (Thưởng KPI)",
+    name: "Performance Bonus",
     outputVariable: "THUONG_KPI",
     category: "income",
     defaultFormulaText: "THUONG_DANG_KY * TY_LE_HOAN_THANH",
     iconName: "bonus",
+    tagText: "Thưởng KPI",
+    description: "Tiền thưởng thành tích dựa trên tỷ lệ hoàn thành công việc.",
   },
   {
     id: "lib-4",
     code: "ALLOW_HOUSE_01",
-    name: "Housing Allowance (Phụ cấp nhà ở)",
+    name: "Housing Allowance",
     outputVariable: "PC_NHA_O_CONG",
     category: "income",
     defaultFormulaText: "PC_NHA_O / GIO_CHUAN * GIO_THUONG",
     iconName: "housing",
+    tagText: "Phụ cấp",
+    description: "Trợ cấp nhà ở phân bổ theo ngày làm việc thực tế.",
   },
   {
     id: "lib-5",
     code: "ALLOW_TRAVEL_01",
-    name: "Travel Allowance (Phụ cấp đi lại)",
+    name: "Travel Allowance",
     outputVariable: "PC_DI_LAI_CONG",
     category: "income",
     defaultFormulaText: "PC_DI_LAI / GIO_CHUAN * GIO_THUONG",
     iconName: "housing",
+    tagText: "Phụ cấp",
+    description: "Trợ cấp đi lại và xăng xe cho nhân viên.",
   },
 
   // Deductions
   {
     id: "lib-6",
     code: "TAX_PIT_TIERS",
-    name: "Income Tax (Thuế TNCN)",
+    name: "Income Tax (PIT)",
     outputVariable: "THUE_TNCN",
     category: "deduction",
     defaultFormulaText: "THU_NHAP_CHIU_THUE * 0.05",
     iconName: "tax",
+    tagText: "Thuế TNCN",
+    description: "Thuế thu nhập cá nhân trích nộp theo biểu thuế lũy tiến.",
   },
   {
     id: "lib-7",
     code: "DED_SOC_INS",
-    name: "Social Insurance (Bảo hiểm xã hội 10.5%)",
+    name: "Social Insurance",
     outputVariable: "BAO_HIEM_NV",
     category: "deduction",
     defaultFormulaText: "LUONG_DONG_BH * 0.105",
     iconName: "insurance",
+    tagText: "Bảo hiểm 10.5%",
+    description: "Tổng trích nộp BHXH (8%) + BHYT (1.5%) + BHTN (1%).",
   },
   {
     id: "lib-8",
     code: "DED_UNION_FEE",
-    name: "Union Fee (Đoàn phí công đoàn 1%)",
+    name: "Union Fee",
     outputVariable: "CONG_DOAN_NV",
     category: "deduction",
     defaultFormulaText: "LUONG_CO_BAN * 0.01",
     iconName: "union",
+    tagText: "Đoàn phí 1%",
+    description: "Kinh phí công đoàn trích nộp từ tiền lương.",
   },
 ];
 
@@ -138,7 +156,7 @@ const categoryLabels: Record<SalaryFormula["category"], string> = {
 function ComponentIcon({ name, className = "w-4 h-4" }: { name: string; className?: string }) {
   switch (name) {
     case "basic":
-      return <Coins className={className} />;
+      return <Plus className={className} />;
     case "ot":
       return <Clock className={className} />;
     case "bonus":
@@ -146,7 +164,7 @@ function ComponentIcon({ name, className = "w-4 h-4" }: { name: string; classNam
     case "housing":
       return <Home className={className} />;
     case "tax":
-      return <MinusCircle className={className} />;
+      return <Minus className={className} />;
     case "insurance":
       return <Shield className={className} />;
     case "union":
@@ -331,7 +349,7 @@ export function FormulaTab({ projectId, embedded = false }: { projectId: string;
 
   return (
     <div className="space-y-6">
-      {/* Senior Designed Header */}
+      {/* Header */}
       <div className="flex flex-wrap items-center justify-between gap-4 pb-4 border-b border-border">
         <div>
           <span className="text-[11px] font-extrabold tracking-widest uppercase bg-gradient-to-r from-primary to-emerald-500 bg-clip-text text-transparent block mb-1">
@@ -408,12 +426,12 @@ export function FormulaTab({ projectId, embedded = false }: { projectId: string;
           <div className="space-y-2.5">
             <div className="flex items-center justify-between text-xs font-extrabold tracking-wider text-muted uppercase">
               <span>EARNINGS (LƯƠNG, PHỤ CẤP)</span>
-              <span className="w-5 h-5 rounded-full bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border border-emerald-500/20 text-[10px] flex items-center justify-center font-mono font-bold">
+              <span className="w-5 h-5 rounded-full bg-primary/10 text-primary border border-primary/20 text-[10px] flex items-center justify-center font-mono font-bold">
                 {earningsLibrary.length}
               </span>
             </div>
 
-            <div className="space-y-2">
+            <div className="space-y-2.5">
               {earningsLibrary.map((item) => {
                 const isAdded = existingOutputCodes.has(item.outputVariable.toUpperCase());
 
@@ -423,34 +441,29 @@ export function FormulaTab({ projectId, embedded = false }: { projectId: string;
                     draggable={!isAdded}
                     onDragStart={() => setDraggedItem(item)}
                     onDragEnd={() => setDraggedItem(null)}
-                    className={`p-3 rounded-xl border transition-all flex items-center justify-between gap-3 ${
+                    className={`p-3.5 rounded-2xl border transition-all flex items-center justify-between gap-3 ${
                       isAdded
                         ? "bg-secondary/40 border-border opacity-50 cursor-not-allowed"
-                        : "bg-card hover:border-emerald-500/50 border-border shadow-xs hover:shadow-md cursor-grab hover:-translate-y-0.5"
+                        : "bg-card hover:border-primary/60 border-border shadow-sm hover:shadow-md cursor-grab hover:-translate-y-0.5"
                     }`}
                   >
-                    <div className="flex items-center gap-2.5 min-w-0">
-                      <GripVertical className="w-4 h-4 text-muted shrink-0 opacity-40" />
-                      <div className="w-7 h-7 rounded-lg bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border border-emerald-500/20 flex items-center justify-center shrink-0">
-                        <ComponentIcon name={item.iconName} className="w-3.5 h-3.5" />
-                      </div>
+                    <div className="flex items-center gap-3 min-w-0">
+                      <GripVertical className="w-4 h-4 text-muted/60 shrink-0 cursor-grab" />
                       <div className="min-w-0">
-                        <strong className="text-xs font-bold text-foreground truncate block leading-snug">
-                          {item.name}
-                        </strong>
-                        <code className="text-[10px] font-mono text-muted">{item.code}</code>
+                        <div className="flex items-center gap-1.5 flex-wrap">
+                          <strong className="text-xs font-bold text-foreground truncate block leading-tight">
+                            {item.name}
+                          </strong>
+                        </div>
+                        <code className="text-[10px] font-mono text-muted block mt-0.5">{item.code}</code>
                       </div>
                     </div>
 
-                    <button
-                      type="button"
-                      disabled={isAdded}
-                      onClick={() => addComponentToStructure(item)}
-                      className="w-7 h-7 rounded-lg bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 hover:bg-emerald-500 hover:text-white flex items-center justify-center shrink-0 transition-all hover:scale-110 disabled:opacity-30 disabled:pointer-events-none"
-                      title="Thêm vào cấu trúc"
-                    >
-                      <Plus className="w-4 h-4" />
-                    </button>
+                    <div className="flex items-center gap-2 shrink-0">
+                      <div className="w-7 h-7 rounded-full bg-primary/10 text-primary border border-primary/20 flex items-center justify-center shrink-0">
+                        <ComponentIcon name={item.iconName} className="w-3.5 h-3.5" />
+                      </div>
+                    </div>
                   </div>
                 );
               })}
@@ -466,7 +479,7 @@ export function FormulaTab({ projectId, embedded = false }: { projectId: string;
               </span>
             </div>
 
-            <div className="space-y-2">
+            <div className="space-y-2.5">
               {deductionsLibrary.map((item) => {
                 const isAdded = existingOutputCodes.has(item.outputVariable.toUpperCase());
 
@@ -476,34 +489,27 @@ export function FormulaTab({ projectId, embedded = false }: { projectId: string;
                     draggable={!isAdded}
                     onDragStart={() => setDraggedItem(item)}
                     onDragEnd={() => setDraggedItem(null)}
-                    className={`p-3 rounded-xl border transition-all flex items-center justify-between gap-3 ${
+                    className={`p-3.5 rounded-2xl border transition-all flex items-center justify-between gap-3 ${
                       isAdded
                         ? "bg-secondary/40 border-border opacity-50 cursor-not-allowed"
-                        : "bg-card hover:border-rose-400 border-border shadow-xs hover:shadow-md cursor-grab hover:-translate-y-0.5"
+                        : "bg-card hover:border-rose-400 border-border shadow-sm hover:shadow-md cursor-grab hover:-translate-y-0.5"
                     }`}
                   >
-                    <div className="flex items-center gap-2.5 min-w-0">
-                      <GripVertical className="w-4 h-4 text-muted shrink-0 opacity-40" />
-                      <div className="w-7 h-7 rounded-lg bg-rose-500/10 text-rose-600 dark:text-rose-400 border border-rose-500/20 flex items-center justify-center shrink-0">
-                        <ComponentIcon name={item.iconName} className="w-3.5 h-3.5" />
-                      </div>
+                    <div className="flex items-center gap-3 min-w-0">
+                      <GripVertical className="w-4 h-4 text-muted/60 shrink-0 cursor-grab" />
                       <div className="min-w-0">
-                        <strong className="text-xs font-bold text-foreground truncate block leading-snug">
+                        <strong className="text-xs font-bold text-foreground truncate block leading-tight">
                           {item.name}
                         </strong>
-                        <code className="text-[10px] font-mono text-muted">{item.code}</code>
+                        <code className="text-[10px] font-mono text-muted block mt-0.5">{item.code}</code>
                       </div>
                     </div>
 
-                    <button
-                      type="button"
-                      disabled={isAdded}
-                      onClick={() => addComponentToStructure(item)}
-                      className="w-7 h-7 rounded-lg bg-rose-500/10 text-rose-600 dark:text-rose-400 hover:bg-rose-500 hover:text-white flex items-center justify-center shrink-0 transition-all hover:scale-110 disabled:opacity-30 disabled:pointer-events-none"
-                      title="Thêm vào cấu trúc"
-                    >
-                      <Plus className="w-4 h-4" />
-                    </button>
+                    <div className="flex items-center gap-2 shrink-0">
+                      <div className="w-7 h-7 rounded-full bg-rose-500/10 text-rose-600 dark:text-rose-400 border border-rose-500/20 flex items-center justify-center shrink-0">
+                        <ComponentIcon name={item.iconName} className="w-3.5 h-3.5" />
+                      </div>
+                    </div>
                   </div>
                 );
               })}
@@ -545,10 +551,10 @@ export function FormulaTab({ projectId, embedded = false }: { projectId: string;
           </div>
 
           {/* 1. Gross Earnings Structure Box */}
-          <div className="border-l-4 border-l-emerald-500 bg-gradient-to-r from-emerald-500/10 via-emerald-500/[0.02] to-transparent rounded-r-2xl border border-emerald-500/20 p-4.5 space-y-3.5 shadow-xs">
+          <div className="border-l-4 border-l-primary bg-gradient-to-r from-primary/10 via-primary/[0.02] to-transparent rounded-r-2xl border border-primary/20 p-4.5 space-y-3.5 shadow-xs">
             <div className="flex items-center justify-between">
               <div className="flex items-center gap-2.5">
-                <div className="w-8 h-8 rounded-xl bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border border-emerald-500/20 flex items-center justify-center shrink-0">
+                <div className="w-8 h-8 rounded-xl bg-primary/10 text-primary border border-primary/20 flex items-center justify-center shrink-0">
                   <Calculator className="w-4 h-4" />
                 </div>
                 <strong className="text-sm font-bold text-foreground">Gross Earnings Structure</strong>
@@ -575,21 +581,21 @@ export function FormulaTab({ projectId, embedded = false }: { projectId: string;
                   addComponentToStructure(draggedItem);
                 }
               }}
-              className="border-2 border-dashed border-emerald-300 dark:border-emerald-800 bg-emerald-50/40 dark:bg-emerald-950/20 backdrop-blur-xs rounded-2xl p-4 min-h-[110px] flex flex-col items-center justify-center gap-2 transition-all hover:border-emerald-400"
+              className="border-2 border-dashed border-primary/40 bg-primary-soft/20 backdrop-blur-xs rounded-2xl p-5 min-h-[120px] flex flex-col items-center justify-center gap-2 transition-all hover:border-primary"
             >
               {grossComponents.length === 0 ? (
-                <div className="text-center text-xs text-muted flex flex-col items-center gap-1 py-2">
-                  <div className="w-9 h-9 rounded-xl bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 flex items-center justify-center font-bold text-lg mb-1 shadow-xs">
+                <div className="text-center text-xs text-muted flex flex-col items-center gap-1.5 py-3">
+                  <div className="w-10 h-10 rounded-2xl bg-primary/10 text-primary flex items-center justify-center font-bold text-xl mb-1 shadow-xs">
                     +
                   </div>
-                  <span className="font-medium">Drag earning components here</span>
+                  <span className="font-semibold text-foreground">Drag earning components here</span>
                 </div>
               ) : (
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5 w-full">
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 w-full">
                   {grossComponents.map((item) => (
                     <div
                       key={item.id}
-                      className="p-3 rounded-xl border border-emerald-500/20 bg-card shadow-xs flex items-center justify-between gap-2 hover:shadow-md transition-shadow"
+                      className="p-3.5 rounded-2xl border border-primary/20 bg-card shadow-sm flex items-center justify-between gap-3 hover:shadow-md transition-all"
                     >
                       <div className="flex items-center gap-2.5 min-w-0">
                         <GripVertical className="w-4 h-4 text-muted shrink-0 opacity-40" />
@@ -597,7 +603,7 @@ export function FormulaTab({ projectId, embedded = false }: { projectId: string;
                           <strong className="text-xs font-bold text-foreground truncate block leading-tight">
                             {item.name}
                           </strong>
-                          <code className="text-[10px] font-mono text-emerald-600 dark:text-emerald-400 font-bold">
+                          <code className="text-[10px] font-mono text-primary font-bold">
                             {item.outputVariable}
                           </code>
                         </div>
@@ -605,10 +611,10 @@ export function FormulaTab({ projectId, embedded = false }: { projectId: string;
                       <button
                         type="button"
                         onClick={() => removeComponentFromStructure(item.id)}
-                        className="text-muted hover:text-destructive p-1 rounded transition-colors"
+                        className="text-muted hover:text-destructive p-1 rounded-lg transition-colors"
                         title="Gỡ khỏi cấu trúc"
                       >
-                        <X className="w-3.5 h-3.5" />
+                        <X className="w-4 h-4" />
                       </button>
                     </div>
                   ))}
@@ -619,7 +625,7 @@ export function FormulaTab({ projectId, embedded = false }: { projectId: string;
 
           {/* Minus Circle Badge Divider */}
           <div className="flex justify-center -my-2">
-            <span className="w-8 h-8 rounded-full bg-card border border-border text-rose-500 font-bold text-base shadow-sm flex items-center justify-center">
+            <span className="w-9 h-9 rounded-full bg-card border border-border text-rose-500 font-bold text-base shadow-sm flex items-center justify-center">
               <Minus className="w-4 h-4" />
             </span>
           </div>
@@ -643,21 +649,21 @@ export function FormulaTab({ projectId, embedded = false }: { projectId: string;
                   addComponentToStructure(draggedItem);
                 }
               }}
-              className="border-2 border-dashed border-rose-300 dark:border-rose-800 bg-rose-50/40 dark:bg-rose-950/20 backdrop-blur-xs rounded-2xl p-4 min-h-[110px] flex flex-col items-center justify-center gap-2 transition-all hover:border-rose-400"
+              className="border-2 border-dashed border-rose-300 dark:border-rose-800 bg-rose-50/40 dark:bg-rose-950/20 backdrop-blur-xs rounded-2xl p-5 min-h-[120px] flex flex-col items-center justify-center gap-2 transition-all hover:border-rose-400"
             >
               {deductionComponents.length === 0 ? (
-                <div className="text-center text-xs text-muted flex flex-col items-center gap-1 py-2">
-                  <div className="w-9 h-9 rounded-xl bg-rose-500/10 text-rose-600 dark:text-rose-400 flex items-center justify-center font-bold text-lg mb-1 shadow-xs">
+                <div className="text-center text-xs text-muted flex flex-col items-center gap-1.5 py-3">
+                  <div className="w-10 h-10 rounded-2xl bg-rose-500/10 text-rose-600 dark:text-rose-400 flex items-center justify-center font-bold text-xl mb-1 shadow-xs">
                     +
                   </div>
-                  <span className="font-medium">Drag deduction components here</span>
+                  <span className="font-semibold text-foreground">Drag deduction components here</span>
                 </div>
               ) : (
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5 w-full">
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 w-full">
                   {deductionComponents.map((item) => (
                     <div
                       key={item.id}
-                      className="p-3 rounded-xl border border-rose-500/20 bg-card shadow-xs flex items-center justify-between gap-2 hover:shadow-md transition-shadow"
+                      className="p-3.5 rounded-2xl border border-rose-500/20 bg-card shadow-sm flex items-center justify-between gap-3 hover:shadow-md transition-all"
                     >
                       <div className="flex items-center gap-2.5 min-w-0">
                         <GripVertical className="w-4 h-4 text-muted shrink-0 opacity-40" />
@@ -673,10 +679,10 @@ export function FormulaTab({ projectId, embedded = false }: { projectId: string;
                       <button
                         type="button"
                         onClick={() => removeComponentFromStructure(item.id)}
-                        className="text-muted hover:text-destructive p-1 rounded transition-colors"
+                        className="text-muted hover:text-destructive p-1 rounded-lg transition-colors"
                         title="Gỡ khỏi cấu trúc"
                       >
-                        <X className="w-3.5 h-3.5" />
+                        <X className="w-4 h-4" />
                       </button>
                     </div>
                   ))}
@@ -687,22 +693,22 @@ export function FormulaTab({ projectId, embedded = false }: { projectId: string;
 
           {/* Equals Circle Badge */}
           <div className="flex justify-center -my-2">
-            <span className="w-8 h-8 rounded-full bg-card border border-border text-indigo-600 dark:text-indigo-400 font-bold text-sm shadow-sm flex items-center justify-center">
+            <span className="w-9 h-9 rounded-full bg-card border border-border text-indigo-600 dark:text-indigo-400 font-bold text-sm shadow-sm flex items-center justify-center">
               =
             </span>
           </div>
 
           {/* 3. Net Payable Output Card */}
-          <div className="p-4.5 rounded-2xl bg-gradient-to-br from-indigo-500/15 via-indigo-500/5 to-purple-500/10 border border-indigo-500/30 flex items-center justify-between gap-4 shadow-xs">
+          <div className="p-5 rounded-2xl bg-gradient-to-br from-indigo-500/15 via-indigo-500/5 to-purple-500/10 border border-indigo-500/30 flex items-center justify-between gap-4 shadow-sm">
             <div className="space-y-1">
-              <strong className="text-sm font-bold text-foreground block">Net Payable (Lương Thực Nhận)</strong>
+              <strong className="text-base font-bold text-foreground block">Net Payable (Lương Thực Nhận)</strong>
               <code className="text-xs font-mono font-bold text-indigo-600 dark:text-indigo-400 block">
                 FINAL_NET_PAY = GROSS_EARNINGS - TOTAL_DEDUCTIONS
               </code>
             </div>
 
-            <div className="w-11 h-11 rounded-2xl bg-indigo-500/10 text-indigo-600 dark:text-indigo-400 border border-indigo-500/20 flex items-center justify-center shrink-0 shadow-xs">
-              <Landmark className="w-5 h-5" />
+            <div className="w-12 h-12 rounded-2xl bg-indigo-500/10 text-indigo-600 dark:text-indigo-400 border border-indigo-500/20 flex items-center justify-center shrink-0 shadow-sm">
+              <Landmark className="w-6 h-6" />
             </div>
           </div>
         </section>
