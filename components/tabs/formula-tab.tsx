@@ -48,7 +48,8 @@ interface LibraryComponentItem {
   defaultFormulaText: string;
   iconName: "basic" | "ot" | "bonus" | "housing" | "tax" | "insurance" | "union";
   tagText: string;
-  description: string;
+  badgeStyle: string;
+  cardStyle: string;
 }
 
 const libraryComponents: LibraryComponentItem[] = [
@@ -62,7 +63,8 @@ const libraryComponents: LibraryComponentItem[] = [
     defaultFormulaText: "LUONG_CO_BAN / GIO_CHUAN * GIO_THUONG",
     iconName: "basic",
     tagText: "Cố định",
-    description: "Lương cơ bản tháng phân bổ theo giờ làm thực tế.",
+    badgeStyle: "bg-emerald-500/15 text-emerald-600 dark:text-emerald-400 border-emerald-500/30",
+    cardStyle: "bg-gradient-to-r from-emerald-500/5 via-emerald-500/[0.02] to-card border-emerald-500/30 hover:border-emerald-500 hover:shadow-emerald-500/10",
   },
   {
     id: "lib-2",
@@ -73,7 +75,8 @@ const libraryComponents: LibraryComponentItem[] = [
     defaultFormulaText: "NEN_TINH_OT / GIO_CHUAN * 1.5 * GIO_OT_150",
     iconName: "ot",
     tagText: "Theo giờ OT",
-    description: "Tiền làm thêm ca ngày/đêm theo hệ số 1.5, 2.0, 3.0.",
+    badgeStyle: "bg-sky-500/15 text-sky-600 dark:text-sky-400 border-sky-500/30",
+    cardStyle: "bg-gradient-to-r from-sky-500/5 via-sky-500/[0.02] to-card border-sky-500/30 hover:border-sky-500 hover:shadow-sky-500/10",
   },
   {
     id: "lib-3",
@@ -84,7 +87,8 @@ const libraryComponents: LibraryComponentItem[] = [
     defaultFormulaText: "THUONG_DANG_KY * TY_LE_HOAN_THANH",
     iconName: "bonus",
     tagText: "Thưởng KPI",
-    description: "Tiền thưởng thành tích dựa trên tỷ lệ hoàn thành công việc.",
+    badgeStyle: "bg-amber-500/15 text-amber-600 dark:text-amber-400 border-amber-500/30",
+    cardStyle: "bg-gradient-to-r from-amber-500/5 via-amber-500/[0.02] to-card border-amber-500/30 hover:border-amber-500 hover:shadow-amber-500/10",
   },
   {
     id: "lib-4",
@@ -95,7 +99,8 @@ const libraryComponents: LibraryComponentItem[] = [
     defaultFormulaText: "PC_NHA_O / GIO_CHUAN * GIO_THUONG",
     iconName: "housing",
     tagText: "Phụ cấp",
-    description: "Trợ cấp nhà ở phân bổ theo ngày làm việc thực tế.",
+    badgeStyle: "bg-purple-500/15 text-purple-600 dark:text-purple-400 border-purple-500/30",
+    cardStyle: "bg-gradient-to-r from-purple-500/5 via-purple-500/[0.02] to-card border-purple-500/30 hover:border-purple-500 hover:shadow-purple-500/10",
   },
   {
     id: "lib-5",
@@ -106,7 +111,8 @@ const libraryComponents: LibraryComponentItem[] = [
     defaultFormulaText: "PC_DI_LAI / GIO_CHUAN * GIO_THUONG",
     iconName: "housing",
     tagText: "Phụ cấp",
-    description: "Trợ cấp đi lại và xăng xe cho nhân viên.",
+    badgeStyle: "bg-teal-500/15 text-teal-600 dark:text-teal-400 border-teal-500/30",
+    cardStyle: "bg-gradient-to-r from-teal-500/5 via-teal-500/[0.02] to-card border-teal-500/30 hover:border-teal-500 hover:shadow-teal-500/10",
   },
 
   // Deductions
@@ -119,7 +125,8 @@ const libraryComponents: LibraryComponentItem[] = [
     defaultFormulaText: "THU_NHAP_CHIU_THUE * 0.05",
     iconName: "tax",
     tagText: "Thuế TNCN",
-    description: "Thuế thu nhập cá nhân trích nộp theo biểu thuế lũy tiến.",
+    badgeStyle: "bg-rose-500/15 text-rose-600 dark:text-rose-400 border-rose-500/30",
+    cardStyle: "bg-gradient-to-r from-rose-500/5 via-rose-500/[0.02] to-card border-rose-500/30 hover:border-rose-500 hover:shadow-rose-500/10",
   },
   {
     id: "lib-7",
@@ -130,7 +137,8 @@ const libraryComponents: LibraryComponentItem[] = [
     defaultFormulaText: "LUONG_DONG_BH * 0.105",
     iconName: "insurance",
     tagText: "Bảo hiểm 10.5%",
-    description: "Tổng trích nộp BHXH (8%) + BHYT (1.5%) + BHTN (1%).",
+    badgeStyle: "bg-red-500/15 text-red-600 dark:text-red-400 border-red-500/30",
+    cardStyle: "bg-gradient-to-r from-red-500/5 via-red-500/[0.02] to-card border-red-500/30 hover:border-red-500 hover:shadow-red-500/10",
   },
   {
     id: "lib-8",
@@ -141,7 +149,8 @@ const libraryComponents: LibraryComponentItem[] = [
     defaultFormulaText: "LUONG_CO_BAN * 0.01",
     iconName: "union",
     tagText: "Đoàn phí 1%",
-    description: "Kinh phí công đoàn trích nộp từ tiền lương.",
+    badgeStyle: "bg-orange-500/15 text-orange-600 dark:text-orange-400 border-orange-500/30",
+    cardStyle: "bg-gradient-to-r from-orange-500/5 via-orange-500/[0.02] to-card border-orange-500/30 hover:border-orange-500 hover:shadow-orange-500/10",
   },
 ];
 
@@ -349,10 +358,10 @@ export function FormulaTab({ projectId, embedded = false }: { projectId: string;
 
   return (
     <div className="space-y-6">
-      {/* Header */}
-      <div className="flex flex-wrap items-center justify-between gap-4 pb-4 border-b border-border">
+      {/* Rich Header Banner */}
+      <div className="p-5 rounded-2xl bg-gradient-to-r from-emerald-500/10 via-sky-500/10 to-indigo-500/10 border border-primary/20 shadow-xs flex flex-wrap items-center justify-between gap-4">
         <div>
-          <span className="text-[11px] font-extrabold tracking-widest uppercase bg-gradient-to-r from-primary to-emerald-500 bg-clip-text text-transparent block mb-1">
+          <span className="text-[11px] font-extrabold tracking-widest uppercase bg-gradient-to-r from-primary via-emerald-500 to-indigo-500 bg-clip-text text-transparent block mb-1">
             PAYROLL STRUCTURE ENGINE
           </span>
           <h2 className="text-2xl font-bold text-foreground tracking-tight">Formula Configuration</h2>
@@ -426,7 +435,7 @@ export function FormulaTab({ projectId, embedded = false }: { projectId: string;
           <div className="space-y-2.5">
             <div className="flex items-center justify-between text-xs font-extrabold tracking-wider text-muted uppercase">
               <span>EARNINGS (LƯƠNG, PHỤ CẤP)</span>
-              <span className="w-5 h-5 rounded-full bg-primary/10 text-primary border border-primary/20 text-[10px] flex items-center justify-center font-mono font-bold">
+              <span className="w-5 h-5 rounded-full bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border border-emerald-500/20 text-[10px] flex items-center justify-center font-mono font-bold">
                 {earningsLibrary.length}
               </span>
             </div>
@@ -441,10 +450,10 @@ export function FormulaTab({ projectId, embedded = false }: { projectId: string;
                     draggable={!isAdded}
                     onDragStart={() => setDraggedItem(item)}
                     onDragEnd={() => setDraggedItem(null)}
-                    className={`p-3.5 rounded-2xl border transition-all flex items-center justify-between gap-3 ${
+                    className={`p-3.5 rounded-2xl border transition-all flex items-center justify-between gap-3 shadow-xs ${
                       isAdded
                         ? "bg-secondary/40 border-border opacity-50 cursor-not-allowed"
-                        : "bg-card hover:border-primary/60 border-border shadow-sm hover:shadow-md cursor-grab hover:-translate-y-0.5"
+                        : `${item.cardStyle} shadow-xs hover:shadow-md cursor-grab hover:-translate-y-0.5`
                     }`}
                   >
                     <div className="flex items-center gap-3 min-w-0">
@@ -460,7 +469,7 @@ export function FormulaTab({ projectId, embedded = false }: { projectId: string;
                     </div>
 
                     <div className="flex items-center gap-2 shrink-0">
-                      <div className="w-7 h-7 rounded-full bg-primary/10 text-primary border border-primary/20 flex items-center justify-center shrink-0">
+                      <div className={`w-7 h-7 rounded-full border flex items-center justify-center shrink-0 shadow-xs ${item.badgeStyle}`}>
                         <ComponentIcon name={item.iconName} className="w-3.5 h-3.5" />
                       </div>
                     </div>
@@ -489,10 +498,10 @@ export function FormulaTab({ projectId, embedded = false }: { projectId: string;
                     draggable={!isAdded}
                     onDragStart={() => setDraggedItem(item)}
                     onDragEnd={() => setDraggedItem(null)}
-                    className={`p-3.5 rounded-2xl border transition-all flex items-center justify-between gap-3 ${
+                    className={`p-3.5 rounded-2xl border transition-all flex items-center justify-between gap-3 shadow-xs ${
                       isAdded
                         ? "bg-secondary/40 border-border opacity-50 cursor-not-allowed"
-                        : "bg-card hover:border-rose-400 border-border shadow-sm hover:shadow-md cursor-grab hover:-translate-y-0.5"
+                        : `${item.cardStyle} shadow-xs hover:shadow-md cursor-grab hover:-translate-y-0.5`
                     }`}
                   >
                     <div className="flex items-center gap-3 min-w-0">
@@ -506,7 +515,7 @@ export function FormulaTab({ projectId, embedded = false }: { projectId: string;
                     </div>
 
                     <div className="flex items-center gap-2 shrink-0">
-                      <div className="w-7 h-7 rounded-full bg-rose-500/10 text-rose-600 dark:text-rose-400 border border-rose-500/20 flex items-center justify-center shrink-0">
+                      <div className={`w-7 h-7 rounded-full border flex items-center justify-center shrink-0 shadow-xs ${item.badgeStyle}`}>
                         <ComponentIcon name={item.iconName} className="w-3.5 h-3.5" />
                       </div>
                     </div>
@@ -551,10 +560,10 @@ export function FormulaTab({ projectId, embedded = false }: { projectId: string;
           </div>
 
           {/* 1. Gross Earnings Structure Box */}
-          <div className="border-l-4 border-l-primary bg-gradient-to-r from-primary/10 via-primary/[0.02] to-transparent rounded-r-2xl border border-primary/20 p-4.5 space-y-3.5 shadow-xs">
+          <div className="border-l-4 border-l-emerald-500 bg-gradient-to-r from-emerald-500/15 via-emerald-500/5 to-transparent rounded-r-2xl border border-emerald-500/30 p-4.5 space-y-3.5 shadow-xs">
             <div className="flex items-center justify-between">
               <div className="flex items-center gap-2.5">
-                <div className="w-8 h-8 rounded-xl bg-primary/10 text-primary border border-primary/20 flex items-center justify-center shrink-0">
+                <div className="w-8 h-8 rounded-xl bg-emerald-500/15 text-emerald-600 dark:text-emerald-400 border border-emerald-500/30 flex items-center justify-center shrink-0 shadow-xs">
                   <Calculator className="w-4 h-4" />
                 </div>
                 <strong className="text-sm font-bold text-foreground">Gross Earnings Structure</strong>
@@ -581,11 +590,11 @@ export function FormulaTab({ projectId, embedded = false }: { projectId: string;
                   addComponentToStructure(draggedItem);
                 }
               }}
-              className="border-2 border-dashed border-primary/40 bg-primary-soft/20 backdrop-blur-xs rounded-2xl p-5 min-h-[120px] flex flex-col items-center justify-center gap-2 transition-all hover:border-primary"
+              className="border-2 border-dashed border-emerald-400/80 bg-emerald-50/50 dark:bg-emerald-950/30 backdrop-blur-xs rounded-2xl p-5 min-h-[120px] flex flex-col items-center justify-center gap-2 transition-all hover:border-emerald-500 shadow-inner"
             >
               {grossComponents.length === 0 ? (
                 <div className="text-center text-xs text-muted flex flex-col items-center gap-1.5 py-3">
-                  <div className="w-10 h-10 rounded-2xl bg-primary/10 text-primary flex items-center justify-center font-bold text-xl mb-1 shadow-xs">
+                  <div className="w-10 h-10 rounded-2xl bg-emerald-500/15 text-emerald-600 dark:text-emerald-400 flex items-center justify-center font-bold text-xl mb-1 shadow-xs border border-emerald-500/30">
                     +
                   </div>
                   <span className="font-semibold text-foreground">Drag earning components here</span>
@@ -595,7 +604,7 @@ export function FormulaTab({ projectId, embedded = false }: { projectId: string;
                   {grossComponents.map((item) => (
                     <div
                       key={item.id}
-                      className="p-3.5 rounded-2xl border border-primary/20 bg-card shadow-sm flex items-center justify-between gap-3 hover:shadow-md transition-all"
+                      className="p-3.5 rounded-2xl border border-emerald-500/30 bg-card shadow-sm flex items-center justify-between gap-3 hover:shadow-md transition-all border-l-4 border-l-emerald-500"
                     >
                       <div className="flex items-center gap-2.5 min-w-0">
                         <GripVertical className="w-4 h-4 text-muted shrink-0 opacity-40" />
@@ -603,7 +612,7 @@ export function FormulaTab({ projectId, embedded = false }: { projectId: string;
                           <strong className="text-xs font-bold text-foreground truncate block leading-tight">
                             {item.name}
                           </strong>
-                          <code className="text-[10px] font-mono text-primary font-bold">
+                          <code className="text-[10px] font-mono text-emerald-600 dark:text-emerald-400 font-bold">
                             {item.outputVariable}
                           </code>
                         </div>
@@ -625,16 +634,16 @@ export function FormulaTab({ projectId, embedded = false }: { projectId: string;
 
           {/* Minus Circle Badge Divider */}
           <div className="flex justify-center -my-2">
-            <span className="w-9 h-9 rounded-full bg-card border border-border text-rose-500 font-bold text-base shadow-sm flex items-center justify-center">
+            <span className="w-9 h-9 rounded-full bg-card border-2 border-rose-500/40 text-rose-600 dark:text-rose-400 font-bold text-base shadow-md shadow-rose-500/10 flex items-center justify-center">
               <Minus className="w-4 h-4" />
             </span>
           </div>
 
           {/* 2. Deductions Structure Box */}
-          <div className="border-l-4 border-l-rose-500 bg-gradient-to-r from-rose-500/10 via-rose-500/[0.02] to-transparent rounded-r-2xl border border-rose-500/20 p-4.5 space-y-3.5 shadow-xs">
+          <div className="border-l-4 border-l-rose-500 bg-gradient-to-r from-rose-500/15 via-rose-500/5 to-transparent rounded-r-2xl border border-rose-500/30 p-4.5 space-y-3.5 shadow-xs">
             <div className="flex items-center justify-between">
               <div className="flex items-center gap-2.5">
-                <div className="w-8 h-8 rounded-xl bg-rose-500/10 text-rose-600 dark:text-rose-400 border border-rose-500/20 flex items-center justify-center shrink-0">
+                <div className="w-8 h-8 rounded-xl bg-rose-500/15 text-rose-600 dark:text-rose-400 border border-rose-500/30 flex items-center justify-center shrink-0 shadow-xs">
                   <Shield className="w-4 h-4" />
                 </div>
                 <strong className="text-sm font-bold text-foreground">Deductions Structure</strong>
@@ -649,11 +658,11 @@ export function FormulaTab({ projectId, embedded = false }: { projectId: string;
                   addComponentToStructure(draggedItem);
                 }
               }}
-              className="border-2 border-dashed border-rose-300 dark:border-rose-800 bg-rose-50/40 dark:bg-rose-950/20 backdrop-blur-xs rounded-2xl p-5 min-h-[120px] flex flex-col items-center justify-center gap-2 transition-all hover:border-rose-400"
+              className="border-2 border-dashed border-rose-400/80 bg-rose-50/50 dark:bg-rose-950/30 backdrop-blur-xs rounded-2xl p-5 min-h-[120px] flex flex-col items-center justify-center gap-2 transition-all hover:border-rose-500 shadow-inner"
             >
               {deductionComponents.length === 0 ? (
                 <div className="text-center text-xs text-muted flex flex-col items-center gap-1.5 py-3">
-                  <div className="w-10 h-10 rounded-2xl bg-rose-500/10 text-rose-600 dark:text-rose-400 flex items-center justify-center font-bold text-xl mb-1 shadow-xs">
+                  <div className="w-10 h-10 rounded-2xl bg-rose-500/15 text-rose-600 dark:text-rose-400 flex items-center justify-center font-bold text-xl mb-1 shadow-xs border border-rose-500/30">
                     +
                   </div>
                   <span className="font-semibold text-foreground">Drag deduction components here</span>
@@ -663,7 +672,7 @@ export function FormulaTab({ projectId, embedded = false }: { projectId: string;
                   {deductionComponents.map((item) => (
                     <div
                       key={item.id}
-                      className="p-3.5 rounded-2xl border border-rose-500/20 bg-card shadow-sm flex items-center justify-between gap-3 hover:shadow-md transition-all"
+                      className="p-3.5 rounded-2xl border border-rose-500/30 bg-card shadow-sm flex items-center justify-between gap-3 hover:shadow-md transition-all border-l-4 border-l-rose-500"
                     >
                       <div className="flex items-center gap-2.5 min-w-0">
                         <GripVertical className="w-4 h-4 text-muted shrink-0 opacity-40" />
@@ -693,13 +702,13 @@ export function FormulaTab({ projectId, embedded = false }: { projectId: string;
 
           {/* Equals Circle Badge */}
           <div className="flex justify-center -my-2">
-            <span className="w-9 h-9 rounded-full bg-card border border-border text-indigo-600 dark:text-indigo-400 font-bold text-sm shadow-sm flex items-center justify-center">
+            <span className="w-9 h-9 rounded-full bg-card border-2 border-indigo-500/40 text-indigo-600 dark:text-indigo-400 font-bold text-sm shadow-md shadow-indigo-500/10 flex items-center justify-center">
               =
             </span>
           </div>
 
           {/* 3. Net Payable Output Card */}
-          <div className="p-5 rounded-2xl bg-gradient-to-br from-indigo-500/15 via-indigo-500/5 to-purple-500/10 border border-indigo-500/30 flex items-center justify-between gap-4 shadow-sm">
+          <div className="p-5 rounded-2xl bg-gradient-to-r from-indigo-500/20 via-indigo-500/10 to-purple-500/15 border-2 border-indigo-500/40 flex items-center justify-between gap-4 shadow-md">
             <div className="space-y-1">
               <strong className="text-base font-bold text-foreground block">Net Payable (Lương Thực Nhận)</strong>
               <code className="text-xs font-mono font-bold text-indigo-600 dark:text-indigo-400 block">
@@ -707,7 +716,7 @@ export function FormulaTab({ projectId, embedded = false }: { projectId: string;
               </code>
             </div>
 
-            <div className="w-12 h-12 rounded-2xl bg-indigo-500/10 text-indigo-600 dark:text-indigo-400 border border-indigo-500/20 flex items-center justify-center shrink-0 shadow-sm">
+            <div className="w-12 h-12 rounded-2xl bg-indigo-500/20 text-indigo-600 dark:text-indigo-400 border border-indigo-500/40 flex items-center justify-center shrink-0 shadow-sm">
               <Landmark className="w-6 h-6" />
             </div>
           </div>
@@ -746,7 +755,7 @@ export function FormulaTab({ projectId, embedded = false }: { projectId: string;
                 >
                   <div className="flex flex-wrap items-center justify-between gap-3">
                     <div className="flex items-center gap-3">
-                      <span className="w-7 h-7 rounded-full bg-secondary border border-border text-muted font-mono text-xs font-bold flex items-center justify-center shrink-0">
+                      <span className="w-7 h-7 rounded-full bg-primary/10 text-primary border border-primary/20 font-mono text-xs font-bold flex items-center justify-center shrink-0 shadow-xs">
                         {String(idx + 1).padStart(2, "0")}
                       </span>
                       <div>
