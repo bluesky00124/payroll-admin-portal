@@ -482,8 +482,6 @@ function FormulaCalculatorModal({
     }
   }, [formula, variableNameMap]);
 
-  if (!formula) return null;
-
   const insertAtCursor = (token: string) => {
     const el = inputRef.current;
     if (!el) {
@@ -544,6 +542,7 @@ function FormulaCalculatorModal({
   };
 
   const parsedAST = useMemo(() => {
+    if (!formulaText) return null;
     try {
       return parseExpressionText(formulaText);
     } catch {
@@ -580,6 +579,8 @@ function FormulaCalculatorModal({
       return { error: e.message };
     }
   }, [parsedAST]);
+
+  if (!formula) return null;
 
   return (
     <Modal
