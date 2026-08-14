@@ -1054,7 +1054,7 @@ export function FormulaTab({ projectId, embedded = false }: { projectId: string;
 
                         <div className="flex items-center gap-1.5">
                           <Button
-                            variant="secondary"
+                            variant="ghost"
                             size="sm"
                             onClick={() => toggleEditFormula(formula.id)}
                             title={isEditing ? "Thu gọn" : "Chỉnh sửa công thức"}
