@@ -418,6 +418,115 @@ function LiveSyntaxPreview({ text }: { text: string }) {
   );
 }
 
+function InlineTokenFormulaEditor({
+  formulaId,
+  value,
+  onChange,
+  onKeyDown,
+  inputRef,
+  placeholder = "Nhập công thức hoặc chọn các biến số ở trên...",
+}: {
+  formulaId: string;
+  value: string;
+  onChange: (val: string) => void;
+  onKeyDown: (e: React.KeyboardEvent<HTMLInputElement>, id: string, val: string) => void;
+  inputRef: (el: HTMLInputElement | null) => void;
+  placeholder?: string;
+}) {
+  const tokens = useMemo(() => {
+    if (!value.trim()) return [];
+    const rawTokens = value.split(/(\s+)/);
+    const result: { id: string; type: "var" | "op" | "num"; text: string }[] = [];
+
+    rawTokens.forEach((tok, idx) => {
+      if (/^\s+$/.test(tok)) return;
+      if (["+", "-", "*", "/", "(", ")"].includes(tok)) {
+        result.push({ id: `op-${idx}-${tok}`, type: "op", text: tok });
+      } else if (/^\d+(\.\d+)?%?$/.test(tok)) {
+        result.push({ id: `num-${idx}-${tok}`, type: "num", text: tok });
+      } else {
+        result.push({ id: `var-${idx}-${tok}`, type: "var", text: tok });
+      }
+    });
+
+    return result;
+  }, [value]);
+
+  const removeToken = (tokenText: string) => {
+    const escaped = tokenText.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+    const regex = new RegExp(`\\b${escaped}\\b`, "g");
+    const next = value.replace(regex, "").replace(/\s+/g, " ").trim();
+    onChange(next);
+  };
+
+  return (
+    <div
+      onClick={() => {
+        const el = document.getElementById(`inline-input-${formulaId}`) as HTMLInputElement;
+        if (el) el.focus();
+      }}
+      className="min-h-[46px] p-2 bg-card border border-input rounded-xl focus-within:border-primary focus-within:ring-2 focus-within:ring-primary/15 transition-all shadow-xs flex items-center gap-1.5 flex-wrap cursor-text"
+    >
+      <span className="px-2.5 py-1 bg-secondary/70 text-primary font-serif italic font-extrabold text-xs rounded-md shrink-0 select-none mr-0.5">
+        fx
+      </span>
+
+      {tokens.map((tok) => {
+        if (tok.type === "op") {
+          return (
+            <span
+              key={tok.id}
+              className="px-2 py-0.5 rounded-md bg-secondary/80 text-emerald-600 dark:text-emerald-400 font-mono font-extrabold text-xs select-none"
+            >
+              {tok.text === "*" ? "×" : tok.text === "/" ? "÷" : tok.text}
+            </span>
+          );
+        }
+        if (tok.type === "num") {
+          return (
+            <span
+              key={tok.id}
+              className="px-2 py-0.5 rounded-md bg-amber-500/10 text-amber-600 dark:text-amber-400 font-mono font-bold text-xs select-none"
+            >
+              {tok.text}
+            </span>
+          );
+        }
+        return (
+          <span
+            key={tok.id}
+            className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-primary/10 border border-primary/25 text-primary font-semibold text-xs shadow-2xs select-none"
+          >
+            <span>{tok.text}</span>
+            <button
+              type="button"
+              onMouseDown={(e) => e.preventDefault()}
+              onClick={(e) => {
+                e.stopPropagation();
+                removeToken(tok.text);
+              }}
+              className="text-primary/70 hover:text-destructive hover:bg-primary/20 rounded-full p-0.5 transition-colors"
+              title={`Xóa "${tok.text}"`}
+            >
+              <X className="w-3 h-3" />
+            </button>
+          </span>
+        );
+      })}
+
+      <input
+        id={`inline-input-${formulaId}`}
+        ref={inputRef}
+        className="flex-1 min-w-[120px] bg-transparent p-1 font-mono text-xs font-bold text-primary focus:outline-none placeholder:text-muted/40"
+        value={value}
+        onChange={(e) => onChange(e.target.value)}
+        onKeyDown={(e) => onKeyDown(e, formulaId, value)}
+        placeholder={tokens.length === 0 ? placeholder : ""}
+      />
+    </div>
+  );
+}
+
 function getSuggestedVariables(formula: SalaryFormula, variablesCatalog: { code: string; name: string }[]) {
   const code = (formula.code || formula.outputVariable || "").toUpperCase();
 
@@ -1230,25 +1339,16 @@ export function FormulaTab({ projectId, embedded = false }: { projectId: string;
                               </div>
                             </div>
 
-                            {/* Excel/IDE Style Formula Bar */}
-                            <div className="flex items-center rounded-lg border border-input bg-card focus-within:border-primary focus-within:ring-2 focus-within:ring-primary/15 transition-all shadow-xs">
-                              <span className="px-3 py-2.5 bg-secondary/60 text-primary font-serif italic font-extrabold text-xs border-r border-border/60 shrink-0 select-none">
-                                fx
-                              </span>
-                              <input
-                                ref={(el) => {
-                                  inputRefs.current[formula.id] = el;
-                                }}
-                                className="w-full bg-transparent px-3 py-2 font-mono text-xs font-bold text-primary focus:outline-none placeholder:text-muted/50"
-                                value={getFormulaRawText(formula)}
-                                onChange={(e) => updateFormulaText(formula.id, e.target.value)}
-                                onKeyDown={(e) => handleFormulaKeyDown(e, formula.id, getFormulaRawText(formula))}
-                                placeholder="Nhập hoặc chèn các biến số và toán tử..."
-                              />
-                            </div>
-
-                            {/* Real-time Syntax Preview Stream */}
-                            <LiveSyntaxPreview text={getFormulaRawText(formula)} />
+                            {/* Inline Token Formula Editor */}
+                            <InlineTokenFormulaEditor
+                              formulaId={formula.id}
+                              value={getFormulaRawText(formula)}
+                              onChange={(val) => updateFormulaText(formula.id, val)}
+                              onKeyDown={(e, id, val) => handleFormulaKeyDown(e, id, val)}
+                              inputRef={(el) => {
+                                inputRefs.current[formula.id] = el;
+                              }}
+                            />
                           </div>
 
                           <span className="text-[11px] text-muted opacity-80 block pt-0.5">
