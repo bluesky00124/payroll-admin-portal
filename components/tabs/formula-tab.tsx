@@ -803,10 +803,10 @@ export function FormulaTab({ projectId, embedded = false }: { projectId: string;
                     draggable={!isAdded}
                     onDragStart={() => setDraggedItem(item)}
                     onDragEnd={() => setDraggedItem(null)}
-                    className={`p-3 rounded-xl border transition-all flex items-center justify-between gap-3 shadow-2xs ${
+                    className={`p-3 rounded-xl border border-transparent transition-all flex items-center justify-between gap-3 ${
                       isAdded
-                        ? "bg-secondary/30 border-border/30 opacity-40 cursor-not-allowed"
-                        : "bg-card border-border/40 hover:border-primary/40 hover:shadow-xs cursor-grab hover:-translate-y-0.5"
+                        ? "bg-secondary/40 opacity-40 cursor-not-allowed shadow-none"
+                        : "bg-card shadow-xs hover:shadow-md cursor-grab hover:-translate-y-0.5"
                     }`}
                   >
                     <div className="flex items-center gap-3 min-w-0">
@@ -842,10 +842,10 @@ export function FormulaTab({ projectId, embedded = false }: { projectId: string;
                     draggable={!isAdded}
                     onDragStart={() => setDraggedItem(item)}
                     onDragEnd={() => setDraggedItem(null)}
-                    className={`p-3 rounded-xl border transition-all flex items-center justify-between gap-3 shadow-2xs ${
+                    className={`p-3 rounded-xl border border-transparent transition-all flex items-center justify-between gap-3 ${
                       isAdded
-                        ? "bg-secondary/30 border-border/30 opacity-40 cursor-not-allowed"
-                        : "bg-card border-border/40 hover:border-primary/40 hover:shadow-xs cursor-grab hover:-translate-y-0.5"
+                        ? "bg-secondary/40 opacity-40 cursor-not-allowed shadow-none"
+                        : "bg-card shadow-xs hover:shadow-md cursor-grab hover:-translate-y-0.5"
                     }`}
                   >
                     <div className="flex items-center gap-3 min-w-0">
@@ -1028,10 +1028,10 @@ export function FormulaTab({ projectId, embedded = false }: { projectId: string;
                       key={formula.id}
                       className={`rounded-xl border transition-all p-4 space-y-3.5 ${
                         isModified
-                          ? "bg-amber-500/5 dark:bg-amber-950/20 border-border/60 border-l-4 border-l-amber-500 shadow-xs"
+                          ? "bg-amber-500/5 dark:bg-amber-950/20 border-transparent border-l-4 border-l-amber-500 shadow-sm"
                           : isEditing
-                          ? "bg-card border-primary ring-1 ring-primary/20 shadow-sm"
-                          : "bg-card border-border/40 hover:border-primary/40 shadow-2xs"
+                          ? "bg-card border-transparent ring-2 ring-primary/20 shadow-md"
+                          : "bg-card border-transparent shadow-xs hover:shadow-md hover:-translate-y-0.5"
                       }`}
                     >
                       <div className="flex flex-wrap items-center justify-between gap-3">
@@ -1075,7 +1075,7 @@ export function FormulaTab({ projectId, embedded = false }: { projectId: string;
 
                       {/* VIEW MODE SUMMARY */}
                       {!isEditing && (
-                        <div className="p-2.5 rounded-lg bg-secondary/40 border border-border/70 flex items-center gap-2 text-xs">
+                        <div className="p-2.5 rounded-lg bg-secondary/50 border border-transparent flex items-center gap-2 text-xs">
                           <span className="text-muted font-bold shrink-0">Biểu thức:</span>
                           <code className="font-mono text-xs font-bold text-primary truncate">
                             {getFormulaRawText(formula)}
@@ -1087,7 +1087,7 @@ export function FormulaTab({ projectId, embedded = false }: { projectId: string;
                       {isEditing && (
                         <div className="pt-3 border-t border-border space-y-3">
                           {/* Quick Chips Bar */}
-                          <div className="p-2.5 rounded-lg bg-secondary/40 border border-border/70 flex items-center gap-2 flex-wrap">
+                          <div className="p-2.5 rounded-lg bg-secondary/50 border border-transparent flex items-center gap-2 flex-wrap">
                             <span className="text-[11px] font-bold text-muted mr-1">Chèn nhanh biến số:</span>
                             {getSuggestedVariables(formula, variables).map((v) => (
                               <Button
