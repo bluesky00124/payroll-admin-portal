@@ -803,13 +803,13 @@ export function FormulaTab({ projectId, embedded = false }: { projectId: string;
                     draggable={!isAdded}
                     onDragStart={() => setDraggedItem(item)}
                     onDragEnd={() => setDraggedItem(null)}
-                    className={`p-3 rounded-xl border transition-all flex items-center justify-between gap-3 ${
+                    className={`p-2.5 px-3 rounded-xl border transition-all flex items-center justify-between gap-2.5 ${
                       isAdded
-                        ? "bg-secondary/40 border-border/20 opacity-40 cursor-not-allowed shadow-none"
+                        ? "bg-secondary/40 border-border/20 opacity-50 cursor-not-allowed shadow-none"
                         : "bg-card border-border/30 shadow-2xs hover:shadow-md hover:border-primary/40 cursor-grab hover:-translate-y-0.5"
                     }`}
                   >
-                    <div className="flex items-center gap-3 min-w-0">
+                    <div className="flex items-center gap-2.5 min-w-0">
                       <GripVertical className="w-4 h-4 text-muted/60 shrink-0 cursor-grab" />
                       <div className="min-w-0">
                         <strong className="text-xs font-bold text-foreground truncate block leading-tight">
@@ -817,6 +817,26 @@ export function FormulaTab({ projectId, embedded = false }: { projectId: string;
                         </strong>
                       </div>
                     </div>
+
+                    {isAdded ? (
+                      <span className="text-[11px] font-semibold text-muted shrink-0 flex items-center gap-1">
+                        <CheckCircle2 className="w-3.5 h-3.5 text-emerald-500" /> Đã thêm
+                      </span>
+                    ) : (
+                      <Button
+                        type="button"
+                        variant="ghost"
+                        size="sm"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          addComponentToStructure(item);
+                        }}
+                        title={`Thêm "${item.name}" vào cấu trúc`}
+                        className="h-7 w-7 p-0 rounded-lg text-primary hover:bg-primary-soft shrink-0"
+                      >
+                        <Plus className="w-3.5 h-3.5" />
+                      </Button>
+                    )}
                   </div>
                 );
               })}
@@ -842,13 +862,13 @@ export function FormulaTab({ projectId, embedded = false }: { projectId: string;
                     draggable={!isAdded}
                     onDragStart={() => setDraggedItem(item)}
                     onDragEnd={() => setDraggedItem(null)}
-                    className={`p-3 rounded-xl border transition-all flex items-center justify-between gap-3 ${
+                    className={`p-2.5 px-3 rounded-xl border transition-all flex items-center justify-between gap-2.5 ${
                       isAdded
-                        ? "bg-secondary/40 border-border/20 opacity-40 cursor-not-allowed shadow-none"
+                        ? "bg-secondary/40 border-border/20 opacity-50 cursor-not-allowed shadow-none"
                         : "bg-card border-border/30 shadow-2xs hover:shadow-md hover:border-primary/40 cursor-grab hover:-translate-y-0.5"
                     }`}
                   >
-                    <div className="flex items-center gap-3 min-w-0">
+                    <div className="flex items-center gap-2.5 min-w-0">
                       <GripVertical className="w-4 h-4 text-muted/60 shrink-0 cursor-grab" />
                       <div className="min-w-0">
                         <strong className="text-xs font-bold text-foreground truncate block leading-tight">
@@ -856,6 +876,26 @@ export function FormulaTab({ projectId, embedded = false }: { projectId: string;
                         </strong>
                       </div>
                     </div>
+
+                    {isAdded ? (
+                      <span className="text-[11px] font-semibold text-muted shrink-0 flex items-center gap-1">
+                        <CheckCircle2 className="w-3.5 h-3.5 text-emerald-500" /> Đã thêm
+                      </span>
+                    ) : (
+                      <Button
+                        type="button"
+                        variant="ghost"
+                        size="sm"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          addComponentToStructure(item);
+                        }}
+                        title={`Thêm "${item.name}" vào cấu trúc`}
+                        className="h-7 w-7 p-0 rounded-lg text-primary hover:bg-primary-soft shrink-0"
+                      >
+                        <Plus className="w-3.5 h-3.5" />
+                      </Button>
+                    )}
                   </div>
                 );
               })}
