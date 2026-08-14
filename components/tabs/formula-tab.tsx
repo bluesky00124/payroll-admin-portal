@@ -1,46 +1,43 @@
 "use client";
 
-import * as Switch from "@radix-ui/react-switch";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import {
   AlertCircle,
-  ArrowDown,
-  ArrowUp,
-  Building2,
   Calculator,
-  Check,
   CheckCircle2,
   ChevronUp,
-  Clock,
-  Coins,
-  DollarSign,
   GripVertical,
-  Home,
   Landmark,
   Layers,
   Minus,
-  MinusCircle,
   Pencil,
   Plus,
-  PlusCircle,
-  RotateCcw,
   Save,
   Search,
   Shield,
-  Sparkles,
   Trash2,
-  TrendingUp,
-  Users,
   Variable,
   Wand2,
   X,
 } from "lucide-react";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { useToast } from "@/components/providers";
-import { Badge, Button, ErrorState, LoadingBlock, Modal, SaveBar } from "@/components/ui";
+import { Badge, Button, ErrorState, LoadingBlock, SaveBar } from "@/components/ui";
 import { api } from "@/lib/api";
-import { evaluateExpression, expressionToFriendlyText, expressionToText, findVariableRanges, parseExpressionText } from "@/lib/formula-engine";
-import type { SalaryFormula } from "@/lib/types";
+import {
+  applyRounding,
+  collectVariables,
+  evaluateExpression,
+  expressionToFriendlyText,
+  expressionToText,
+  findVariableRanges,
+  parseExpressionText,
+  parseExpressionTextResult,
+  tokenizeFriendlyText,
+  tokensToFriendlyText,
+  type VisualToken,
+} from "@/lib/formula-engine";
+import type { FormulaVariable, SalaryFormula } from "@/lib/types";
 import { uid } from "@/lib/utils";
 
 interface LibraryComponentItem {
@@ -298,95 +295,6 @@ const categoryLabels: Record<SalaryFormula["category"], string> = {
   attendance: "Chấm công",
 };
 
-function ComponentIcon({ name, className = "w-4 h-4" }: { name: string; className?: string }) {
-  switch (name) {
-    case "basic":
-      return <Plus className={className} />;
-    case "ot":
-      return <Clock className={className} />;
-    case "bonus":
-      return <TrendingUp className={className} />;
-    case "housing":
-      return <Home className={className} />;
-    case "tax":
-      return <Minus className={className} />;
-    case "insurance":
-      return <Shield className={className} />;
-    case "union":
-      return <Users className={className} />;
-    default:
-      return <Coins className={className} />;
-  }
-}
-
-function getVietnameseLabel(code: string, variableNameMap?: Map<string, string>): string {
-  if (!code) return "";
-  if (variableNameMap && variableNameMap.has(code)) {
-    return variableNameMap.get(code)!;
-  }
-  const knownDict: Record<string, string> = {
-    LUONG_CO_BAN: "Lương cơ bản",
-    NEN_TINH_OT: "Nền tính tăng ca",
-    GIO_CHUAN: "Giờ chuẩn tháng",
-    GIO_THUONG: "Giờ công thường",
-    GIO_OT_150: "Giờ tăng ca 150%",
-    TONG_PHU_CAP: "Tổng phụ cấp",
-    BAO_HIEM_NV: "Bảo hiểm nhân viên",
-    KHAU_TRU_KHAC: "Khấu trừ khác",
-    LUONG_NGAY_CONG: "Lương theo giờ công",
-    LUONG_OT_150: "Lương tăng ca 150%",
-    TONG_THU_NHAP: "Tổng thu nhập",
-    TONG_KHAU_TRU: "Tổng khấu trừ",
-    THUC_LANH: "Tổng thực lãnh",
-    VAR_BASE_SCALE: "Hệ số lương cơ bản",
-    VAR_BASE_01: "Lương cơ bản",
-    CALC_OT_RATES: "Lương tăng ca",
-    VAR_BONUS_KPI: "Thưởng hiệu suất KPI",
-    ALLOW_HOUSE_01: "Phụ cấp nhà ở",
-    ALLOW_TRAVEL_01: "Phụ cấp đi lại & xăng xe",
-    TAX_PIT_TIERS: "Thuế TNCN",
-    DED_SOC_INS: "Bảo hiểm bắt buộc",
-    DED_UNION_FEE: "Kinh phí Công đoàn",
-  };
-  return knownDict[code] ?? code;
-}
-
-function FormulaCodeBadge({ text, variableNameMap }: { text: string; variableNameMap?: Map<string, string> }) {
-  if (!text) return null;
-  const tokens = text.split(/(\s+)/);
-
-  return (
-    <div className="px-3.5 py-2 rounded-xl bg-slate-950 border border-slate-800 text-slate-100 font-sans text-xs font-semibold shadow-inner inline-flex items-center gap-1.5 flex-wrap">
-      {tokens.map((tok, idx) => {
-        if (/^\s+$/.test(tok)) return null;
-        if (["+", "-", "*", "/", "(", ")"].includes(tok)) {
-          return (
-            <span key={idx} className="text-emerald-400 font-bold text-sm">
-              {tok === "*" ? "×" : tok === "/" ? "÷" : tok}
-            </span>
-          );
-        }
-        if (/^\d+(\.\d+)?$/.test(tok)) {
-          return (
-            <span key={idx} className="text-amber-400 font-bold">
-              {tok}
-            </span>
-          );
-        }
-        const label = getVietnameseLabel(tok, variableNameMap);
-        return (
-          <span
-            key={idx}
-            className="text-sky-300 bg-sky-950/80 px-2 py-0.5 rounded-md border border-sky-800/60 text-[11.5px]"
-          >
-            {label}
-          </span>
-        );
-      })}
-    </div>
-  );
-}
-
 function getSuggestedVariables(formula: SalaryFormula, variablesCatalog: { code: string; name: string }[]) {
   const code = (formula.code || formula.outputVariable || "").toUpperCase();
 
@@ -456,8 +364,34 @@ function getSuggestedVariables(formula: SalaryFormula, variablesCatalog: { code:
       ];
 }
 
+type FormulaEditorMode = "visual" | "syntax";
+
+interface FormulaEditorState {
+  expression: SalaryFormula["expression"] | null;
+  errors: string[];
+  tokens: VisualToken[];
+  technicalText: string;
+}
+
+interface FormulaPreviewState {
+  value: number | null;
+  error?: string;
+}
+
+function formatSampleValue(value: number, unit?: string): string {
+  const formatted = new Intl.NumberFormat("vi-VN", {
+    maximumFractionDigits: Number.isInteger(value) ? 0 : 2,
+  }).format(value);
+  return unit ? `${formatted} ${unit}` : formatted;
+}
+
+function toVisualToken(text: string, type: VisualToken["type"]): VisualToken {
+  return { id: `inserted-${type}-${text}`, type, text };
+}
+
 
 export function FormulaTab({ projectId, embedded = false }: { projectId: string; embedded?: boolean }) {
+  void embedded;
   const { notify } = useToast();
   const queryClient = useQueryClient();
 
@@ -467,7 +401,10 @@ export function FormulaTab({ projectId, embedded = false }: { projectId: string;
   const [formulas, setFormulas] = useState<SalaryFormula[]>([]);
   const [rawTexts, setRawTexts] = useState<Record<string, string>>({});
   const [editingFormulaIds, setEditingFormulaIds] = useState<Set<string>>(new Set());
-  const inputRefs = useRef<Record<string, HTMLInputElement | null>>({});
+  const [editorModes, setEditorModes] = useState<Record<string, FormulaEditorMode>>({});
+  const [visualCursorPositions, setVisualCursorPositions] = useState<Record<string, number>>({});
+  const [constantInputs, setConstantInputs] = useState<Record<string, string>>({});
+  const inputRefs = useRef<Record<string, HTMLTextAreaElement | null>>({});
 
   const toggleEditFormula = (id: string) => {
     setEditingFormulaIds((prev) => {
@@ -480,9 +417,7 @@ export function FormulaTab({ projectId, embedded = false }: { projectId: string;
       return next;
     });
   };
-  const [activeTab, setActiveTab] = useState<"grossToNet" | "netToGross" | "severance">("grossToNet");
   const [filterSearch, setFilterSearch] = useState("");
-  const [prorateEnabled, setProrateEnabled] = useState(true);
   const [dirty, setDirty] = useState(false);
   const [validation, setValidation] = useState<{ valid: boolean; errors: string[] } | null>(null);
 
@@ -493,6 +428,111 @@ export function FormulaTab({ projectId, embedded = false }: { projectId: string;
 
   const variables = useMemo(() => variablesQuery.data ?? [], [variablesQuery.data]);
   const variableNameMap = useMemo(() => new Map(variables.map((item) => [item.code, item.name])), [variables]);
+  const expressionAliases = useMemo(() => {
+    const aliases = new Map<string, string>(variables.map((item) => [item.name, item.code]));
+    formulas.forEach((formula) => aliases.set(formula.name, formula.outputVariable));
+    return aliases;
+  }, [formulas, variables]);
+  const knownVariableCodes = useMemo(
+    () => new Set([...variables.map((item) => item.code), ...formulas.map((formula) => formula.outputVariable)]),
+    [formulas, variables],
+  );
+  const availableVariables = useMemo<FormulaVariable[]>(
+    () => [
+      ...variables,
+      ...formulas.map((formula) => ({
+        code: formula.outputVariable,
+        name: formula.name,
+        group: "formula" as const,
+        sampleValue: 0,
+        unit: "VNĐ",
+      })),
+    ],
+    [formulas, variables],
+  );
+
+  const formulaEditorStates = useMemo(() => {
+    const states = new Map<string, FormulaEditorState>();
+
+    formulas.forEach((formula) => {
+      const rawText = rawTexts[formula.id] ?? expressionToFriendlyText(formula.expression, variableNameMap);
+      const parsed = parseExpressionTextResult(rawText, expressionAliases);
+      const errors = [...parsed.errors];
+
+      if (parsed.expression) {
+        const referencedVariables = collectVariables(parsed.expression);
+        referencedVariables.forEach((code) => {
+          if (!knownVariableCodes.has(code)) errors.push(`Biến “${code}” không tồn tại trong danh mục dữ liệu.`);
+        });
+        if (referencedVariables.includes(formula.outputVariable)) {
+          errors.push("Công thức không thể tham chiếu chính kết quả của nó.");
+        }
+      }
+
+      states.set(formula.id, {
+        expression: errors.length === 0 ? parsed.expression : null,
+        errors: [...new Set(errors)],
+        tokens: tokenizeFriendlyText(rawText),
+        technicalText: parsed.expression ? expressionToText(parsed.expression) : parsed.normalizedText,
+      });
+    });
+
+    return states;
+  }, [expressionAliases, formulas, knownVariableCodes, rawTexts, variableNameMap]);
+
+  const hasFormulaErrors = useMemo(
+    () => formulas.some((formula) => (formulaEditorStates.get(formula.id)?.errors.length ?? 0) > 0),
+    [formulaEditorStates, formulas],
+  );
+
+  const formulaPreviewStates = useMemo(() => {
+    const values: Record<string, number> = Object.fromEntries(
+      variables.map((variable) => [variable.code, variable.sampleValue]),
+    );
+    const previews = new Map<string, FormulaPreviewState>();
+    const pending = new Set(formulas.map((formula) => formula.id));
+
+    for (let pass = 0; pass <= formulas.length; pass++) {
+      let progressed = false;
+      formulas.forEach((formula) => {
+        if (!pending.has(formula.id)) return;
+        const editorState = formulaEditorStates.get(formula.id);
+        if (!editorState?.expression || editorState.errors.length > 0) {
+          pending.delete(formula.id);
+          previews.set(formula.id, { value: null, error: "Cần sửa công thức trước khi chạy thử." });
+          return;
+        }
+
+        try {
+          const value = applyRounding(evaluateExpression(editorState.expression, values), formula.rounding);
+          values[formula.outputVariable] = value;
+          previews.set(formula.id, { value });
+          pending.delete(formula.id);
+          progressed = true;
+        } catch {
+          // Công thức có thể đang chờ kết quả từ một công thức khác trong cấu trúc.
+        }
+      });
+      if (!progressed) break;
+    }
+
+    pending.forEach((formulaId) => {
+      const formula = formulas.find((item) => item.id === formulaId);
+      const editorState = formulaEditorStates.get(formulaId);
+      if (!formula || !editorState?.expression) return;
+      try {
+        const value = applyRounding(evaluateExpression(editorState.expression, values), formula.rounding);
+        previews.set(formulaId, { value });
+      } catch (error) {
+        previews.set(formulaId, {
+          value: null,
+          error: error instanceof Error ? error.message : "Chưa đủ dữ liệu mẫu để tính.",
+        });
+      }
+    });
+
+    return { previews, values };
+  }, [formulaEditorStates, formulas, variables]);
 
   useEffect(() => {
     if (formulasQuery.data) {
@@ -598,13 +638,82 @@ export function FormulaTab({ projectId, embedded = false }: { projectId: string;
 
   const updateFormulaText = (id: string, text: string) => {
     setRawTexts((prev) => ({ ...prev, [id]: text }));
-    const parsed = parseExpressionText(text);
-    setFormulas((prev) => prev.map((f) => (f.id === id ? { ...f, expression: parsed } : f)));
+    const parsed = parseExpressionTextResult(text, expressionAliases);
+    if (parsed.expression) {
+      setFormulas((prev) => prev.map((f) => (f.id === id ? { ...f, expression: parsed.expression! } : f)));
+    }
     setDirty(true);
   };
 
+  const setEditorMode = (formulaId: string, mode: FormulaEditorMode) => {
+    setEditorModes((prev) => ({ ...prev, [formulaId]: mode }));
+    if (mode === "syntax") {
+      requestAnimationFrame(() => inputRefs.current[formulaId]?.focus());
+    }
+  };
+
+  const insertVisualToken = (formulaId: string, token: VisualToken) => {
+    const tokens = [...(formulaEditorStates.get(formulaId)?.tokens ?? [])];
+    const requestedPosition = visualCursorPositions[formulaId] ?? tokens.length;
+    const position = Math.max(0, Math.min(requestedPosition, tokens.length));
+    tokens.splice(position, 0, token);
+    updateFormulaText(formulaId, tokensToFriendlyText(tokens));
+    setVisualCursorPositions((prev) => ({ ...prev, [formulaId]: position + 1 }));
+  };
+
+  const removeVisualTokenBeforeCursor = (formulaId: string) => {
+    const tokens = [...(formulaEditorStates.get(formulaId)?.tokens ?? [])];
+    const requestedPosition = visualCursorPositions[formulaId] ?? tokens.length;
+    const position = Math.max(0, Math.min(requestedPosition, tokens.length));
+    if (position === 0) return;
+    tokens.splice(position - 1, 1);
+    updateFormulaText(formulaId, tokensToFriendlyText(tokens));
+    setVisualCursorPositions((prev) => ({ ...prev, [formulaId]: position - 1 }));
+  };
+
+  const insertSyntaxText = (formulaId: string, text: string) => {
+    const formula = formulas.find((item) => item.id === formulaId);
+    if (!formula) return;
+    const currentValue = getFormulaRawText(formula);
+    const input = inputRefs.current[formulaId];
+    const start = input?.selectionStart ?? currentValue.length;
+    const end = input?.selectionEnd ?? start;
+    const before = currentValue.slice(0, start);
+    const after = currentValue.slice(end);
+    const leadingSpace = before.length > 0 && !/\s$/.test(before) ? " " : "";
+    const trailingSpace = after.length > 0 && !/^\s/.test(after) ? " " : "";
+    const insertion = `${leadingSpace}${text}${trailingSpace}`;
+    const nextValue = `${before}${insertion}${after}`;
+    const nextCursor = start + insertion.length;
+
+    updateFormulaText(formulaId, nextValue);
+    requestAnimationFrame(() => {
+      input?.focus();
+      input?.setSelectionRange(nextCursor, nextCursor);
+    });
+  };
+
+  const insertEditorToken = (formulaId: string, token: VisualToken) => {
+    if ((editorModes[formulaId] ?? "visual") === "visual") {
+      insertVisualToken(formulaId, token);
+      return;
+    }
+    insertSyntaxText(formulaId, token.text === "×" ? "*" : token.text === "÷" ? "/" : token.text);
+  };
+
+  const insertConstant = (formulaId: string) => {
+    const rawValue = (constantInputs[formulaId] ?? "").trim();
+    const value = Number(rawValue);
+    if (!rawValue || !Number.isFinite(value)) {
+      notify("Hãy nhập một giá trị số hợp lệ.", "warning");
+      return;
+    }
+    insertEditorToken(formulaId, toVisualToken(rawValue, "number"));
+    setConstantInputs((prev) => ({ ...prev, [formulaId]: "" }));
+  };
+
   const handleFormulaKeyDown = (
-    e: React.KeyboardEvent<HTMLInputElement>,
+    e: React.KeyboardEvent<HTMLTextAreaElement>,
     formulaId: string,
     currentValue: string
   ) => {
@@ -664,11 +773,6 @@ export function FormulaTab({ projectId, embedded = false }: { projectId: string;
     }
   };
 
-  const toggleEnable = (id: string, enabled: boolean) => {
-    setFormulas((items) => items.map((item) => (item.id === id ? { ...item, enabled } : item)));
-    setDirty(true);
-  };
-
   const cancel = () => {
     const data = formulasQuery.data ?? [];
     setFormulas(structuredClone(data));
@@ -704,6 +808,42 @@ export function FormulaTab({ projectId, embedded = false }: { projectId: string;
     onError: (error: Error) => notify(error.message, "error"),
   });
 
+  const revealFirstFormulaError = () => {
+    const firstInvalidFormula = formulas.find(
+      (formula) => (formulaEditorStates.get(formula.id)?.errors.length ?? 0) > 0,
+    );
+    if (!firstInvalidFormula) return;
+    setEditingFormulaIds((prev) => new Set(prev).add(firstInvalidFormula.id));
+    requestAnimationFrame(() => {
+      document.getElementById(`formula-editor-${firstInvalidFormula.id}`)?.scrollIntoView({
+        behavior: "smooth",
+        block: "center",
+      });
+    });
+  };
+
+  const saveFormulas = () => {
+    if (hasFormulaErrors) {
+      revealFirstFormulaError();
+      notify("Còn công thức chưa hợp lệ. Hãy sửa lỗi được đánh dấu trước khi lưu.", "warning");
+      return;
+    }
+    saveMutation.mutate();
+  };
+
+  const validateAllFormulas = () => {
+    if (hasFormulaErrors) {
+      const errors = formulas.flatMap((formula) =>
+        (formulaEditorStates.get(formula.id)?.errors ?? []).map((error) => `${formula.name}: ${error}`),
+      );
+      setValidation({ valid: false, errors });
+      revealFirstFormulaError();
+      notify(`Phát hiện ${errors.length} lỗi cần xử lý`, "warning");
+      return;
+    }
+    validateMutation.mutate();
+  };
+
   if (formulasQuery.isLoading || variablesQuery.isLoading) return <LoadingBlock rows={8} />;
   if (formulasQuery.isError || variablesQuery.isError) {
     return (
@@ -735,8 +875,9 @@ export function FormulaTab({ projectId, embedded = false }: { projectId: string;
           </Button>
           <Button
             variant="primary"
-            onClick={() => saveMutation.mutate()}
-            disabled={saveMutation.isPending}
+            onClick={saveFormulas}
+            disabled={saveMutation.isPending || hasFormulaErrors}
+            title={hasFormulaErrors ? "Cần sửa công thức chưa hợp lệ trước khi lưu" : undefined}
           >
             <Save className="w-4 h-4" /> Lưu cấu hình
           </Button>
@@ -753,7 +894,11 @@ export function FormulaTab({ projectId, embedded = false }: { projectId: string;
           }`}
         >
           <div className="flex items-center gap-3">
-            <CheckCircle2 className="w-5 h-5 shrink-0" />
+            {validation.valid ? (
+              <CheckCircle2 className="w-5 h-5 shrink-0" />
+            ) : (
+              <AlertCircle className="w-5 h-5 shrink-0" />
+            )}
             <div>
               <strong className="text-xs font-bold block">
                 {validation.valid ? "Tất cả công thức hợp lệ 100%" : `Có ${validation.errors.length} lỗi cần xử lý`}
@@ -1052,7 +1197,7 @@ export function FormulaTab({ projectId, embedded = false }: { projectId: string;
                 </h3>
                 <p>Thiết lập hoặc tùy chỉnh chuỗi công thức tính toán dạng Excel cho từng thành phần lương đã kéo thả ở trên.</p>
               </div>
-              <Button variant="secondary" size="sm" onClick={() => validateMutation.mutate()}>
+              <Button variant="secondary" size="sm" onClick={validateAllFormulas}>
                 <CheckCircle2 className="w-4 h-4 text-primary" /> Kiểm tra tất cả
               </Button>
             </div>
@@ -1067,12 +1212,43 @@ export function FormulaTab({ projectId, embedded = false }: { projectId: string;
                   const isIncome = formula.category === "income";
                   const isEditing = editingFormulaIds.has(formula.id);
                   const isModified = modifiedFormulaIds.has(formula.id);
+                  const editorState = formulaEditorStates.get(formula.id) ?? {
+                    expression: null,
+                    errors: ["Không thể đọc công thức."],
+                    tokens: [],
+                    technicalText: "",
+                  };
+                  const isValid = editorState.errors.length === 0;
+                  const editorMode = editorModes[formula.id] ?? "visual";
+                  const previewState = formulaPreviewStates.previews.get(formula.id);
+                  const referencedCodes = editorState.expression
+                    ? [...new Set(collectVariables(editorState.expression))]
+                    : [];
+                  const referencedSamples = referencedCodes.map((code) => {
+                    const definition = availableVariables.find((item) => item.code === code);
+                    return {
+                      code,
+                      name: definition?.name ?? code,
+                      unit: definition?.unit,
+                      value: formulaPreviewStates.values[code],
+                    };
+                  });
+                  const visualCursor = Math.min(
+                    visualCursorPositions[formula.id] ?? editorState.tokens.length,
+                    editorState.tokens.length,
+                  );
+                  const suggestedVariables = getSuggestedVariables(formula, variables).filter(
+                    (item) => /^\d+(\.\d+)?$/.test(item.code) || knownVariableCodes.has(item.code),
+                  );
 
                   return (
                     <div
                       key={formula.id}
+                      id={`formula-editor-${formula.id}`}
                       className={`rounded-xl border transition-all p-4 space-y-3.5 ${
-                        isModified
+                        !isValid
+                          ? "bg-destructive/5 border-destructive/50 border-l-4 border-l-destructive shadow-xs"
+                          : isModified
                           ? "bg-amber-500/5 dark:bg-amber-950/20 border-border/40 border-l-4 border-l-amber-500 shadow-xs"
                           : isEditing
                           ? "bg-card border-primary/70 ring-1 ring-primary/20 shadow-sm"
@@ -1093,6 +1269,11 @@ export function FormulaTab({ projectId, embedded = false }: { projectId: string;
                           {isModified && (
                             <Badge tone="warning">
                               <AlertCircle className="w-3 h-3 inline mr-1" /> Chưa lưu
+                            </Badge>
+                          )}
+                          {!isValid && (
+                            <Badge tone="danger">
+                              <AlertCircle className="w-3 h-3 inline mr-1" /> Cần sửa
                             </Badge>
                           )}
                         </div>
@@ -1130,59 +1311,233 @@ export function FormulaTab({ projectId, embedded = false }: { projectId: string;
 
                       {/* EDIT MODE PANEL */}
                       {isEditing && (
-                        <div className="pt-3 border-t border-border space-y-3">
-                          {/* Quick Chips Bar */}
-                          <div className="p-2.5 rounded-lg bg-secondary/40 border border-border/30 flex items-center gap-2 flex-wrap">
-                            <span className="text-[11px] font-bold text-muted mr-1">Chèn nhanh biến số:</span>
-                            {getSuggestedVariables(formula, variables).map((v) => (
-                              <Button
-                                key={v.code}
-                                type="button"
-                                variant="secondary"
-                                size="sm"
-                                onMouseDown={(e) => e.preventDefault()}
-                                onClick={() => {
-                                  const current = getFormulaRawText(formula);
-                                  const next = current ? `${current} ${v.name}` : v.name;
-                                  updateFormulaText(formula.id, next);
-
-                                  const inputEl = inputRefs.current[formula.id];
-                                  if (inputEl) {
-                                    inputEl.focus();
-                                    const pos = next.length;
-                                    requestAnimationFrame(() => {
-                                      inputEl.setSelectionRange(pos, pos);
-                                    });
-                                  }
-                                }}
-                                className="h-7 px-2 text-[11px]"
-                              >
-                                {v.name}
-                              </Button>
-                            ))}
+                        <div className="formula-editor-panel pt-3 border-t border-border space-y-3.5">
+                          <div className="formula-editor-heading">
+                            <div>
+                              <span className="formula-editor-label">Biểu thức tính</span>
+                              <small>Sử dụng biến, số và các toán tử + − × ÷ ( )</small>
+                            </div>
+                            <div className="formula-editor-heading-actions">
+                              <Badge tone={isValid ? "success" : "danger"}>
+                                {isValid ? (
+                                  <><CheckCircle2 className="w-3 h-3 inline mr-1" /> Hợp lệ</>
+                                ) : (
+                                  <><AlertCircle className="w-3 h-3 inline mr-1" /> Có lỗi</>
+                                )}
+                              </Badge>
+                              <div className="formula-mode-switch" role="tablist" aria-label="Chế độ nhập công thức">
+                                <button
+                                  type="button"
+                                  role="tab"
+                                  aria-selected={editorMode === "visual"}
+                                  className={editorMode === "visual" ? "active" : ""}
+                                  onClick={() => setEditorMode(formula.id, "visual")}
+                                >
+                                  Trực quan
+                                </button>
+                                <button
+                                  type="button"
+                                  role="tab"
+                                  aria-selected={editorMode === "syntax"}
+                                  className={editorMode === "syntax" ? "active" : ""}
+                                  onClick={() => setEditorMode(formula.id, "syntax")}
+                                >
+                                  Cú pháp
+                                </button>
+                              </div>
+                            </div>
                           </div>
 
-                          {/* Formula Editor Input */}
-                          <div className="space-y-1.5 pt-1">
-                            <label className="form-field">
-                              <span className="text-xs font-bold text-muted flex items-center justify-between">
-                                <span className="text-foreground font-bold">Công thức tính toán (Cú pháp Excel)</span>
-                                <small className="font-mono text-[10px]">Toán tử: +  -  *  /  (  )</small>
-                              </span>
-                              <input
+                          {editorMode === "visual" ? (
+                            <div
+                              className={`formula-token-canvas ${isValid ? "valid" : "invalid"}`}
+                              role="group"
+                              aria-label={`Biểu thức trực quan của ${formula.name}`}
+                            >
+                              {editorState.tokens.length === 0 && (
+                                <span className="formula-token-placeholder">Chọn một biến bên dưới để bắt đầu tạo công thức</span>
+                              )}
+                              {editorState.tokens.map((token, tokenIndex) => (
+                                <span className="formula-token-slot" key={`${token.id}-${tokenIndex}`}>
+                                  {visualCursor === tokenIndex && <span className="formula-token-caret" aria-hidden="true" />}
+                                  <button
+                                    type="button"
+                                    className={`formula-token formula-token-${token.type}`}
+                                    onClick={(event) => {
+                                      event.stopPropagation();
+                                      setVisualCursorPositions((prev) => ({ ...prev, [formula.id]: tokenIndex + 1 }));
+                                    }}
+                                    title="Chọn vị trí chèn sau phần tử này"
+                                  >
+                                    {token.type === "variable" && <Variable className="w-3.5 h-3.5" />}
+                                    {token.text}
+                                  </button>
+                                </span>
+                              ))}
+                              {visualCursor === editorState.tokens.length && editorState.tokens.length > 0 && (
+                                <span className="formula-token-caret" aria-hidden="true" />
+                              )}
+                            </div>
+                          ) : (
+                            <label className="formula-syntax-field">
+                              <span className="sr-only">Nhập biểu thức tính cho {formula.name}</span>
+                              <textarea
                                 ref={(el) => {
                                   inputRefs.current[formula.id] = el;
                                 }}
-                                className="font-mono text-xs font-bold text-primary bg-card border border-input focus:border-primary p-2.5 rounded-lg w-full transition-colors"
+                                className={`formula-code-editor-input formula-syntax-textarea ${isValid ? "valid" : "invalid"}`}
                                 value={getFormulaRawText(formula)}
                                 onChange={(e) => updateFormulaText(formula.id, e.target.value)}
                                 onKeyDown={(e) => handleFormulaKeyDown(e, formula.id, getFormulaRawText(formula))}
-                                placeholder="Lương cơ bản / Giờ chuẩn * Giờ thưởng"
+                                aria-invalid={!isValid}
+                                aria-describedby={`formula-status-${formula.id}`}
+                                spellCheck={false}
+                                placeholder="Ví dụ: Lương cơ bản / Giờ chuẩn tháng * Giờ công thường"
                               />
                             </label>
+                          )}
+
+                          <div className="formula-toolbar">
+                            <div className="formula-toolbar-group formula-variable-picker">
+                              <Variable className="w-4 h-4 text-primary" />
+                              <select
+                                value=""
+                                aria-label={`Thêm biến vào ${formula.name}`}
+                                onChange={(event) => {
+                                  const selected = availableVariables.find((item) => item.code === event.target.value);
+                                  if (selected) insertEditorToken(formula.id, toVisualToken(selected.name, "variable"));
+                                }}
+                              >
+                                <option value="">Thêm biến...</option>
+                                {availableVariables
+                                  .filter((item) => item.code !== formula.outputVariable)
+                                  .map((item) => (
+                                    <option value={item.code} key={`${formula.id}-${item.code}`}>
+                                      {item.name} · {item.code}
+                                    </option>
+                                  ))}
+                              </select>
+                            </div>
+
+                            <div className="formula-operator-group" aria-label="Chèn toán tử">
+                              {["+", "−", "×", "÷", "(", ")"].map((operator) => (
+                                <button
+                                  type="button"
+                                  key={operator}
+                                  onMouseDown={(event) => event.preventDefault()}
+                                  onClick={() => insertEditorToken(
+                                    formula.id,
+                                    toVisualToken(operator === "−" ? "-" : operator, "operator"),
+                                  )}
+                                  aria-label={`Chèn toán tử ${operator}`}
+                                >
+                                  {operator}
+                                </button>
+                              ))}
+                            </div>
+
+                            <div className="formula-constant-control">
+                              <input
+                                type="number"
+                                step="any"
+                                value={constantInputs[formula.id] ?? ""}
+                                onChange={(event) => setConstantInputs((prev) => ({
+                                  ...prev,
+                                  [formula.id]: event.target.value,
+                                }))}
+                                onKeyDown={(event) => {
+                                  if (event.key === "Enter") {
+                                    event.preventDefault();
+                                    insertConstant(formula.id);
+                                  }
+                                }}
+                                aria-label="Giá trị số cần chèn"
+                                placeholder="Nhập số"
+                              />
+                              <button type="button" onClick={() => insertConstant(formula.id)} aria-label="Chèn giá trị số">
+                                <Plus className="w-3.5 h-3.5" />
+                              </button>
+                            </div>
+
+                            {editorMode === "visual" && (
+                              <button
+                                type="button"
+                                className="formula-delete-token"
+                                onClick={() => removeVisualTokenBeforeCursor(formula.id)}
+                                disabled={visualCursor === 0}
+                                aria-label="Xóa phần tử trước vị trí đang chọn"
+                                title="Xóa phần tử trước con trỏ"
+                              >
+                                <Trash2 className="w-3.5 h-3.5" />
+                              </button>
+                            )}
                           </div>
+
+                          {suggestedVariables.length > 0 && (
+                            <div className="formula-suggestions">
+                              <span>Gợi ý phù hợp:</span>
+                              {suggestedVariables.map((variable) => (
+                                <button
+                                  key={variable.code}
+                                  type="button"
+                                  className="quick-chip"
+                                  onMouseDown={(event) => event.preventDefault()}
+                                  onClick={() => insertEditorToken(
+                                    formula.id,
+                                    toVisualToken(variable.name, /^\d/.test(variable.code) ? "number" : "variable"),
+                                  )}
+                                >
+                                  <Plus className="w-3 h-3" /> {variable.name}
+                                </button>
+                              ))}
+                            </div>
+                          )}
+
+                          <div
+                            id={`formula-status-${formula.id}`}
+                            className={`formula-inline-validation ${isValid ? "valid" : "invalid"}`}
+                            role="status"
+                          >
+                            {isValid ? <CheckCircle2 /> : <AlertCircle />}
+                            <div>
+                              <strong>{isValid ? "Công thức hợp lệ và sẵn sàng tính" : "Công thức cần được chỉnh sửa"}</strong>
+                              {isValid ? (
+                                <code>{editorState.technicalText}</code>
+                              ) : (
+                                <ul>
+                                  {editorState.errors.map((error) => <li key={error}>{error}</li>)}
+                                </ul>
+                              )}
+                            </div>
+                          </div>
+
+                          <div className="formula-test-panel">
+                            <div className="formula-sample-data">
+                              <span>Dữ liệu mẫu đang sử dụng</span>
+                              <div>
+                                {referencedSamples.length > 0 ? referencedSamples.map((sample) => (
+                                  <small key={sample.code} title={sample.code}>
+                                    {sample.name}
+                                    <strong>
+                                      {sample.value === undefined ? "Chưa có" : formatSampleValue(sample.value, sample.unit)}
+                                    </strong>
+                                  </small>
+                                )) : <small>Chưa có biến nào trong công thức</small>}
+                              </div>
+                            </div>
+                            <div className={`formula-preview-result ${previewState?.value !== null && previewState?.value !== undefined ? "ready" : "waiting"}`}>
+                              <span><Calculator className="w-4 h-4" /> Kết quả chạy thử</span>
+                              {previewState?.value !== null && previewState?.value !== undefined ? (
+                                <strong>{formatSampleValue(previewState.value, "VNĐ")}</strong>
+                              ) : (
+                                <strong>—</strong>
+                              )}
+                              <small>{previewState?.error ?? `Làm tròn theo cấu hình: ${formula.rounding.precision.toLocaleString("vi-VN")}`}</small>
+                            </div>
+                          </div>
+
                           <span className="text-[11px] text-muted opacity-80 block pt-0.5">
-                            * Thay đổi được áp dụng tạm thời. Nhấn nút <strong>Lưu cấu hình</strong> ở phía trên để lưu chính thức vào hệ thống.
+                            Thay đổi chỉ được lưu chính thức khi toàn bộ công thức hợp lệ và bạn nhấn <strong>Lưu cấu hình</strong>.
                           </span>
                         </div>
                       )}
@@ -1196,7 +1551,7 @@ export function FormulaTab({ projectId, embedded = false }: { projectId: string;
       </div>
 
 
-      <SaveBar visible={dirty} saving={saveMutation.isPending} onSave={() => saveMutation.mutate()} onCancel={cancel} />
+      <SaveBar visible={dirty} saving={saveMutation.isPending} onSave={saveFormulas} onCancel={cancel} />
     </div>
   );
 }

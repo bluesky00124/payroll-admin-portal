@@ -250,19 +250,19 @@ export function tokenizeFriendlyText(text: string): VisualToken[] {
       if (!raw || /^\s+$/.test(raw)) continue;
       if (["+", "-", "*", "/", "×", "÷", "(", ")"].includes(raw)) {
         tokens.push({
-          id: `tok-${idCounter++}-${Math.random().toString(36).substring(2, 7)}`,
+          id: `tok-${idCounter++}`,
           type: "operator",
           text: raw === "*" ? "×" : raw === "/" ? "÷" : raw,
         });
       } else if (/^\d+(\.\d+)?%?$/.test(raw)) {
         tokens.push({
-          id: `tok-${idCounter++}-${Math.random().toString(36).substring(2, 7)}`,
+          id: `tok-${idCounter++}`,
           type: "number",
           text: raw,
         });
       } else {
         tokens.push({
-          id: `tok-${idCounter++}-${Math.random().toString(36).substring(2, 7)}`,
+          id: `tok-${idCounter++}`,
           type: "unknown",
           text: raw,
         });
@@ -275,7 +275,7 @@ export function tokenizeFriendlyText(text: string): VisualToken[] {
       pushNonVarText(text.slice(lastIndex, r.start));
     }
     tokens.push({
-      id: `tok-${idCounter++}-${Math.random().toString(36).substring(2, 7)}`,
+      id: `tok-${idCounter++}`,
       type: "variable",
       text: r.name,
     });
@@ -295,21 +295,40 @@ export function tokensToFriendlyText(tokens: VisualToken[]): string {
     .join(" ");
 }
 
-export function expressionToText(node: ExpressionNode): string {
+function expressionPrecedence(node: ExpressionNode): number {
+  if (node.type !== "binary") return 3;
+  return node.operator === "+" || node.operator === "-" ? 1 : 2;
+}
+
+function formatExpression(
+  node: ExpressionNode,
+  variableLabel: (code: string) => string,
+  parentOperator?: "+" | "-" | "*" | "/",
+  isRightChild = false,
+): string {
   if (node.type === "constant") return String(node.value);
-  if (node.type === "variable") return node.variableCode;
-  return `${expressionToText(node.left)} ${node.operator} ${expressionToText(node.right)}`;
+  if (node.type === "variable") return variableLabel(node.variableCode);
+
+  const left = formatExpression(node.left, variableLabel, node.operator, false);
+  const right = formatExpression(node.right, variableLabel, node.operator, true);
+  const formatted = `${left} ${node.operator} ${right}`;
+
+  if (!parentOperator) return formatted;
+  const currentPrecedence = expressionPrecedence(node);
+  const parentPrecedence = parentOperator === "+" || parentOperator === "-" ? 1 : 2;
+  const needsParentheses =
+    currentPrecedence < parentPrecedence ||
+    (isRightChild && currentPrecedence === parentPrecedence && (parentOperator === "-" || parentOperator === "/" || parentOperator !== node.operator));
+
+  return needsParentheses ? `( ${formatted} )` : formatted;
+}
+
+export function expressionToText(node: ExpressionNode): string {
+  return formatExpression(node, (code) => code);
 }
 
 export function expressionToFriendlyText(node: ExpressionNode, variableNameMap?: Map<string, string>): string {
-  if (node.type === "constant") return String(node.value);
-  if (node.type === "variable") {
-    if (variableNameMap && variableNameMap.has(node.variableCode)) {
-      return variableNameMap.get(node.variableCode)!;
-    }
-    return variableCodeToName[node.variableCode] ?? node.variableCode;
-  }
-  return `${expressionToFriendlyText(node.left, variableNameMap)} ${node.operator} ${expressionToFriendlyText(node.right, variableNameMap)}`;
+  return formatExpression(node, (code) => variableNameMap?.get(code) ?? variableCodeToName[code] ?? code);
 }
 
 export function validateFormulas(
@@ -345,6 +364,8 @@ export function validateFormulas(
     }
     if (visited.has(code)) return;
     visiting.add(code);
+    (dependencies.get(code) ?? []).forEach(visit);
+    visiting.delete(code);
     visited.add(code);
   };
   [...outputs].forEach(visit);
@@ -352,15 +373,48 @@ export function validateFormulas(
   return { valid: errors.length === 0, errors };
 }
 
-export function parseExpressionText(text: string): ExpressionNode {
-  let cleaned = text.replace(/×/g, "*").replace(/÷/g, "/").trim();
-  vietnameseNameToCode.forEach(([pattern, code]) => {
-    cleaned = cleaned.replace(pattern, code);
-  });
-  if (!cleaned) return { type: "variable", variableCode: "LUONG_CO_BAN" };
+export interface ExpressionParseResult {
+  expression: ExpressionNode | null;
+  errors: string[];
+  normalizedText: string;
+}
 
-  type Token = string | { type: "num"; val: number } | { type: "var"; code: string };
-  const tokens: Token[] = [];
+type ParserToken =
+  | { type: "operator"; value: "+" | "-" | "*" | "/" | "(" | ")" }
+  | { type: "number"; value: number; raw: string }
+  | { type: "variable"; code: string };
+
+function escapeRegExp(value: string): string {
+  return value.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+}
+
+export function parseExpressionTextResult(
+  text: string,
+  aliases?: ReadonlyMap<string, string>,
+): ExpressionParseResult {
+  let cleaned = text.replace(/×/g, "*").replace(/÷/g, "/").trim();
+  const errors: string[] = [];
+
+  if (!cleaned) {
+    return { expression: null, errors: ["Hãy nhập biểu thức tính."], normalizedText: "" };
+  }
+
+  if (aliases) {
+    [...aliases.entries()]
+      .filter(([label]) => label.trim().length > 0)
+      .sort(([left], [right]) => right.length - left.length)
+      .forEach(([label, code]) => {
+        cleaned = cleaned.replace(new RegExp(escapeRegExp(label), "gi"), code);
+      });
+  }
+
+  [...vietnameseNameToCode]
+    .sort(([left], [right]) => right.source.length - left.source.length)
+    .forEach(([pattern, code]) => {
+      cleaned = cleaned.replace(pattern, code);
+    });
+
+  const tokens: ParserToken[] = [];
   let i = 0;
 
   while (i < cleaned.length) {
@@ -370,74 +424,126 @@ export function parseExpressionText(text: string): ExpressionNode {
       continue;
     }
     if ("+-*/()".includes(c)) {
-      tokens.push(c);
+      tokens.push({ type: "operator", value: c as "+" | "-" | "*" | "/" | "(" | ")" });
       i++;
     } else if (/\d/.test(c) || (c === "." && /\d/.test(cleaned[i + 1] ?? ""))) {
       let j = i;
       while (j < cleaned.length && /[\d.]/.test(cleaned[j])) j++;
-      const val = parseFloat(cleaned.slice(i, j));
-      tokens.push({ type: "num", val: isNaN(val) ? 0 : val });
+      const raw = cleaned.slice(i, j);
+      const val = Number(raw);
+      if (!Number.isFinite(val) || (raw.match(/\./g)?.length ?? 0) > 1) {
+        errors.push(`Số “${raw}” không hợp lệ.`);
+      } else {
+        tokens.push({ type: "number", value: val, raw });
+      }
       i = j;
     } else if (/[a-zA-Z_À-ỹ]/.test(c)) {
       let j = i;
       while (j < cleaned.length && /[a-zA-Z0-9_À-ỹ]/.test(cleaned[j])) j++;
-      tokens.push({ type: "var", code: cleaned.slice(i, j) });
+      tokens.push({ type: "variable", code: cleaned.slice(i, j) });
       i = j;
     } else {
+      errors.push(`Ký tự “${c}” không được hỗ trợ.`);
       i++;
     }
   }
 
-  if (tokens.length === 0) return { type: "variable", variableCode: "LUONG_CO_BAN" };
+  if (tokens.length === 0 || errors.length > 0) {
+    return { expression: null, errors, normalizedText: cleaned };
+  }
 
   let idx = 0;
 
-  function parseExpr(): ExpressionNode {
+  function peekOperator(value?: string): boolean {
+    const token = tokens[idx];
+    return token?.type === "operator" && (value === undefined || token.value === value);
+  }
+
+  function parseExpr(): ExpressionNode | null {
     let left = parseTerm();
-    while (idx < tokens.length && (tokens[idx] === "+" || tokens[idx] === "-")) {
-      const op = tokens[idx] as "+" | "-";
+    if (!left) return null;
+    while (peekOperator("+") || peekOperator("-")) {
+      const op = (tokens[idx] as Extract<ParserToken, { type: "operator" }>).value as "+" | "-";
       idx++;
       const right = parseTerm();
+      if (!right) {
+        errors.push(`Thiếu toán hạng sau “${op}”.`);
+        return null;
+      }
       left = { type: "binary", operator: op, left, right };
     }
     return left;
   }
 
-  function parseTerm(): ExpressionNode {
+  function parseTerm(): ExpressionNode | null {
     let left = parseFactor();
-    while (idx < tokens.length && (tokens[idx] === "*" || tokens[idx] === "/")) {
-      const op = tokens[idx] as "*" | "/";
+    if (!left) return null;
+    while (peekOperator("*") || peekOperator("/")) {
+      const op = (tokens[idx] as Extract<ParserToken, { type: "operator" }>).value as "*" | "/";
       idx++;
       const right = parseFactor();
+      if (!right) {
+        errors.push(`Thiếu toán hạng sau “${op}”.`);
+        return null;
+      }
       left = { type: "binary", operator: op, left, right };
     }
     return left;
   }
 
-  function parseFactor(): ExpressionNode {
-    if (idx >= tokens.length) return { type: "constant", value: 0 };
+  function parseFactor(): ExpressionNode | null {
+    if (idx >= tokens.length) return null;
     const tok = tokens[idx];
 
-    if (tok === "(") {
+    if (tok.type === "operator" && tok.value === "(") {
       idx++;
       const sub = parseExpr();
-      if (idx < tokens.length && tokens[idx] === ")") idx++;
+      if (!peekOperator(")")) {
+        errors.push("Thiếu dấu đóng ngoặc “)”.");
+        return null;
+      }
+      idx++;
       return sub;
     }
 
-    if (typeof tok === "object") {
+    if (tok.type === "operator" && (tok.value === "+" || tok.value === "-")) {
       idx++;
-      if (tok.type === "num") return { type: "constant", value: tok.val };
+      const value = parseFactor();
+      if (!value) return null;
+      return tok.value === "-" ? { type: "binary", operator: "-", left: { type: "constant", value: 0 }, right: value } : value;
+    }
+
+    if (tok.type === "number") {
+      idx++;
+      return { type: "constant", value: tok.value };
+    }
+
+    if (tok.type === "variable") {
+      idx++;
       return { type: "variable", variableCode: tok.code };
     }
 
-    idx++;
-    return { type: "constant", value: 0 };
+    return null;
   }
 
-  try {
-    return parseExpr();
-  } catch {
-    return { type: "variable", variableCode: "LUONG_CO_BAN" };
+  const expression = parseExpr();
+  if (!expression && errors.length === 0) {
+    errors.push("Biểu thức chưa hoàn chỉnh.");
   }
+  if (idx < tokens.length) {
+    const token = tokens[idx];
+    const label = token.type === "operator" ? token.value : token.type === "variable" ? token.code : token.raw;
+    errors.push(`Không thể xử lý phần “${label}” trong biểu thức.`);
+  }
+
+  return {
+    expression: errors.length === 0 ? expression : null,
+    errors,
+    normalizedText: cleaned,
+  };
+}
+
+export function parseExpressionText(text: string): ExpressionNode {
+  const result = parseExpressionTextResult(text);
+  return result.expression ?? { type: "variable", variableCode: "LUONG_CO_BAN" };
 }

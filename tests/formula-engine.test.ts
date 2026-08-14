@@ -1,5 +1,12 @@
 import { describe, expect, it } from "vitest";
-import { applyRounding, collectVariables, evaluateExpression, validateFormulas } from "@/lib/formula-engine";
+import {
+  applyRounding,
+  collectVariables,
+  evaluateExpression,
+  expressionToText,
+  parseExpressionTextResult,
+  validateFormulas,
+} from "@/lib/formula-engine";
 import type { ExpressionNode, FormulaVariable, SalaryFormula } from "@/lib/types";
 
 const variable = (variableCode: string): ExpressionNode => ({ type: "variable", variableCode });
@@ -35,5 +42,22 @@ describe("formula engine", () => {
     expect(result.valid).toBe(false);
     expect(result.errors.join(" ")).toContain("UNKNOWN");
     expect(result.errors.join(" ")).toContain("vòng lặp");
+  });
+
+  it("parse nghiêm ngặt và giữ nguyên thứ tự tính bằng dấu ngoặc", () => {
+    const parsed = parseExpressionTextResult("( Lương cơ bản + Tổng phụ cấp ) / Giờ chuẩn tháng");
+    expect(parsed.errors).toEqual([]);
+    expect(parsed.expression).not.toBeNull();
+    expect(expressionToText(parsed.expression!)).toBe("( LUONG_CO_BAN + TONG_PHU_CAP ) / GIO_CHUAN");
+  });
+
+  it("không âm thầm biến công thức chưa hoàn chỉnh thành giá trị 0", () => {
+    const incomplete = parseExpressionTextResult("Lương cơ bản /");
+    expect(incomplete.expression).toBeNull();
+    expect(incomplete.errors.join(" ")).toContain("Thiếu toán hạng");
+
+    const empty = parseExpressionTextResult("");
+    expect(empty.expression).toBeNull();
+    expect(empty.errors).toContain("Hãy nhập biểu thức tính.");
   });
 });
