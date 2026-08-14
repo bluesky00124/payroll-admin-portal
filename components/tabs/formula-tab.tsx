@@ -8,6 +8,7 @@ import {
   Building2,
   Calculator,
   CheckCircle2,
+  ChevronUp,
   Clock,
   Coins,
   DollarSign,
@@ -1024,12 +1025,12 @@ export function FormulaTab({ projectId, embedded = false }: { projectId: string;
 
                         <div className="flex items-center gap-1.5">
                           <Button
-                            variant={isEditing ? "primary" : "secondary"}
+                            variant="secondary"
                             size="sm"
                             onClick={() => toggleEditFormula(formula.id)}
-                            title={isEditing ? "Lưu / Thu gọn" : "Chỉnh sửa công thức"}
+                            title={isEditing ? "Thu gọn" : "Chỉnh sửa công thức"}
                           >
-                            {isEditing ? <Save className="w-4 h-4" /> : <Pencil className="w-4 h-4 text-primary" />}
+                            {isEditing ? <ChevronUp className="w-4 h-4 text-muted" /> : <Pencil className="w-4 h-4 text-primary" />}
                           </Button>
                           <Button
                             variant="ghost"
@@ -1106,6 +1107,9 @@ export function FormulaTab({ projectId, embedded = false }: { projectId: string;
                               />
                             </label>
                           </div>
+                          <span className="text-[11px] text-muted opacity-80 block pt-0.5">
+                            * Thay đổi được áp dụng tạm thời. Nhấn nút <strong>Lưu cấu hình</strong> ở phía trên để lưu chính thức vào hệ thống.
+                          </span>
                         </div>
                       )}
                     </div>
