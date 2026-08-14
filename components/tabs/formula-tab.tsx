@@ -1082,7 +1082,7 @@ export function FormulaTab({ projectId, embedded = false }: { projectId: string;
                                 }}
                                 className="h-7 px-2 text-[11px]"
                               >
-                                + {v.name}
+                                {v.name}
                               </Button>
                             ))}
                           </div>
