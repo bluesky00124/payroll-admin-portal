@@ -28,7 +28,6 @@ import {
   Shield,
   Sparkles,
   TrendingUp,
-  Trash2,
   Users,
   Variable,
   Wand2,
@@ -38,7 +37,7 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import { useToast } from "@/components/providers";
 import { Badge, Button, ErrorState, LoadingBlock, SaveBar } from "@/components/ui";
 import { api } from "@/lib/api";
-import { expressionToFriendlyText, expressionToText, findVariableRanges, parseExpressionText, tokenizeFormulaText } from "@/lib/formula-engine";
+import { expressionToFriendlyText, expressionToText, findVariableRanges, parseExpressionText } from "@/lib/formula-engine";
 import type { SalaryFormula } from "@/lib/types";
 import { uid } from "@/lib/utils";
 
@@ -386,6 +385,39 @@ function FormulaCodeBadge({ text, variableNameMap }: { text: string; variableNam
   );
 }
 
+function LiveSyntaxPreview({ text }: { text: string }) {
+  if (!text.trim()) return null;
+  const tokens = text.split(/(\s+)/);
+
+  return (
+    <div className="p-2.5 rounded-lg bg-secondary/40 border border-border/50 flex items-center gap-1.5 flex-wrap text-xs font-mono">
+      <span className="text-[10px] uppercase font-extrabold text-muted mr-1 tracking-wider shrink-0">Hiển thị cú pháp:</span>
+      {tokens.map((tok, idx) => {
+        if (/^\s+$/.test(tok)) return null;
+        if (["+", "-", "*", "/", "(", ")"].includes(tok)) {
+          return (
+            <span key={idx} className="px-1.5 py-0.5 rounded bg-card border border-border/60 text-emerald-600 dark:text-emerald-400 font-extrabold text-xs">
+              {tok === "*" ? "×" : tok === "/" ? "÷" : tok}
+            </span>
+          );
+        }
+        if (/^\d+(\.\d+)?%?$/.test(tok)) {
+          return (
+            <span key={idx} className="px-1.5 py-0.5 rounded bg-amber-500/10 text-amber-600 dark:text-amber-400 font-bold text-xs">
+              {tok}
+            </span>
+          );
+        }
+        return (
+          <span key={idx} className="px-2 py-0.5 rounded-md bg-primary/10 border border-primary/20 text-primary font-semibold text-xs inline-flex items-center gap-1">
+            {tok}
+          </span>
+        );
+      })}
+    </div>
+  );
+}
+
 function getSuggestedVariables(formula: SalaryFormula, variablesCatalog: { code: string; name: string }[]) {
   const code = (formula.code || formula.outputVariable || "").toUpperCase();
 
@@ -486,66 +518,6 @@ export function FormulaTab({ projectId, embedded = false }: { projectId: string;
 
   // Dragged component state
   const [draggedItem, setDraggedItem] = useState<LibraryComponentItem | null>(null);
-  const [inlineDrafts, setInlineDrafts] = useState<Record<string, string>>({});
-
-  const appendTokenToFormula = (id: string, textToAppend: string) => {
-    const formula = formulas.find((f) => f.id === id);
-    if (!formula) return;
-    const current = getFormulaRawText(formula);
-    const next = current ? `${current} ${textToAppend}` : textToAppend;
-    updateFormulaText(id, next);
-    setInlineDrafts((prev) => ({ ...prev, [id]: "" }));
-
-    const inputEl = inputRefs.current[id];
-    if (inputEl) {
-      inputEl.focus();
-    }
-  };
-
-  const handleInlineInputChange = (id: string, value: string, formula: SalaryFormula) => {
-    const lastChar = value.slice(-1);
-    if (["+", "-", "*", "/", "(", ")"].includes(lastChar) && value.trim().length > 1) {
-      const textBefore = value.slice(0, -1).trim();
-      const current = getFormulaRawText(formula);
-      const next = current ? `${current} ${textBefore} ${lastChar}` : `${textBefore} ${lastChar}`;
-      updateFormulaText(id, next);
-      setInlineDrafts((prev) => ({ ...prev, [id]: "" }));
-      return;
-    }
-
-    if (["+", "-", "*", "/", "(", ")"].includes(value.trim())) {
-      const current = getFormulaRawText(formula);
-      const next = current ? `${current} ${value.trim()}` : value.trim();
-      updateFormulaText(id, next);
-      setInlineDrafts((prev) => ({ ...prev, [id]: "" }));
-      return;
-    }
-
-    setInlineDrafts((prev) => ({ ...prev, [id]: value }));
-  };
-
-  const handleInlineInputKeyDown = (
-    e: React.KeyboardEvent<HTMLInputElement>,
-    id: string,
-    formula: SalaryFormula
-  ) => {
-    const draft = (inlineDrafts[id] ?? "").trim();
-
-    if ((e.key === "Enter" || e.key === " ") && draft) {
-      e.preventDefault();
-      appendTokenToFormula(id, draft);
-      return;
-    }
-
-    if ((e.key === "Backspace" || e.key === "Delete") && !draft) {
-      const tokens = tokenizeFormulaText(getFormulaRawText(formula));
-      if (tokens.length > 0) {
-        e.preventDefault();
-        const newTokens = tokens.slice(0, -1);
-        updateFormulaText(id, newTokens.map((t) => t.text).join(" "));
-      }
-    }
-  };
 
   const variables = useMemo(() => variablesQuery.data ?? [], [variablesQuery.data]);
   const variableNameMap = useMemo(() => new Map(variables.map((item) => [item.code, item.name])), [variables]);
@@ -1184,210 +1156,99 @@ export function FormulaTab({ projectId, embedded = false }: { projectId: string;
                         </div>
                       )}
 
-                      {/* EDIT MODE PANEL (Hybrid Rich Token Input Container) */}
+                      {/* EDIT MODE PANEL */}
                       {isEditing && (
-                        <div className="pt-3 border-t border-border space-y-3.5">
-                          {/* HYBRID RICH TOKEN INPUT CONTAINER */}
-                          <div className="space-y-1.5 pt-0.5">
+                        <div className="pt-3 border-t border-border space-y-3">
+                          {/* Quick Chips Bar */}
+                          <div className="p-2.5 rounded-lg bg-secondary/40 border border-border/30 flex items-center gap-2 flex-wrap">
+                            <span className="text-[11px] font-bold text-muted mr-1">Chèn nhanh biến số:</span>
+                            {getSuggestedVariables(formula, variables).map((v) => (
+                              <Button
+                                key={v.code}
+                                type="button"
+                                variant="secondary"
+                                size="sm"
+                                onMouseDown={(e) => e.preventDefault()}
+                                onClick={() => {
+                                  const current = getFormulaRawText(formula);
+                                  const next = current ? `${current} ${v.name}` : v.name;
+                                  updateFormulaText(formula.id, next);
+
+                                  const inputEl = inputRefs.current[formula.id];
+                                  if (inputEl) {
+                                    inputEl.focus();
+                                    const pos = next.length;
+                                    requestAnimationFrame(() => {
+                                      inputEl.setSelectionRange(pos, pos);
+                                    });
+                                  }
+                                }}
+                                className="h-7 px-2 text-[11px]"
+                              >
+                                {v.name}
+                              </Button>
+                            ))}
+                          </div>
+
+                          {/* Formula Editor Input Container */}
+                          <div className="space-y-2 pt-1">
                             <div className="flex items-center justify-between">
-                              <span className="text-xs font-bold text-foreground">Công thức tính toán (Cú pháp Excel):</span>
-                              {getFormulaRawText(formula) && (
-                                <Button
-                                  type="button"
-                                  variant="ghost"
-                                  size="sm"
-                                  onClick={() => {
-                                    updateFormulaText(formula.id, "");
-                                    setInlineDrafts((prev) => ({ ...prev, [formula.id]: "" }));
-                                  }}
-                                  className="text-[11px] text-muted hover:text-destructive h-6 px-1.5"
-                                  title="Xóa toàn bộ công thức"
-                                >
-                                  <Trash2 className="w-3 h-3 mr-1" /> Xóa tất cả
-                                </Button>
-                              )}
+                              <span className="text-xs font-bold text-foreground flex items-center gap-1.5">
+                                <Calculator className="w-3.5 h-3.5 text-primary" /> Công thức tính toán
+                              </span>
+                              
+                              {/* Quick Operators Toolbar */}
+                              <div className="flex items-center gap-1">
+                                <span className="text-[10px] font-bold text-muted mr-1">Toán tử nhanh:</span>
+                                {["+", "-", "*", "/", "(", ")"].map((op) => (
+                                  <Button
+                                    key={op}
+                                    type="button"
+                                    variant="secondary"
+                                    size="sm"
+                                    onMouseDown={(e) => e.preventDefault()}
+                                    onClick={() => {
+                                      const current = getFormulaRawText(formula);
+                                      const next = current ? `${current} ${op} ` : `${op} `;
+                                      updateFormulaText(formula.id, next);
+
+                                      const inputEl = inputRefs.current[formula.id];
+                                      if (inputEl) {
+                                        inputEl.focus();
+                                        const pos = next.length;
+                                        requestAnimationFrame(() => {
+                                          inputEl.setSelectionRange(pos, pos);
+                                        });
+                                      }
+                                    }}
+                                    className="h-6 w-6 p-0 text-xs font-mono font-extrabold"
+                                    title={`Chèn toán tử ${op}`}
+                                  >
+                                    {op === "*" ? "×" : op === "/" ? "÷" : op}
+                                  </Button>
+                                ))}
+                              </div>
                             </div>
 
-                            <div
-                              onClick={() => inputRefs.current[formula.id]?.focus()}
-                              className="group p-2.5 rounded-xl bg-card border border-input focus-within:border-primary focus-within:ring-2 focus-within:ring-primary/20 min-h-[58px] flex items-center flex-wrap gap-1.5 transition-all shadow-xs cursor-text"
-                            >
-                              {/* 1. Rendered Token Chips */}
-                              {tokenizeFormulaText(getFormulaRawText(formula)).map((tok, tIdx, arr) => {
-                                if (tok.type === "variable") {
-                                  return (
-                                    <div
-                                      key={`${tok.id}-${tIdx}`}
-                                      className="px-2.5 py-1 rounded-lg bg-primary/10 border border-primary/30 text-primary text-xs font-bold inline-flex items-center gap-1.5 shadow-2xs"
-                                    >
-                                      <span>{tok.text}</span>
-                                      <button
-                                        type="button"
-                                        onClick={(e) => {
-                                          e.stopPropagation();
-                                          const newArr = arr.filter((_, idx) => idx !== tIdx);
-                                          updateFormulaText(formula.id, newArr.map((t) => t.text).join(" "));
-                                        }}
-                                        className="p-0.5 rounded-full hover:bg-primary/20 text-primary/70 hover:text-primary transition-colors"
-                                        title="Xóa"
-                                      >
-                                        <X className="w-3 h-3" />
-                                      </button>
-                                    </div>
-                                  );
-                                }
-                                if (tok.type === "operator") {
-                                  return (
-                                    <div
-                                      key={`${tok.id}-${tIdx}`}
-                                      className="px-2 py-0.5 rounded-md bg-secondary border border-border text-foreground font-mono font-bold text-xs inline-flex items-center gap-1 shadow-2xs"
-                                    >
-                                      <span className="text-emerald-600 dark:text-emerald-400 font-extrabold text-sm">
-                                        {tok.text === "*" ? "×" : tok.text === "/" ? "÷" : tok.text}
-                                      </span>
-                                      <button
-                                        type="button"
-                                        onClick={(e) => {
-                                          e.stopPropagation();
-                                          const newArr = arr.filter((_, idx) => idx !== tIdx);
-                                          updateFormulaText(formula.id, newArr.map((t) => t.text).join(" "));
-                                        }}
-                                        className="p-0.5 rounded-full hover:bg-black/10 dark:hover:bg-white/10 text-muted hover:text-destructive transition-colors ml-0.5"
-                                        title="Xóa"
-                                      >
-                                        <X className="w-2.5 h-2.5" />
-                                      </button>
-                                    </div>
-                                  );
-                                }
-                                if (tok.type === "number") {
-                                  return (
-                                    <div
-                                      key={`${tok.id}-${tIdx}`}
-                                      className="px-2 py-0.5 rounded-md bg-amber-500/10 border border-amber-500/30 text-amber-600 dark:text-amber-400 font-mono font-bold text-xs inline-flex items-center gap-1 shadow-2xs"
-                                    >
-                                      <span>{tok.text}</span>
-                                      <button
-                                        type="button"
-                                        onClick={(e) => {
-                                          e.stopPropagation();
-                                          const newArr = arr.filter((_, idx) => idx !== tIdx);
-                                          updateFormulaText(formula.id, newArr.map((t) => t.text).join(" "));
-                                        }}
-                                        className="p-0.5 rounded-full hover:bg-amber-500/20 text-amber-600/70 hover:text-amber-600 transition-colors ml-0.5"
-                                        title="Xóa"
-                                      >
-                                        <X className="w-2.5 h-2.5" />
-                                      </button>
-                                    </div>
-                                  );
-                                }
-                                return (
-                                  <div
-                                    key={`${tok.id}-${tIdx}`}
-                                    className="px-2 py-0.5 rounded-md bg-secondary/80 border border-border text-foreground font-mono text-xs inline-flex items-center gap-1"
-                                  >
-                                    <span>{tok.text}</span>
-                                    <button
-                                      type="button"
-                                      onClick={(e) => {
-                                        e.stopPropagation();
-                                        const newArr = arr.filter((_, idx) => idx !== tIdx);
-                                        updateFormulaText(formula.id, newArr.map((t) => t.text).join(" "));
-                                      }}
-                                      className="p-0.5 rounded-full hover:bg-black/10 dark:hover:bg-white/10 text-muted hover:text-destructive transition-colors"
-                                    >
-                                      <X className="w-2.5 h-2.5" />
-                                    </button>
-                                  </div>
-                                );
-                              })}
-
-                              {/* 2. Inline Seamless Input Field */}
+                            {/* Excel/IDE Style Formula Bar */}
+                            <div className="flex items-center rounded-lg border border-input bg-card focus-within:border-primary focus-within:ring-2 focus-within:ring-primary/15 transition-all shadow-xs">
+                              <span className="px-3 py-2.5 bg-secondary/60 text-primary font-serif italic font-extrabold text-xs border-r border-border/60 shrink-0 select-none">
+                                fx
+                              </span>
                               <input
                                 ref={(el) => {
                                   inputRefs.current[formula.id] = el;
                                 }}
-                                type="text"
-                                className="flex-1 min-w-[140px] bg-transparent border-none outline-none font-mono text-xs font-bold text-primary placeholder:text-muted/60 placeholder:font-sans placeholder:text-xs py-0.5"
-                                value={inlineDrafts[formula.id] ?? ""}
-                                onChange={(e) => handleInlineInputChange(formula.id, e.target.value, formula)}
-                                onKeyDown={(e) => handleInlineInputKeyDown(e, formula.id, formula)}
-                                placeholder={
-                                  tokenizeFormulaText(getFormulaRawText(formula)).length === 0
-                                    ? "Gõ công thức (vd: Lương cơ bản / 26)..."
-                                    : "Gõ tiếp toán tử, số..."
-                                }
+                                className="w-full bg-transparent px-3 py-2 font-mono text-xs font-bold text-primary focus:outline-none placeholder:text-muted/50"
+                                value={getFormulaRawText(formula)}
+                                onChange={(e) => updateFormulaText(formula.id, e.target.value)}
+                                onKeyDown={(e) => handleFormulaKeyDown(e, formula.id, getFormulaRawText(formula))}
+                                placeholder="Nhập hoặc chèn các biến số và toán tử..."
                               />
                             </div>
-                          </div>
 
-                          {/* Variable Cards Palette */}
-                          <div className="space-y-1.5">
-                            <span className="text-[11px] font-bold text-muted">Biến số gợi ý (Nhấp để chèn):</span>
-                            <div className="p-2.5 rounded-xl bg-secondary/30 border border-border/40 flex items-center gap-2 flex-wrap">
-                              {getSuggestedVariables(formula, variables).map((v) => (
-                                <Button
-                                  key={v.code}
-                                  type="button"
-                                  variant="secondary"
-                                  size="sm"
-                                  onMouseDown={(e) => e.preventDefault()}
-                                  onClick={() => appendTokenToFormula(formula.id, v.name)}
-                                  className="h-7 px-2.5 text-[11px] border-primary/20 hover:border-primary text-foreground font-semibold bg-card shadow-2xs"
-                                >
-                                  + {v.name}
-                                </Button>
-                              ))}
-                            </div>
-                          </div>
-
-                          {/* Operators & Math Toolbar */}
-                          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 pt-0.5">
-                            <div className="space-y-1">
-                              <span className="text-[11px] font-bold text-muted">Toán tử tính toán:</span>
-                              <div className="flex items-center gap-1.5 flex-wrap">
-                                {[
-                                  { label: "+ Cộng", symbol: "+" },
-                                  { label: "− Trừ", symbol: "-" },
-                                  { label: "× Nhân", symbol: "*" },
-                                  { label: "÷ Chia", symbol: "/" },
-                                  { label: "( Mở", symbol: "(" },
-                                  { label: ") Đóng", symbol: ")" },
-                                ].map((op) => (
-                                  <Button
-                                    key={op.symbol}
-                                    type="button"
-                                    variant="secondary"
-                                    size="sm"
-                                    onMouseDown={(e) => e.preventDefault()}
-                                    onClick={() => appendTokenToFormula(formula.id, op.symbol)}
-                                    className="h-7 px-2 text-xs font-mono font-extrabold border-border/50 text-foreground hover:text-emerald-600 bg-card shadow-2xs"
-                                  >
-                                    {op.label}
-                                  </Button>
-                                ))}
-                              </div>
-                            </div>
-
-                            <div className="space-y-1">
-                              <span className="text-[11px] font-bold text-muted">Hệ số & Tỷ lệ thường dùng:</span>
-                              <div className="flex items-center gap-1.5 flex-wrap">
-                                {["1.5", "2.0", "3.0", "10.5%", "8%", "1.5%", "1%"].map((num) => (
-                                  <Button
-                                    key={num}
-                                    type="button"
-                                    variant="secondary"
-                                    size="sm"
-                                    onMouseDown={(e) => e.preventDefault()}
-                                    onClick={() => appendTokenToFormula(formula.id, num)}
-                                    className="h-7 px-2 text-xs font-mono font-bold text-amber-600 dark:text-amber-400 bg-card shadow-2xs"
-                                  >
-                                    {num}
-                                  </Button>
-                                ))}
-                              </div>
-                            </div>
+                            {/* Real-time Syntax Preview Stream */}
+                            <LiveSyntaxPreview text={getFormulaRawText(formula)} />
                           </div>
 
                           <span className="text-[11px] text-muted opacity-80 block pt-0.5">
