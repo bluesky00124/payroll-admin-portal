@@ -803,10 +803,10 @@ export function FormulaTab({ projectId, embedded = false }: { projectId: string;
                     draggable={!isAdded}
                     onDragStart={() => setDraggedItem(item)}
                     onDragEnd={() => setDraggedItem(null)}
-                    className={`p-3 rounded-xl border transition-all flex items-center justify-between gap-3 shadow-xs ${
+                    className={`p-3 rounded-xl border transition-all flex items-center justify-between gap-3 shadow-2xs ${
                       isAdded
-                        ? "bg-secondary/40 border-border opacity-50 cursor-not-allowed"
-                        : `${item.cardStyle} hover:shadow-sm cursor-grab hover:-translate-y-0.5`
+                        ? "bg-secondary/30 border-border/30 opacity-40 cursor-not-allowed"
+                        : "bg-card border-border/40 hover:border-primary/40 hover:shadow-xs cursor-grab hover:-translate-y-0.5"
                     }`}
                   >
                     <div className="flex items-center gap-3 min-w-0">
@@ -842,10 +842,10 @@ export function FormulaTab({ projectId, embedded = false }: { projectId: string;
                     draggable={!isAdded}
                     onDragStart={() => setDraggedItem(item)}
                     onDragEnd={() => setDraggedItem(null)}
-                    className={`p-3 rounded-xl border transition-all flex items-center justify-between gap-3 shadow-xs ${
+                    className={`p-3 rounded-xl border transition-all flex items-center justify-between gap-3 shadow-2xs ${
                       isAdded
-                        ? "bg-secondary/40 border-border opacity-50 cursor-not-allowed"
-                        : `${item.cardStyle} hover:shadow-sm cursor-grab hover:-translate-y-0.5`
+                        ? "bg-secondary/30 border-border/30 opacity-40 cursor-not-allowed"
+                        : "bg-card border-border/40 hover:border-primary/40 hover:shadow-xs cursor-grab hover:-translate-y-0.5"
                     }`}
                   >
                     <div className="flex items-center gap-3 min-w-0">
@@ -1028,10 +1028,10 @@ export function FormulaTab({ projectId, embedded = false }: { projectId: string;
                       key={formula.id}
                       className={`rounded-xl border transition-all p-4 space-y-3.5 ${
                         isModified
-                          ? "bg-amber-500/5 dark:bg-amber-950/20 border-border border-l-4 border-l-amber-500 shadow-xs"
+                          ? "bg-amber-500/5 dark:bg-amber-950/20 border-border/60 border-l-4 border-l-amber-500 shadow-xs"
                           : isEditing
                           ? "bg-card border-primary ring-1 ring-primary/20 shadow-sm"
-                          : "bg-card border-border hover:border-primary/40 shadow-2xs"
+                          : "bg-card border-border/40 hover:border-primary/40 shadow-2xs"
                       }`}
                     >
                       <div className="flex flex-wrap items-center justify-between gap-3">
