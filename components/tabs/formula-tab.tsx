@@ -8,10 +8,10 @@ import {
   ArrowUp,
   Building2,
   Calculator,
+  Check,
   CheckCircle2,
   ChevronUp,
   Clock,
-  Code2,
   Coins,
   DollarSign,
   GripVertical,
@@ -37,16 +37,9 @@ import {
 } from "lucide-react";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { useToast } from "@/components/providers";
-import { Badge, Button, ErrorState, LoadingBlock, SaveBar } from "@/components/ui";
+import { Badge, Button, ErrorState, LoadingBlock, Modal, SaveBar } from "@/components/ui";
 import { api } from "@/lib/api";
-import {
-  expressionToFriendlyText,
-  expressionToText,
-  findVariableRanges,
-  parseExpressionText,
-  tokenizeFriendlyText,
-  tokensToFriendlyText,
-} from "@/lib/formula-engine";
+import { evaluateExpression, expressionToFriendlyText, expressionToText, findVariableRanges, parseExpressionText } from "@/lib/formula-engine";
 import type { SalaryFormula } from "@/lib/types";
 import { uid } from "@/lib/utils";
 
@@ -463,6 +456,369 @@ function getSuggestedVariables(formula: SalaryFormula, variablesCatalog: { code:
       ];
 }
 
+function FormulaCalculatorModal({
+  open,
+  onOpenChange,
+  formula,
+  variables,
+  variableNameMap,
+  onApply,
+}: {
+  open: boolean;
+  onOpenChange: (open: boolean) => void;
+  formula: SalaryFormula | null;
+  variables: { code: string; name: string }[];
+  variableNameMap: Map<string, string>;
+  onApply: (formulaId: string, newFormulaText: string) => void;
+}) {
+  const [formulaText, setFormulaText] = useState("");
+  const [searchVar, setSearchVar] = useState("");
+  const [selectedCategory, setSelectedCategory] = useState<string>("all");
+  const inputRef = useRef<HTMLTextAreaElement | null>(null);
+
+  useEffect(() => {
+    if (formula) {
+      setFormulaText(expressionToFriendlyText(formula.expression, variableNameMap));
+    }
+  }, [formula, variableNameMap]);
+
+  if (!formula) return null;
+
+  const insertAtCursor = (token: string) => {
+    const el = inputRef.current;
+    if (!el) {
+      setFormulaText((prev) => (prev ? `${prev} ${token}` : token));
+      return;
+    }
+    const start = el.selectionStart ?? formulaText.length;
+    const end = el.selectionEnd ?? formulaText.length;
+    const before = formulaText.substring(0, start);
+    const after = formulaText.substring(end);
+
+    const spaceBefore = before.length > 0 && !before.endsWith(" ") && !["(", ")"].includes(token) ? " " : "";
+    const spaceAfter = after.length > 0 && !after.startsWith(" ") && !["(", ")"].includes(token) ? " " : "";
+    const newText = `${before}${spaceBefore}${token}${spaceAfter}${after}`;
+    setFormulaText(newText);
+
+    const newPos = start + spaceBefore.length + token.length + spaceAfter.length;
+    requestAnimationFrame(() => {
+      el.focus();
+      el.setSelectionRange(newPos, newPos);
+    });
+  };
+
+  const handleBackspace = () => {
+    const el = inputRef.current;
+    if (!el) return;
+    const start = el.selectionStart ?? formulaText.length;
+    const end = el.selectionEnd ?? formulaText.length;
+    if (start === 0 && end === 0) return;
+
+    if (start !== end) {
+      setFormulaText(formulaText.substring(0, start) + formulaText.substring(end));
+      requestAnimationFrame(() => {
+        el.focus();
+        el.setSelectionRange(start, start);
+      });
+      return;
+    }
+
+    const ranges = findVariableRanges(formulaText);
+    for (const r of ranges) {
+      if (start > r.start && start <= r.end) {
+        setFormulaText(formulaText.substring(0, r.start) + formulaText.substring(r.end));
+        requestAnimationFrame(() => {
+          el.focus();
+          el.setSelectionRange(r.start, r.start);
+        });
+        return;
+      }
+    }
+
+    const newText = formulaText.substring(0, start - 1) + formulaText.substring(start);
+    setFormulaText(newText);
+    requestAnimationFrame(() => {
+      el.focus();
+      el.setSelectionRange(start - 1, start - 1);
+    });
+  };
+
+  const parsedAST = useMemo(() => {
+    try {
+      return parseExpressionText(formulaText);
+    } catch {
+      return null;
+    }
+  }, [formulaText]);
+
+  const testResult = useMemo(() => {
+    if (!parsedAST) return null;
+    try {
+      const sampleVals: Record<string, number> = {
+        LUONG_CO_BAN: 10000000,
+        NEN_TINH_OT: 10000000,
+        GIO_CHUAN: 208,
+        GIO_THUONG: 208,
+        GIO_OT_150: 10,
+        GIO_OT_200: 5,
+        GIO_OT_300: 2,
+        LUONG_DONG_BH: 10000000,
+        THU_NHAP_CHIU_THUE: 15000000,
+        THUONG_DANG_KY: 2000000,
+        TY_LE_HOAN_THANH: 1,
+        PC_NHA_O: 1500000,
+        PC_DI_LAI: 800000,
+        PC_AN_TRUA_NGAY: 35000,
+        PC_DIEN_THOAI_CO_DINH: 500000,
+        PC_TRACH_NHIEM_CO_DINH: 1000000,
+        SO_TIEN_TAM_UNG: 1000000,
+        SO_PHUT_DI_TRE: 15,
+        DON_GIA_DI_TRE: 10000,
+      };
+      return evaluateExpression(parsedAST, sampleVals);
+    } catch (e: any) {
+      return { error: e.message };
+    }
+  }, [parsedAST]);
+
+  return (
+    <Modal
+      open={open}
+      onOpenChange={onOpenChange}
+      title={`Trình xây dựng Công thức Chuyên nghiệp - ${formula.name}`}
+      description="Chọn biến số, sử dụng bàn phím toán tử và kiểm tra kết quả tính toán mô phỏng tức thì."
+      size="lg"
+      footer={
+        <div className="flex items-center justify-between w-full">
+          <div className="flex items-center gap-2 text-xs">
+            {parsedAST ? (
+              <span className="text-emerald-600 dark:text-emerald-400 font-bold flex items-center gap-1">
+                <CheckCircle2 className="w-4 h-4" /> Công thức hợp lệ 100%
+              </span>
+            ) : (
+              <span className="text-amber-600 dark:text-amber-400 font-bold flex items-center gap-1">
+                <AlertCircle className="w-4 h-4" /> Đang soạn cú pháp...
+              </span>
+            )}
+          </div>
+          <div className="flex items-center gap-2">
+            <Button variant="secondary" onClick={() => onOpenChange(false)}>
+              Hủy bỏ
+            </Button>
+            <Button
+              variant="primary"
+              onClick={() => {
+                onApply(formula.id, formulaText);
+                onOpenChange(false);
+              }}
+            >
+              <Check className="w-4 h-4" /> Áp dụng công thức
+            </Button>
+          </div>
+        </div>
+      }
+    >
+      <div className="space-y-4">
+        {/* Top Screen Display */}
+        <div className="p-4 rounded-xl bg-slate-950 border border-slate-800 text-white space-y-2.5 shadow-inner">
+          <div className="flex items-center justify-between text-xs text-slate-400">
+            <span className="font-mono font-bold flex items-center gap-1.5 text-slate-300">
+              <Calculator className="w-4 h-4 text-emerald-400" /> MÀN HÌNH CÔNG THỨC EXCEL
+            </span>
+            <span className="font-mono text-[11px] text-amber-400 font-bold">
+              {parsedAST ? "✓ HOÀN HẢO" : "ĐANG CHỈNH SỬA"}
+            </span>
+          </div>
+
+          <textarea
+            ref={inputRef}
+            rows={2}
+            value={formulaText}
+            onChange={(e) => setFormulaText(e.target.value)}
+            className="w-full bg-transparent text-emerald-300 font-mono text-sm font-bold resize-none focus:outline-none placeholder:text-slate-600"
+            placeholder="Bấm chọn các nút biến số hoặc bàn phím bên dưới để xây dựng công thức..."
+          />
+
+          {/* Tokenized Preview */}
+          <div className="pt-2 border-t border-slate-800 flex items-center gap-2 flex-wrap">
+            <span className="text-[11px] font-bold text-slate-400 mr-1">Tách biến số:</span>
+            <FormulaCodeBadge text={parseExpressionText(formulaText) ? formulaText : ""} variableNameMap={variableNameMap} />
+          </div>
+        </div>
+
+        {/* Workspace 3-Column Grid */}
+        <div className="grid grid-cols-1 md:grid-cols-12 gap-4 items-start">
+          {/* Col 1: Variable Picker */}
+          <div className="md:col-span-5 p-3 rounded-xl bg-secondary/30 border border-border space-y-3 max-h-[340px] overflow-y-auto">
+            <div className="flex items-center justify-between">
+              <strong className="text-xs font-bold text-foreground flex items-center gap-1.5">
+                <Layers className="w-3.5 h-3.5 text-primary" /> Chọn Biến số
+              </strong>
+              <span className="text-[10px] text-muted font-bold">Bấm để chèn</span>
+            </div>
+
+            <label className="search-field w-full h-8 min-h-[32px]">
+              <Search className="w-3.5 h-3.5 text-muted" />
+              <input
+                placeholder="Tìm biến số..."
+                value={searchVar}
+                onChange={(e) => setSearchVar(e.target.value)}
+                className="text-xs"
+              />
+            </label>
+
+            <div className="flex items-center gap-1 flex-wrap">
+              {[
+                { id: "all", label: "Tất cả" },
+                { id: "income", label: "Thu nhập" },
+                { id: "deduction", label: "Khấu trừ" },
+                { id: "work", label: "Chấm công" },
+              ].map((cat) => (
+                <button
+                  key={cat.id}
+                  type="button"
+                  onClick={() => setSelectedCategory(cat.id)}
+                  className={`px-2 py-0.5 rounded-md text-[10px] font-bold transition-all ${
+                    selectedCategory === cat.id
+                      ? "bg-primary text-primary-foreground"
+                      : "bg-card text-muted hover:text-foreground border border-border"
+                  }`}
+                >
+                  {cat.label}
+                </button>
+              ))}
+            </div>
+
+            <div className="space-y-1.5 pt-1">
+              {variables
+                .filter((v) => {
+                  if (searchVar) {
+                    return (
+                      v.name.toLowerCase().includes(searchVar.toLowerCase()) ||
+                      v.code.toLowerCase().includes(searchVar.toLowerCase())
+                    );
+                  }
+                  if (selectedCategory === "income")
+                    return v.code.includes("LUONG") || v.code.includes("THUONG") || v.code.includes("PC");
+                  if (selectedCategory === "deduction")
+                    return (
+                      v.code.includes("BH") ||
+                      v.code.includes("THUE") ||
+                      v.code.includes("DOAN") ||
+                      v.code.includes("DED") ||
+                      v.code.includes("KHAU_TRU")
+                    );
+                  if (selectedCategory === "work")
+                    return v.code.includes("GIO") || v.code.includes("NGAY") || v.code.includes("CONG");
+                  return true;
+                })
+                .map((v) => (
+                  <button
+                    key={v.code}
+                    type="button"
+                    onMouseDown={(e) => e.preventDefault()}
+                    onClick={() => insertAtCursor(v.name)}
+                    className="w-full p-2 rounded-lg bg-card hover:bg-primary-soft hover:border-primary border border-border/60 text-left transition-all flex items-center justify-between text-xs font-semibold group shadow-2xs"
+                  >
+                    <span className="truncate group-hover:text-primary">{v.name}</span>
+                    <Plus className="w-3.5 h-3.5 text-primary opacity-0 group-hover:opacity-100 transition-opacity shrink-0" />
+                  </button>
+                ))}
+            </div>
+          </div>
+
+          {/* Col 2: Calculator Numpad & Operators */}
+          <div className="md:col-span-4 p-3 rounded-xl bg-secondary/30 border border-border space-y-3">
+            <strong className="text-xs font-bold text-foreground block">Bàn phím Máy tính (Operators)</strong>
+
+            {/* Basic Operators */}
+            <div className="grid grid-cols-4 gap-1.5">
+              {[
+                { label: "+", token: "+" },
+                { label: "−", token: "-" },
+                { label: "×", token: "*" },
+                { label: "÷", token: "/" },
+                { label: "(", token: "(" },
+                { label: ")", token: ")" },
+                { label: "%", token: "/ 100" },
+                { label: ".", token: "." },
+              ].map((op) => (
+                <button
+                  key={op.label}
+                  type="button"
+                  onMouseDown={(e) => e.preventDefault()}
+                  onClick={() => insertAtCursor(op.token)}
+                  className="h-9 rounded-lg bg-card hover:bg-primary text-foreground hover:text-primary-foreground font-mono font-bold text-sm border border-border shadow-2xs transition-all active:scale-95 flex items-center justify-center"
+                >
+                  {op.label}
+                </button>
+              ))}
+            </div>
+
+            {/* Quick Numbers Pad */}
+            <div className="grid grid-cols-3 gap-1.5 pt-1 border-t border-border/60">
+              {["7", "8", "9", "4", "5", "6", "1", "2", "3", "0", "000", "000000"].map((num) => (
+                <button
+                  key={num}
+                  type="button"
+                  onMouseDown={(e) => e.preventDefault()}
+                  onClick={() => insertAtCursor(num)}
+                  className="h-8 rounded-lg bg-card hover:bg-secondary font-mono font-bold text-xs border border-border/80 text-foreground shadow-2xs transition-all flex items-center justify-center"
+                >
+                  {num}
+                </button>
+              ))}
+            </div>
+
+            {/* Quick Action Keys */}
+            <div className="grid grid-cols-2 gap-1.5 pt-1 border-t border-border/60">
+              <button
+                type="button"
+                onMouseDown={(e) => e.preventDefault()}
+                onClick={handleBackspace}
+                className="h-8 rounded-lg bg-amber-500/10 text-amber-600 dark:text-amber-400 hover:bg-amber-500/20 font-bold text-xs border border-amber-500/20 transition-all flex items-center justify-center gap-1"
+              >
+                <RotateCcw className="w-3.5 h-3.5" /> Xóa ký tự
+              </button>
+              <button
+                type="button"
+                onMouseDown={(e) => e.preventDefault()}
+                onClick={() => setFormulaText("")}
+                className="h-8 rounded-lg bg-destructive/10 text-destructive hover:bg-destructive/20 font-bold text-xs border border-destructive/20 transition-all flex items-center justify-center gap-1"
+              >
+                <Trash2 className="w-3.5 h-3.5" /> Xóa hết
+              </button>
+            </div>
+          </div>
+
+          {/* Col 3: Live Simulator Test */}
+          <div className="md:col-span-3 p-3 rounded-xl bg-secondary/30 border border-border space-y-3">
+            <strong className="text-xs font-bold text-foreground flex items-center gap-1.5">
+              <Sparkles className="w-3.5 h-3.5 text-amber-500" /> Mô phỏng Kết quả
+            </strong>
+
+            <div className="p-3 rounded-lg bg-card border border-border space-y-2">
+              <span className="text-[11px] text-muted font-bold block">Kết quả tính toán mẫu:</span>
+              {testResult === null ? (
+                <span className="text-xs text-muted italic block">Đang nhập công thức...</span>
+              ) : typeof testResult === "object" && "error" in testResult ? (
+                <span className="text-xs text-destructive font-bold block">{testResult.error}</span>
+              ) : (
+                <div className="space-y-1">
+                  <strong className="text-base font-extrabold text-emerald-600 dark:text-emerald-400 block font-mono">
+                    {typeof testResult === "number" ? testResult.toLocaleString("vi-VN") : testResult} VNĐ
+                  </strong>
+                  <small className="text-[10px] text-muted block">Thử nghiệm: Giờ công chuẩn 208h</small>
+                </div>
+              )}
+            </div>
+          </div>
+        </div>
+      </div>
+    </Modal>
+  );
+}
+
 export function FormulaTab({ projectId, embedded = false }: { projectId: string; embedded?: boolean }) {
   const { notify } = useToast();
   const queryClient = useQueryClient();
@@ -491,10 +847,18 @@ export function FormulaTab({ projectId, embedded = false }: { projectId: string;
   const [prorateEnabled, setProrateEnabled] = useState(true);
   const [dirty, setDirty] = useState(false);
   const [validation, setValidation] = useState<{ valid: boolean; errors: string[] } | null>(null);
-  const [editorMode, setEditorMode] = useState<Record<string, "visual" | "raw">>({});
 
   // Dragged component state
   const [draggedItem, setDraggedItem] = useState<LibraryComponentItem | null>(null);
+
+  // Formula Calculator Modal state
+  const [calcModalOpen, setCalcModalOpen] = useState(false);
+  const [activeCalcFormula, setActiveCalcFormula] = useState<SalaryFormula | null>(null);
+
+  const openCalculator = (formula: SalaryFormula) => {
+    setActiveCalcFormula(formula);
+    setCalcModalOpen(true);
+  };
 
   const variables = useMemo(() => variablesQuery.data ?? [], [variablesQuery.data]);
   const variableNameMap = useMemo(() => new Map(variables.map((item) => [item.code, item.name])), [variables]);
@@ -1133,207 +1497,74 @@ export function FormulaTab({ projectId, embedded = false }: { projectId: string;
                         </div>
                       )}
 
-                      {/* EDIT MODE PANEL - INTERACTIVE VISUAL FORMULA BUILDER */}
+                      {/* EDIT MODE PANEL */}
                       {isEditing && (
-                        <div className="pt-3 border-t border-border space-y-3.5">
-                          {(() => {
-                            const rawText = getFormulaRawText(formula);
-                            const mode = editorMode[formula.id] ?? "visual";
-                            const tokens = tokenizeFriendlyText(rawText);
+                        <div className="pt-3 border-t border-border space-y-3">
+                          {/* Quick Chips Bar */}
+                          <div className="p-2.5 rounded-lg bg-secondary/40 border border-border/30 flex items-center gap-2 flex-wrap">
+                            <span className="text-[11px] font-bold text-muted mr-1">Chèn nhanh biến số:</span>
+                            {getSuggestedVariables(formula, variables).map((v) => (
+                              <Button
+                                key={v.code}
+                                type="button"
+                                variant="secondary"
+                                size="sm"
+                                onMouseDown={(e) => e.preventDefault()}
+                                onClick={() => {
+                                  const current = getFormulaRawText(formula);
+                                  const next = current ? `${current} ${v.name}` : v.name;
+                                  updateFormulaText(formula.id, next);
 
-                            const updateFromTokens = (nextTokens: typeof tokens) => {
-                              updateFormulaText(formula.id, tokensToFriendlyText(nextTokens));
-                            };
+                                  const inputEl = inputRefs.current[formula.id];
+                                  if (inputEl) {
+                                    inputEl.focus();
+                                    const pos = next.length;
+                                    requestAnimationFrame(() => {
+                                      inputEl.setSelectionRange(pos, pos);
+                                    });
+                                  }
+                                }}
+                                className="h-7 px-2 text-[11px]"
+                              >
+                                {v.name}
+                              </Button>
+                            ))}
+                          </div>
 
-                            const removeToken = (tokenIdx: number) => {
-                              const next = tokens.filter((_, i) => i !== tokenIdx);
-                              updateFromTokens(next);
-                            };
-
-                            const appendTokenText = (textToAdd: string) => {
-                              const current = getFormulaRawText(formula).trim();
-                              const next = current ? `${current} ${textToAdd}` : textToAdd;
-                              updateFormulaText(formula.id, next);
-                            };
-
-                            return (
-                              <>
-                                {/* Header Bar: Mode Switcher & Guide */}
-                                <div className="flex items-center justify-between gap-2 flex-wrap pb-1">
-                                  <span className="text-xs font-bold text-foreground flex items-center gap-1.5">
-                                    <Sparkles className="w-4 h-4 text-primary" /> Xây dựng công thức trực quan
-                                  </span>
-                                  <div className="flex items-center gap-1 bg-secondary/60 p-0.5 rounded-lg border border-border">
-                                    <Button
-                                      type="button"
-                                      variant={mode === "visual" ? "primary" : "ghost"}
-                                      size="sm"
-                                      onClick={() =>
-                                        setEditorMode((prev) => ({ ...prev, [formula.id]: "visual" }))
-                                      }
-                                      className="h-6 px-2 text-[11px] font-bold"
-                                    >
-                                      <Sparkles className="w-3 h-3 mr-1" /> Khối trực quan
-                                    </Button>
-                                    <Button
-                                      type="button"
-                                      variant={mode === "raw" ? "primary" : "ghost"}
-                                      size="sm"
-                                      onClick={() => setEditorMode((prev) => ({ ...prev, [formula.id]: "raw" }))}
-                                      className="h-6 px-2 text-[11px] font-bold"
-                                    >
-                                      <Code2 className="w-3 h-3 mr-1" /> Văn bản Excel
-                                    </Button>
-                                  </div>
-                                </div>
-
-                                {/* VISUAL TOKEN BUILDER CANVAS */}
-                                {mode === "visual" && (
-                                  <div className="space-y-3">
-                                    {/* Dropzone Canvas */}
-                                    <div
-                                      onDragOver={(e) => e.preventDefault()}
-                                      onDrop={(e) => {
-                                        e.preventDefault();
-                                        const varName = e.dataTransfer.getData("text/plain");
-                                        if (varName) {
-                                          appendTokenText(varName);
-                                        }
-                                      }}
-                                      className="min-h-[72px] rounded-xl border-2 border-dashed border-primary/30 bg-primary/5 p-3 flex flex-wrap items-center gap-2 transition-all shadow-inner"
-                                    >
-                                      {tokens.length === 0 ? (
-                                        <div className="text-center text-xs text-muted w-full py-3 flex flex-col items-center gap-1 opacity-70">
-                                          <span>Kéo thả biến số vào đây hoặc bấm các nút bên dưới để ghép công thức</span>
-                                        </div>
-                                      ) : (
-                                        tokens.map((tok, tIdx) => {
-                                          const isVar = tok.type === "variable";
-                                          const isOp = tok.type === "operator";
-                                          const isNum = tok.type === "number";
-
-                                          return (
-                                            <span
-                                              key={tok.id}
-                                              draggable
-                                              onDragStart={(e) => {
-                                                e.dataTransfer.setData("text/plain", tok.text);
-                                              }}
-                                              className={`px-3 py-1.5 rounded-lg border font-mono text-xs font-bold inline-flex items-center gap-2 shadow-2xs group transition-all select-none ${
-                                                isVar
-                                                  ? "bg-sky-500/10 text-sky-700 dark:text-sky-300 border-sky-500/30 hover:border-sky-500 cursor-grab"
-                                                  : isOp
-                                                  ? "bg-emerald-500/10 text-emerald-700 dark:text-emerald-300 border-emerald-500/30 font-black text-sm"
-                                                  : isNum
-                                                  ? "bg-amber-500/10 text-amber-700 dark:text-amber-300 border-amber-500/30"
-                                                  : "bg-secondary text-foreground border-border"
-                                              }`}
-                                            >
-                                              <span>{tok.text}</span>
-                                              <button
-                                                type="button"
-                                                onClick={() => removeToken(tIdx)}
-                                                className="p-0.5 rounded hover:bg-black/10 dark:hover:bg-white/10 text-muted hover:text-destructive transition-colors"
-                                                title="Kéo ra hoặc bấm để xóa khỏi công thức"
-                                              >
-                                                <X className="w-3.5 h-3.5" />
-                                              </button>
-                                            </span>
-                                          );
-                                        })
-                                      )}
-                                    </div>
-
-                                    {/* Quick Operators & Numbers Toolbar */}
-                                    <div className="p-2.5 rounded-xl bg-secondary/40 border border-border/30 space-y-2">
-                                      <div className="flex items-center justify-between gap-2 flex-wrap">
-                                        <div className="flex items-center gap-1.5 flex-wrap">
-                                          <span className="text-[11px] font-bold text-muted mr-1">Toán tử:</span>
-                                          {["+", "-", "*", "/", "(", ")"].map((op) => (
-                                            <Button
-                                              key={op}
-                                              type="button"
-                                              variant="secondary"
-                                              size="sm"
-                                              onMouseDown={(e) => e.preventDefault()}
-                                              onClick={() => appendTokenText(op === "*" ? "×" : op === "/" ? "÷" : op)}
-                                              className="h-7 w-8 font-black text-xs font-mono text-emerald-600 dark:text-emerald-400 bg-emerald-500/10 hover:bg-emerald-500/20 border-emerald-500/30"
-                                            >
-                                              {op === "*" ? "×" : op === "/" ? "÷" : op}
-                                            </Button>
-                                          ))}
-                                        </div>
-
-                                        <div className="flex items-center gap-1.5 flex-wrap">
-                                          <span className="text-[11px] font-bold text-muted mr-1">Hệ số nhanh:</span>
-                                          {["1.5", "2.0", "3.0", "100", "0.08"].map((num) => (
-                                            <Button
-                                              key={num}
-                                              type="button"
-                                              variant="secondary"
-                                              size="sm"
-                                              onMouseDown={(e) => e.preventDefault()}
-                                              onClick={() => appendTokenText(num)}
-                                              className="h-7 px-2 font-mono font-bold text-[11px] text-amber-600 dark:text-amber-400 bg-amber-500/10 hover:bg-amber-500/20 border-amber-500/30"
-                                            >
-                                              {num}
-                                            </Button>
-                                          ))}
-                                        </div>
-                                      </div>
-
-                                      {/* Draggable & Clickable Variables Chips */}
-                                      <div className="pt-2 border-t border-border/40 flex items-center gap-1.5 flex-wrap">
-                                        <span className="text-[11px] font-bold text-muted mr-1">Chèn nhanh biến số:</span>
-                                        {getSuggestedVariables(formula, variables).map((v) => (
-                                          <Button
-                                            key={v.code}
-                                            type="button"
-                                            variant="secondary"
-                                            size="sm"
-                                            draggable
-                                            onDragStart={(e) => e.dataTransfer.setData("text/plain", v.name)}
-                                            onMouseDown={(e) => e.preventDefault()}
-                                            onClick={() => appendTokenText(v.name)}
-                                            className="h-7 px-2.5 text-[11px] font-medium bg-sky-500/10 text-sky-700 dark:text-sky-300 border-sky-500/30 hover:bg-sky-500/20 cursor-grab"
-                                            title="Kéo thả vào ô trên hoặc bấm để thêm"
-                                          >
-                                            + {v.name}
-                                          </Button>
-                                        ))}
-                                      </div>
-                                    </div>
-                                  </div>
-                                )}
-
-                                {/* RAW EXCEL TEXT INPUT MODE */}
-                                {mode === "raw" && (
-                                  <div className="space-y-1.5 pt-1">
-                                    <label className="form-field">
-                                      <span className="text-xs font-bold text-muted flex items-center justify-between">
-                                        <span className="text-foreground font-bold">Công thức tính toán (Cú pháp Excel)</span>
-                                        <small className="font-mono text-[10px]">Toán tử: +  -  *  /  (  )</small>
-                                      </span>
-                                      <input
-                                        ref={(el) => {
-                                          inputRefs.current[formula.id] = el;
-                                        }}
-                                        className="font-mono text-xs font-bold text-primary bg-card border border-input focus:border-primary p-2.5 rounded-lg w-full transition-colors"
-                                        value={getFormulaRawText(formula)}
-                                        onChange={(e) => updateFormulaText(formula.id, e.target.value)}
-                                        onKeyDown={(e) => handleFormulaKeyDown(e, formula.id, getFormulaRawText(formula))}
-                                        placeholder="Lương cơ bản / Giờ chuẩn * Giờ thưởng"
-                                      />
-                                    </label>
-                                  </div>
-                                )}
-
-                                <span className="text-[11px] text-muted opacity-80 block pt-0.5">
-                                  * Thay đổi được áp dụng tạm thời. Nhấn nút <strong>Lưu cấu hình</strong> ở phía trên để lưu chính thức vào hệ thống.
+                          {/* Formula Editor Input */}
+                          <div className="space-y-1.5 pt-1">
+                            <label className="form-field">
+                              <span className="text-xs font-bold text-muted flex items-center justify-between flex-wrap gap-2">
+                                <span className="text-foreground font-bold flex items-center gap-2">
+                                  Công thức tính toán (Cú pháp Excel)
+                                  <Button
+                                    type="button"
+                                    variant="secondary"
+                                    size="sm"
+                                    onClick={() => openCalculator(formula)}
+                                    className="h-6 px-2 text-[11px] gap-1 text-primary border-primary/30 hover:bg-primary-soft"
+                                    title="Mở Trình xây dựng công thức máy tính"
+                                  >
+                                    <Calculator className="w-3.5 h-3.5" /> Mở Máy tính Công thức
+                                  </Button>
                                 </span>
-                              </>
-                            );
-                          })()}
+                                <small className="font-mono text-[10px]">Toán tử: +  -  *  /  (  )</small>
+                              </span>
+                              <input
+                                ref={(el) => {
+                                  inputRefs.current[formula.id] = el;
+                                }}
+                                className="font-mono text-xs font-bold text-primary bg-card border border-input focus:border-primary p-2.5 rounded-lg w-full transition-colors"
+                                value={getFormulaRawText(formula)}
+                                onChange={(e) => updateFormulaText(formula.id, e.target.value)}
+                                onKeyDown={(e) => handleFormulaKeyDown(e, formula.id, getFormulaRawText(formula))}
+                                placeholder="Lương cơ bản / Giờ chuẩn * Giờ thưởng"
+                              />
+                            </label>
+                          </div>
+                          <span className="text-[11px] text-muted opacity-80 block pt-0.5">
+                            * Thay đổi được áp dụng tạm thời. Nhấn nút <strong>Lưu cấu hình</strong> ở phía trên để lưu chính thức vào hệ thống.
+                          </span>
                         </div>
                       )}
                     </div>
@@ -1344,6 +1575,15 @@ export function FormulaTab({ projectId, embedded = false }: { projectId: string;
           </div>
         </section>
       </div>
+
+      <FormulaCalculatorModal
+        open={calcModalOpen}
+        onOpenChange={setCalcModalOpen}
+        formula={activeCalcFormula}
+        variables={variables}
+        variableNameMap={variableNameMap}
+        onApply={(id, newText) => updateFormulaText(id, newText)}
+      />
 
       <SaveBar visible={dirty} saving={saveMutation.isPending} onSave={() => saveMutation.mutate()} onCancel={cancel} />
     </div>
