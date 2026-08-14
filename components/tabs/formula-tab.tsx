@@ -992,7 +992,7 @@ export function FormulaTab({ projectId, embedded = false }: { projectId: string;
               </Button>
             </div>
 
-            <div className="divide-y divide-border/60">
+            <div className="divide-y divide-border">
               {formulas.length === 0 ? (
                 <div className="p-8 text-center text-xs text-muted">
                   Chưa có mục nào trong cấu trúc lương. Hãy chọn/kéo thả các mục từ Thư viện Thành phần Lương ở bên trái.
@@ -1045,7 +1045,7 @@ export function FormulaTab({ projectId, embedded = false }: { projectId: string;
 
                       {/* VIEW MODE SUMMARY */}
                       {!isEditing && (
-                        <div className="p-2.5 rounded-lg bg-secondary/30 border border-border/50 flex items-center gap-2 text-xs">
+                        <div className="p-2.5 rounded-lg bg-secondary/30 border border-border flex items-center gap-2 text-xs">
                           <span className="text-muted font-bold shrink-0">Biểu thức:</span>
                           <code className="font-mono text-xs font-bold text-primary truncate">
                             {getFormulaRawText(formula)}
@@ -1055,9 +1055,9 @@ export function FormulaTab({ projectId, embedded = false }: { projectId: string;
 
                       {/* EDIT MODE PANEL */}
                       {isEditing && (
-                        <div className="pt-3 border-t border-border/50 space-y-3">
+                        <div className="pt-3 border-t border-border space-y-3">
                           {/* Quick Chips Bar */}
-                          <div className="p-2 rounded-lg bg-secondary/30 border border-border/50 flex items-center gap-2 flex-wrap">
+                          <div className="p-2 rounded-lg bg-secondary/30 border border-border flex items-center gap-2 flex-wrap">
                             <span className="text-[11px] font-bold text-muted mr-1">Chèn nhanh biến số:</span>
                             {getSuggestedVariables(formula, variables).map((v) => (
                               <Button
@@ -1098,7 +1098,7 @@ export function FormulaTab({ projectId, embedded = false }: { projectId: string;
                                 ref={(el) => {
                                   inputRefs.current[formula.id] = el;
                                 }}
-                                className="font-mono text-xs font-bold text-primary bg-card border border-border/70 focus:border-primary p-2.5 rounded-lg w-full transition-colors"
+                                className="font-mono text-xs font-bold text-primary bg-card border border-input focus:border-primary p-2.5 rounded-lg w-full transition-colors"
                                 value={getFormulaRawText(formula)}
                                 onChange={(e) => updateFormulaText(formula.id, e.target.value)}
                                 onKeyDown={(e) => handleFormulaKeyDown(e, formula.id, getFormulaRawText(formula))}
