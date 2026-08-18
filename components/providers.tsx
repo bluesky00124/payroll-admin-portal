@@ -34,16 +34,36 @@ export function useToast() {
   return context;
 }
 
+export type UserRole = "accountant" | "bcsx";
+
+interface UserRoleContextValue {
+  role: UserRole;
+  setRole: (role: UserRole) => void;
+  roleLabel: string;
+  roleSubtitle: string;
+}
+
+const UserRoleContext = createContext<UserRoleContextValue | null>(null);
+
+export function useUserRole() {
+  const context = useContext(UserRoleContext);
+  if (!context) throw new Error("useUserRole must be used inside AppProviders");
+  return context;
+}
+
 function AppRuntime({ children }: { children: React.ReactNode }) {
   const [preset, setPresetState] = useState<ThemePreset>("corporate");
   const [mode, setMode] = useState<ColorMode>("light");
+  const [role, setRoleState] = useState<UserRole>("accountant");
   const [toasts, setToasts] = useState<ToastItem[]>([]);
 
   useEffect(() => {
     const savedPreset = window.localStorage.getItem("payroll-theme-preset") as ThemePreset | null;
     const savedMode = window.localStorage.getItem("payroll-color-mode") as ColorMode | null;
+    const savedRole = window.localStorage.getItem("payroll-user-role") as UserRole | null;
     if (savedPreset) setPresetState(savedPreset);
     if (savedMode) setMode(savedMode);
+    if (savedRole) setRoleState(savedRole);
   }, []);
 
   useEffect(() => {
@@ -51,7 +71,8 @@ function AppRuntime({ children }: { children: React.ReactNode }) {
     document.documentElement.classList.toggle("dark", mode === "dark");
     window.localStorage.setItem("payroll-theme-preset", preset);
     window.localStorage.setItem("payroll-color-mode", mode);
-  }, [preset, mode]);
+    window.localStorage.setItem("payroll-user-role", role);
+  }, [preset, mode, role]);
 
   const notify = useCallback((message: string, tone: ToastTone = "success") => {
     const id = Date.now();
@@ -66,21 +87,30 @@ function AppRuntime({ children }: { children: React.ReactNode }) {
     toggleMode: () => setMode((value) => value === "light" ? "dark" : "light"),
   }), [preset, mode]);
 
+  const roleValue = useMemo(() => ({
+    role,
+    setRole: (val: UserRole) => setRoleState(val),
+    roleLabel: role === "accountant" ? "Kế toán (C&B)" : "Ban Chăm Sóc (BCSX)",
+    roleSubtitle: role === "accountant" ? "Kiểm tra & Duyệt hồ sơ" : "Thu thập & Khai báo",
+  }), [role]);
+
   return (
-    <ThemeContext.Provider value={themeValue}>
-      <ToastContext.Provider value={{ notify }}>
-        {children}
-        <div className="toast-viewport" aria-live="polite">
-          {toasts.map((toast) => (
-            <div className={`toast toast-${toast.tone}`} key={toast.id}>
-              {toast.tone === "success" ? <CheckCircle2 /> : <AlertTriangle />}
-              <span>{toast.message}</span>
-              <button type="button" aria-label="Đóng thông báo" onClick={() => setToasts((items) => items.filter((item) => item.id !== toast.id))}><X /></button>
-            </div>
-          ))}
-        </div>
-      </ToastContext.Provider>
-    </ThemeContext.Provider>
+    <UserRoleContext.Provider value={roleValue}>
+      <ThemeContext.Provider value={themeValue}>
+        <ToastContext.Provider value={{ notify }}>
+          {children}
+          <div className="toast-viewport" aria-live="polite">
+            {toasts.map((toast) => (
+              <div className={`toast toast-${toast.tone}`} key={toast.id}>
+                {toast.tone === "success" ? <CheckCircle2 /> : <AlertTriangle />}
+                <span>{toast.message}</span>
+                <button type="button" aria-label="Đóng thông báo" onClick={() => setToasts((items) => items.filter((item) => item.id !== toast.id))}><X /></button>
+              </div>
+            ))}
+          </div>
+        </ToastContext.Provider>
+      </ThemeContext.Provider>
+    </UserRoleContext.Provider>
   );
 }
 

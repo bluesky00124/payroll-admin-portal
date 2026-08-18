@@ -5,11 +5,20 @@ import type {
   ApiResponse,
   AttendanceConfig,
   DataMapping,
+  Dependent,
+  Employee,
+  InsuranceChangeRecord,
+  InsuranceRecord,
+  LeaveHistoryItem,
+  LeaveRecord,
   Project,
   ProjectOvertimeConfig,
   ProjectPolicy,
   SalaryFormula,
+  StandardWorkdayRecord,
+  TaxConfigRecord,
   TestRunResult,
+  UnionFeeRecord,
 } from "@/lib/types";
 import { uid } from "@/lib/utils";
 
@@ -298,5 +307,650 @@ export const handlers = [
     const expectedNetPay = employee.id === "emp-demo-2" ? netPay + 1000 : netPay;
     const result: TestRunResult = { employee, period: payload.period, breakdown, grossIncome, totalDeductions, netPay, expectedNetPay, difference: netPay - expectedNetPay, warnings: employee.id === "emp-demo-2" ? ["Chênh lệch 1.000 ₫ do quy tắc làm tròn của dữ liệu đối chiếu."] : [] };
     return ok(result);
+  }),
+
+  // --- EMPLOYEE MANAGEMENT HANDLERS ---
+  http.get("/api/employees", async ({ request }) => {
+    await delay(200);
+    const url = new URL(request.url);
+    const projId = url.searchParams.get("projectId");
+    const q = (url.searchParams.get("q") ?? "").toLowerCase();
+    const database = readMockDatabase();
+    let list = database.employees ?? [];
+    if (projId && projId !== "all") {
+      list = list.filter((e) => e.projectId === projId);
+    }
+    if (q) {
+      list = list.filter(
+        (e) =>
+          e.code.toLowerCase().includes(q) ||
+          e.name.toLowerCase().includes(q) ||
+          e.phone.includes(q) ||
+          e.idCard.includes(q) ||
+          e.department.toLowerCase().includes(q) ||
+          e.position.toLowerCase().includes(q)
+      );
+    }
+    return ok(list);
+  }),
+
+  http.get("/api/dependents", async ({ request }) => {
+    await delay(200);
+    const url = new URL(request.url);
+    const projId = url.searchParams.get("projectId");
+    const employeeId = url.searchParams.get("employeeId");
+    const status = url.searchParams.get("status");
+    const database = readMockDatabase();
+    let list = database.dependents ?? [];
+    if (projId && projId !== "all") {
+      list = list.filter((d) => d.projectId === projId);
+    }
+    if (employeeId) {
+      list = list.filter((d) => d.employeeId === employeeId);
+    }
+    if (status && status !== "all") {
+      list = list.filter((d) => d.status === status);
+    }
+    return ok(list);
+  }),
+
+  http.post("/api/dependents", async ({ request }) => {
+    await delay(300);
+    const payload = (await request.json()) as Partial<Dependent>;
+    const database = readMockDatabase();
+    const employee = database.employees.find((e) => e.id === payload.employeeId || e.code === payload.employeeCode);
+    const newDep: Dependent = {
+      id: uid("dep"),
+      employeeId: employee?.id ?? payload.employeeId ?? "",
+      employeeCode: employee?.code ?? payload.employeeCode ?? "",
+      employeeName: employee?.name ?? payload.employeeName ?? "",
+      projectId: employee?.projectId ?? payload.projectId ?? "",
+      fullName: payload.fullName ?? "",
+      relationship: payload.relationship ?? "child",
+      dob: payload.dob ?? "2020-01-01",
+      idCardOrTaxCode: payload.idCardOrTaxCode ?? "",
+      startDate: payload.startDate ?? new Date().toISOString().slice(0, 7),
+      endDate: payload.endDate,
+      attachmentUrl: payload.attachmentUrl ?? "https://images.unsplash.com/photo-1568602471122-7832951cc4c5?w=600&auto=format&fit=crop&q=80",
+      attachmentName: payload.attachmentName ?? "CCCD_DinhKem.pdf",
+      attachmentType: payload.attachmentType ?? "cccd_2_sided",
+      creationMode: payload.creationMode ?? "bcsx_declare",
+      status: "pending_approval",
+    };
+    mutateMockDatabase((db) => {
+      db.dependents = [newDep, ...(db.dependents ?? [])];
+    });
+    return ok(newDep);
+  }),
+
+  http.post("/api/dependents/import", async ({ request }) => {
+    await delay(400);
+    const payload = (await request.json()) as { projectId: string; items: Partial<Dependent>[] };
+    const database = readMockDatabase();
+    const newDeps: Dependent[] = (payload.items ?? []).map((item) => {
+      const emp = database.employees.find((e) => e.code === item.employeeCode || e.id === item.employeeId);
+      return {
+        id: uid("dep"),
+        employeeId: emp?.id ?? item.employeeId ?? "",
+        employeeCode: emp?.code ?? item.employeeCode ?? "",
+        employeeName: emp?.name ?? item.employeeName ?? "",
+        projectId: payload.projectId,
+        fullName: item.fullName ?? "",
+        relationship: item.relationship ?? "child",
+        dob: item.dob ?? "2019-01-01",
+        idCardOrTaxCode: item.idCardOrTaxCode ?? "",
+        startDate: item.startDate ?? "2026-08",
+        attachmentUrl: item.attachmentUrl ?? "https://images.unsplash.com/photo-1568602471122-7832951cc4c5?w=600&auto=format&fit=crop&q=80",
+        attachmentName: item.attachmentName ?? "CCCD_Import.pdf",
+        attachmentType: item.attachmentType ?? "cccd_2_sided",
+        creationMode: "accountant_import",
+        status: "pending_approval",
+      };
+    });
+    mutateMockDatabase((db) => {
+      db.dependents = [...newDeps, ...(db.dependents ?? [])];
+    });
+    return ok(newDeps);
+  }),
+
+  http.post("/api/dependents/confirm", async ({ request }) => {
+    await delay(300);
+    const payload = (await request.json()) as { ids: string[]; verifiedBy?: string };
+    const targetIds = new Set(payload.ids ?? []);
+    const verifiedBy = payload.verifiedBy ?? "Trần Thu Trang (Kế toán)";
+    const verifiedAt = new Date().toISOString().replace("T", " ").slice(0, 16);
+
+    let updatedList: Dependent[] = [];
+    mutateMockDatabase((db) => {
+      db.dependents = (db.dependents ?? []).map((d) => {
+        if (targetIds.has(d.id)) {
+          return {
+            ...d,
+            status: "approved",
+            verifiedBy,
+            verifiedAt,
+            rejectionReason: undefined,
+          };
+        }
+        return d;
+      });
+      updatedList = db.dependents.filter((d) => targetIds.has(d.id));
+
+      // Synchronize Tax Config approved dependents count
+      const empIds = new Set(updatedList.map((d) => d.employeeId));
+      db.taxConfigs = (db.taxConfigs ?? []).map((tc) => {
+        if (empIds.has(tc.employeeId)) {
+          const approvedCount = db.dependents.filter((d) => d.employeeId === tc.employeeId && d.status === "approved").length;
+          return {
+            ...tc,
+            approvedDependentsCount: approvedCount,
+            dependentDeduction: approvedCount * 4400000,
+          };
+        }
+        return tc;
+      });
+    });
+    return ok(updatedList);
+  }),
+
+  http.post("/api/dependents/:id/reject", async ({ params, request }) => {
+    await delay(300);
+    const id = String(params.id);
+    const payload = (await request.json()) as { reason: string };
+    const verifiedBy = "Trần Thu Trang (Kế toán)";
+    const verifiedAt = new Date().toISOString().replace("T", " ").slice(0, 16);
+
+    let rejectedItem: Dependent | undefined;
+    mutateMockDatabase((db) => {
+      const idx = (db.dependents ?? []).findIndex((d) => d.id === id);
+      if (idx >= 0) {
+        db.dependents[idx] = {
+          ...db.dependents[idx],
+          status: "rejected",
+          verifiedBy,
+          verifiedAt,
+          rejectionReason: payload.reason,
+        };
+        rejectedItem = db.dependents[idx];
+
+        // Sync Tax Config
+        const empId = rejectedItem.employeeId;
+        const approvedCount = db.dependents.filter((d) => d.employeeId === empId && d.status === "approved").length;
+        const tcIdx = (db.taxConfigs ?? []).findIndex((tc) => tc.employeeId === empId);
+        if (tcIdx >= 0) {
+          db.taxConfigs[tcIdx] = {
+            ...db.taxConfigs[tcIdx],
+            approvedDependentsCount: approvedCount,
+            dependentDeduction: approvedCount * 4400000,
+          };
+        }
+      }
+    });
+    return rejectedItem ? ok(rejectedItem) : fail(404, "DEPENDENT_NOT_FOUND", "Không tìm thấy người phụ thuộc");
+  }),
+
+  http.patch("/api/dependents/:id/attachment", async ({ params, request }) => {
+    await delay(250);
+    const id = String(params.id);
+    const payload = (await request.json()) as { attachmentType: string; attachmentName: string; attachmentUrl?: string };
+
+    let updatedItem: Dependent | undefined;
+    mutateMockDatabase((db) => {
+      const idx = (db.dependents ?? []).findIndex((d) => d.id === id);
+      if (idx >= 0) {
+        db.dependents[idx] = {
+          ...db.dependents[idx],
+          attachmentType: payload.attachmentType as any,
+          attachmentName: payload.attachmentName,
+          attachmentUrl: payload.attachmentUrl ?? db.dependents[idx].attachmentUrl,
+        };
+        updatedItem = db.dependents[idx];
+      }
+    });
+    return updatedItem ? ok(updatedItem) : fail(404, "DEPENDENT_NOT_FOUND", "Không tìm thấy người phụ thuộc");
+  }),
+
+  http.get("/api/leave-records", async ({ request }) => {
+    await delay(200);
+    const url = new URL(request.url);
+    const projId = url.searchParams.get("projectId");
+    const database = readMockDatabase();
+    let list = database.leaveRecords ?? [];
+    if (projId && projId !== "all") {
+      list = list.filter((l) => l.projectId === projId);
+    }
+    return ok(list);
+  }),
+
+  http.post("/api/leave-records/:employeeId/history", async ({ params, request }) => {
+    await delay(300);
+    const empId = String(params.employeeId);
+    const payload = (await request.json()) as Omit<LeaveHistoryItem, "id" | "approvedAt">;
+    const newHistory: LeaveHistoryItem = {
+      id: uid("lh"),
+      ...payload,
+      approvedAt: new Date().toISOString().replace("T", " ").slice(0, 16),
+    };
+    let updatedRecord: LeaveRecord | undefined;
+    mutateMockDatabase((db) => {
+      const idx = (db.leaveRecords ?? []).findIndex((l) => l.employeeId === empId);
+      if (idx >= 0) {
+        const current = db.leaveRecords[idx];
+        const usedDays = current.usedDays + payload.days;
+        const remainingDays = Math.max(0, current.totalEntitled - usedDays);
+        db.leaveRecords[idx] = {
+          ...current,
+          usedDays,
+          remainingDays,
+          history: [newHistory, ...current.history],
+        };
+        updatedRecord = db.leaveRecords[idx];
+      }
+    });
+    return updatedRecord ? ok(updatedRecord) : fail(404, "LEAVE_RECORD_NOT_FOUND", "Không tìm thấy bản ghi phép năm");
+  }),
+
+  http.get("/api/union-fees", async ({ request }) => {
+    await delay(200);
+    const url = new URL(request.url);
+    const projId = url.searchParams.get("projectId");
+    const period = url.searchParams.get("period");
+    const database = readMockDatabase();
+    let list = database.unionFees ?? [];
+    if (projId && projId !== "all") {
+      list = list.filter((u) => u.projectId === projId);
+    }
+    if (period) {
+      list = list.filter((u) => u.period === period);
+    }
+    return ok(list);
+  }),
+
+  http.post("/api/union-fees/import", async ({ request }) => {
+    await delay(400);
+    const payload = (await request.json()) as { projectId: string; period: string; items: Partial<UnionFeeRecord>[] };
+    const database = readMockDatabase();
+    const newRecords: UnionFeeRecord[] = (payload.items ?? []).map((item) => {
+      const emp = database.employees.find((e) => e.code === item.employeeCode || e.id === item.employeeId);
+      return {
+        id: `union-${emp?.id ?? uid("uf")}`,
+        employeeId: emp?.id ?? item.employeeId ?? "",
+        employeeCode: emp?.code ?? item.employeeCode ?? "",
+        employeeName: emp?.name ?? item.employeeName ?? "",
+        projectId: payload.projectId,
+        period: payload.period,
+        feeType: item.feeType ?? "percentage",
+        amount: item.amount ?? 23400,
+        isParticipating: item.isParticipating !== false,
+        importedAt: new Date().toISOString().replace("T", " ").slice(0, 16),
+        importedBy: "Kế toán tiền lương",
+      };
+    });
+    mutateMockDatabase((db) => {
+      const existing = (db.unionFees ?? []).filter((u) => u.projectId !== payload.projectId || u.period !== payload.period);
+      db.unionFees = [...newRecords, ...existing];
+    });
+    return ok(newRecords);
+  }),
+
+  http.get("/api/standard-workdays", async ({ request }) => {
+    await delay(200);
+    const url = new URL(request.url);
+    const projId = url.searchParams.get("projectId");
+    const database = readMockDatabase();
+    let list = database.standardWorkdays ?? [];
+    if (projId && projId !== "all") {
+      list = list.filter((w) => w.projectId === projId);
+    }
+    return ok(list);
+  }),
+
+  http.patch("/api/standard-workdays/:id", async ({ params, request }) => {
+    await delay(300);
+    const id = String(params.id);
+    const payload = (await request.json()) as { overrideDays?: number; isOverridden: boolean; reason?: string };
+    let updated: StandardWorkdayRecord | undefined;
+    mutateMockDatabase((db) => {
+      const idx = (db.standardWorkdays ?? []).findIndex((w) => w.id === id);
+      if (idx >= 0) {
+        db.standardWorkdays[idx] = {
+          ...db.standardWorkdays[idx],
+          overrideDays: payload.overrideDays,
+          isOverridden: payload.isOverridden,
+          reason: payload.reason,
+          updatedAt: new Date().toISOString().replace("T", " ").slice(0, 16),
+          updatedBy: "Kế toán tiền lương",
+        };
+        updated = db.standardWorkdays[idx];
+      }
+    });
+    return updated ? ok(updated) : fail(404, "RECORD_NOT_FOUND", "Không tìm thấy bản ghi");
+  }),
+
+  http.get("/api/insurance-records", async ({ request }) => {
+    await delay(200);
+    const url = new URL(request.url);
+    const projId = url.searchParams.get("projectId");
+    const fromDate = url.searchParams.get("fromDate");
+    const toDate = url.searchParams.get("toDate");
+    const database = readMockDatabase();
+    let list = database.insuranceRecords ?? [];
+    if (projId && projId !== "all") {
+      list = list.filter((i) => i.projectId === projId);
+    }
+    if (fromDate) {
+      list = list.filter((i) => !i.toDate || i.toDate >= fromDate);
+    }
+    if (toDate) {
+      list = list.filter((i) => !i.fromDate || i.fromDate <= toDate);
+    }
+    return ok(list);
+  }),
+
+  http.get("/api/insurance/master", async ({ request }) => {
+    await delay(200);
+    const url = new URL(request.url);
+    const projId = url.searchParams.get("projectId");
+    const database = readMockDatabase();
+    let list = database.insuranceRecords ?? [];
+    if (projId && projId !== "all") {
+      list = list.filter((i) => i.projectId === projId);
+    }
+    return ok(list);
+  }),
+
+  http.get("/api/insurance/changes", async ({ request }) => {
+    await delay(200);
+    const url = new URL(request.url);
+    const projId = url.searchParams.get("projectId");
+    const period = url.searchParams.get("period");
+    const status = url.searchParams.get("status");
+    const database = readMockDatabase();
+    let list = database.insuranceChanges ?? [];
+    if (projId && projId !== "all") {
+      list = list.filter((c) => c.projectId === projId);
+    }
+    if (period) {
+      list = list.filter((c) => c.period === period);
+    }
+    if (status && status !== "all") {
+      list = list.filter((c) => c.status === status);
+    }
+    return ok(list);
+  }),
+
+  http.post("/api/insurance/changes", async ({ request }) => {
+    await delay(300);
+    const payload = (await request.json()) as Partial<InsuranceChangeRecord>;
+    const database = readMockDatabase();
+    const emp = (database.employees ?? []).find((e) => e.id === payload.employeeId);
+    const master = (database.insuranceRecords ?? []).find((m) => m.employeeId === payload.employeeId);
+
+    const newRecord: InsuranceChangeRecord = {
+      id: `ins-chg-${Date.now()}`,
+      employeeId: payload.employeeId ?? "",
+      employeeCode: emp?.code ?? payload.employeeCode ?? "",
+      employeeName: emp?.name ?? payload.employeeName ?? "",
+      projectId: emp?.projectId ?? payload.projectId ?? "prj-jss",
+      period: payload.period ?? "2026-08",
+      changeType: payload.changeType ?? "salary_adjust",
+      oldSalary: master?.insuranceSalary ?? payload.oldSalary ?? 6300000,
+      newSalary: payload.newSalary ?? 6300000,
+      effectiveMonth: payload.effectiveMonth ?? payload.period ?? "2026-08",
+      reason: payload.reason ?? "Điều chỉnh theo thỏa thuận HĐLĐ",
+      status: "pending_agency_verification",
+      documentName: payload.documentName,
+      createdAt: new Date().toISOString().replace("T", " ").slice(0, 16),
+    };
+
+    mutateMockDatabase((db) => {
+      db.insuranceChanges = [newRecord, ...(db.insuranceChanges ?? [])];
+    });
+
+    return ok(newRecord);
+  }),
+
+  http.post("/api/insurance/changes/batch-import", async ({ request }) => {
+    await delay(400);
+    const payload = (await request.json()) as { items: Partial<InsuranceChangeRecord>[] };
+    const database = readMockDatabase();
+    const created: InsuranceChangeRecord[] = [];
+
+    mutateMockDatabase((db) => {
+      payload.items.forEach((item, idx) => {
+        const emp = (database.employees ?? []).find((e) => e.id === item.employeeId || e.code === item.employeeCode);
+        const master = (database.insuranceRecords ?? []).find((m) => m.employeeId === (emp?.id ?? item.employeeId));
+
+        const rec: InsuranceChangeRecord = {
+          id: `ins-chg-${Date.now()}-${idx}`,
+          employeeId: emp?.id ?? item.employeeId ?? `emp-${idx}`,
+          employeeCode: emp?.code ?? item.employeeCode ?? "",
+          employeeName: emp?.name ?? item.employeeName ?? "",
+          projectId: emp?.projectId ?? item.projectId ?? "prj-jss",
+          period: item.period ?? "2026-08",
+          changeType: item.changeType ?? "salary_adjust",
+          oldSalary: master?.insuranceSalary ?? item.oldSalary ?? 6300000,
+          newSalary: item.newSalary ?? 6300000,
+          effectiveMonth: item.effectiveMonth ?? item.period ?? "2026-08",
+          reason: item.reason ?? "Import danh sách biến động D02-LT",
+          status: "pending_agency_verification",
+          documentName: item.documentName ?? "DanhSachBienDong_D02_LT.xlsx",
+          createdAt: new Date().toISOString().replace("T", " ").slice(0, 16),
+        };
+        created.push(rec);
+      });
+
+      db.insuranceChanges = [...created, ...(db.insuranceChanges ?? [])];
+    });
+
+    return ok(created);
+  }),
+
+  http.post("/api/insurance/changes/:id/verify", async ({ params, request }) => {
+    await delay(300);
+    const id = String(params.id);
+    const payload = (await request.json()) as { verifiedBy?: string; agencyReceiptCode?: string };
+    let updatedChange: InsuranceChangeRecord | undefined;
+
+    mutateMockDatabase((db) => {
+      const idx = (db.insuranceChanges ?? []).findIndex((c) => c.id === id);
+      if (idx >= 0) {
+        const change = db.insuranceChanges[idx];
+        const verifiedBy = payload.verifiedBy ?? "Trần Thu Trang (Kế toán BHXH)";
+        const verifiedAt = new Date().toISOString().replace("T", " ").slice(0, 16);
+        const agencyReceiptCode = payload.agencyReceiptCode ?? `BHXH-7901-${change.period.replace("-", "")}-${Math.floor(1000 + Math.random() * 9000)}`;
+
+        db.insuranceChanges[idx] = {
+          ...change,
+          status: "verified",
+          agencyReceiptCode,
+          verifiedBy,
+          verifiedAt,
+        };
+        updatedChange = db.insuranceChanges[idx];
+
+        // Tự động đồng bộ cập nhật vào Sổ BHXH Master
+        const masterIdx = (db.insuranceRecords ?? []).findIndex((m) => m.employeeId === change.employeeId);
+        if (masterIdx >= 0) {
+          const master = db.insuranceRecords[masterIdx];
+          let nextStatus: "active" | "suspended" | "stopped" = master.status;
+          let nextSalary = master.insuranceSalary;
+
+          if (change.changeType === "increase" || change.changeType === "salary_adjust" || change.changeType === "resume") {
+            nextStatus = "active";
+            nextSalary = change.newSalary;
+          } else if (change.changeType === "decrease") {
+            nextStatus = "stopped";
+          } else if (change.changeType === "suspend") {
+            nextStatus = "suspended";
+          }
+
+          db.insuranceRecords[masterIdx] = {
+            ...master,
+            insuranceSalary: nextSalary,
+            status: nextStatus,
+            effectiveMonth: change.effectiveMonth,
+            verifiedBy,
+            verifiedAt,
+          };
+        }
+      }
+    });
+
+    return updatedChange ? ok(updatedChange) : fail(404, "RECORD_NOT_FOUND", "Không tìm thấy hồ sơ biến động BHXH");
+  }),
+
+  http.post("/api/insurance/changes/batch-verify", async ({ request }) => {
+    await delay(350);
+    const payload = (await request.json()) as { ids: string[]; verifiedBy?: string; agencyReceiptCode?: string };
+    const idSet = new Set(payload.ids ?? []);
+    const verifiedBy = payload.verifiedBy ?? "Trần Thu Trang (Kế toán BHXH)";
+    const verifiedAt = new Date().toISOString().replace("T", " ").slice(0, 16);
+    let updatedList: InsuranceChangeRecord[] = [];
+
+    mutateMockDatabase((db) => {
+      db.insuranceChanges = (db.insuranceChanges ?? []).map((change) => {
+        if (idSet.has(change.id)) {
+          const agencyReceiptCode = payload.agencyReceiptCode ?? `BHXH-7901-${change.period.replace("-", "")}-${Math.floor(1000 + Math.random() * 9000)}`;
+          const updated = {
+            ...change,
+            status: "verified" as const,
+            agencyReceiptCode,
+            verifiedBy,
+            verifiedAt,
+          };
+
+          // Đồng bộ vào Master
+          const masterIdx = (db.insuranceRecords ?? []).findIndex((m) => m.employeeId === change.employeeId);
+          if (masterIdx >= 0) {
+            const master = db.insuranceRecords[masterIdx];
+            let nextStatus: "active" | "suspended" | "stopped" = master.status;
+            let nextSalary = master.insuranceSalary;
+
+            if (change.changeType === "increase" || change.changeType === "salary_adjust" || change.changeType === "resume") {
+              nextStatus = "active";
+              nextSalary = change.newSalary;
+            } else if (change.changeType === "decrease") {
+              nextStatus = "stopped";
+            } else if (change.changeType === "suspend") {
+              nextStatus = "suspended";
+            }
+
+            db.insuranceRecords[masterIdx] = {
+              ...master,
+              insuranceSalary: nextSalary,
+              status: nextStatus,
+              effectiveMonth: change.effectiveMonth,
+              verifiedBy,
+              verifiedAt,
+            };
+          }
+
+          return updated;
+        }
+        return change;
+      });
+
+      updatedList = db.insuranceChanges.filter((c) => idSet.has(c.id));
+    });
+
+    return ok(updatedList);
+  }),
+
+  http.post("/api/insurance/changes/:id/reject", async ({ params, request }) => {
+    await delay(300);
+    const id = String(params.id);
+    const payload = (await request.json()) as { rejectionReason: string };
+    let updatedChange: InsuranceChangeRecord | undefined;
+
+    mutateMockDatabase((db) => {
+      const idx = (db.insuranceChanges ?? []).findIndex((c) => c.id === id);
+      if (idx >= 0) {
+        db.insuranceChanges[idx] = {
+          ...db.insuranceChanges[idx],
+          status: "rejected",
+          rejectionReason: payload.rejectionReason || "Không khớp thông tin hợp đồng / cơ quan BHXH",
+          verifiedBy: "Trần Thu Trang (Kế toán BHXH)",
+          verifiedAt: new Date().toISOString().replace("T", " ").slice(0, 16),
+        };
+        updatedChange = db.insuranceChanges[idx];
+      }
+    });
+
+    return updatedChange ? ok(updatedChange) : fail(404, "RECORD_NOT_FOUND", "Không tìm thấy bản ghi biến động");
+  }),
+
+  http.post("/api/insurance-records/:id/verify", async ({ params, request }) => {
+    await delay(300);
+    const id = String(params.id);
+    const payload = (await request.json()) as { verifiedBy?: string };
+    let updated: InsuranceRecord | undefined;
+    mutateMockDatabase((db) => {
+      const idx = (db.insuranceRecords ?? []).findIndex((i) => i.id === id);
+      if (idx >= 0) {
+        db.insuranceRecords[idx] = {
+          ...db.insuranceRecords[idx],
+          status: "active",
+          verifiedBy: payload.verifiedBy ?? "Trần Thu Trang (Kế toán BHXH)",
+          verifiedAt: new Date().toISOString().replace("T", " ").slice(0, 16),
+        };
+        updated = db.insuranceRecords[idx];
+      }
+    });
+    return updated ? ok(updated) : fail(404, "RECORD_NOT_FOUND", "Không tìm thấy hồ sơ BHXH");
+  }),
+
+  http.post("/api/insurance-records/batch-verify", async ({ request }) => {
+    await delay(300);
+    const payload = (await request.json()) as { ids: string[]; verifiedBy?: string };
+    const idSet = new Set(payload.ids ?? []);
+    const verifiedBy = payload.verifiedBy ?? "Trần Thu Trang (Kế toán BHXH)";
+    const verifiedAt = new Date().toISOString().replace("T", " ").slice(0, 16);
+    let updatedList: InsuranceRecord[] = [];
+    mutateMockDatabase((db) => {
+      db.insuranceRecords = (db.insuranceRecords ?? []).map((i) => {
+        if (idSet.has(i.id)) {
+          return {
+            ...i,
+            status: "active",
+            verifiedBy,
+            verifiedAt,
+          };
+        }
+        return i;
+      });
+      updatedList = db.insuranceRecords.filter((i) => idSet.has(i.id));
+    });
+    return ok(updatedList);
+  }),
+
+  http.get("/api/tax-configs", async ({ request }) => {
+    await delay(200);
+    const url = new URL(request.url);
+    const projId = url.searchParams.get("projectId");
+    const database = readMockDatabase();
+    let list = database.taxConfigs ?? [];
+    if (projId && projId !== "all") {
+      list = list.filter((t) => t.projectId === projId);
+    }
+    return ok(list);
+  }),
+
+  http.patch("/api/tax-configs/:id", async ({ params, request }) => {
+    await delay(300);
+    const id = String(params.id);
+    const payload = (await request.json()) as Partial<TaxConfigRecord>;
+    let updated: TaxConfigRecord | undefined;
+    mutateMockDatabase((db) => {
+      const idx = (db.taxConfigs ?? []).findIndex((t) => t.id === id);
+      if (idx >= 0) {
+        db.taxConfigs[idx] = {
+          ...db.taxConfigs[idx],
+          ...payload,
+        };
+        updated = db.taxConfigs[idx];
+      }
+    });
+    return updated ? ok(updated) : fail(404, "RECORD_NOT_FOUND", "Không tìm thấy cấu hình thuế");
   }),
 ];

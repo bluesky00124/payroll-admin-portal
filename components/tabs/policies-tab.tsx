@@ -384,7 +384,7 @@ export function PoliciesTab({ projectId }: { projectId: string; embedded?: boole
 
       <section className="content-card">
         <div className="table-toolbar">
-          <label className="search-field" style={{ width: "100%", maxWidth: "360px" }}>
+          <label className="search-field">
             <Search />
             <input value={search} onChange={(event) => setSearch(event.target.value)} placeholder="Tìm chế độ..." />
           </label>

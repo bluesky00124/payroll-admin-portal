@@ -13,7 +13,7 @@ describe("mock API contract", () => {
   it("trả đủ danh mục chế độ động", async () => {
     const response = await fetch("http://localhost/api/policy-definitions");
     const payload = await response.json() as ApiResponse<PolicyDefinition[]>;
-    expect(payload.data).toHaveLength(35);
+    expect(payload.data).toHaveLength(45);
     expect(payload.data.find((item) => item.code === "MEAL_ALLOWANCE")?.fields.length).toBeGreaterThan(0);
   });
 

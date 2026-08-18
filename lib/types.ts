@@ -210,6 +210,156 @@ export interface TestRunResult {
   warnings: string[];
 }
 
+export interface Employee {
+  id: string;
+  code: string;
+  name: string;
+  idCard: string;
+  phone: string;
+  email?: string;
+  projectId: string;
+  projectCode: string;
+  department: string;
+  position: string;
+  joinDate: string;
+  status: "active" | "resigned" | "probation";
+}
+
+export interface Dependent {
+  id: string;
+  employeeId: string;
+  employeeCode: string;
+  employeeName: string;
+  projectId: string;
+  fullName: string;
+  relationship: "child" | "spouse" | "parent" | "other";
+  dob: string;
+  idCardOrTaxCode: string;
+  startDate: string; // YYYY-MM
+  endDate?: string;  // YYYY-MM
+  attachmentUrl?: string;
+  attachmentName?: string;
+  attachmentType?: "cccd_2_sided" | "disability_cert" | "birth_cert";
+  creationMode: "accountant_import" | "bcsx_declare";
+  status: "pending_approval" | "approved" | "rejected";
+  verifiedBy?: string;
+  verifiedAt?: string;
+  rejectionReason?: string;
+}
+
+export interface LeaveHistoryItem {
+  id: string;
+  from: string;
+  to: string;
+  days: number;
+  leaveType: "annual" | "compensatory" | "unpaid" | "sick";
+  reason: string;
+  approvedBy: string;
+  approvedAt: string;
+}
+
+export interface LeaveRecord {
+  id: string;
+  employeeId: string;
+  employeeCode: string;
+  employeeName: string;
+  projectId: string;
+  totalEntitled: number;
+  seniorityDays: number;
+  usedDays: number;
+  remainingDays: number;
+  history: LeaveHistoryItem[];
+}
+
+export interface UnionFeeRecord {
+  id: string;
+  employeeId: string;
+  employeeCode: string;
+  employeeName: string;
+  projectId: string;
+  period: string; // YYYY-MM
+  feeType: "percentage" | "fixed";
+  amount: number;
+  isParticipating: boolean;
+  importedAt?: string;
+  importedBy?: string;
+}
+
+export interface StandardWorkdayRecord {
+  id: string;
+  employeeId: string;
+  employeeCode: string;
+  employeeName: string;
+  projectId: string;
+  projectStandardDays: number;
+  overrideDays?: number;
+  isOverridden: boolean;
+  reason?: string;
+  updatedAt: string;
+  updatedBy: string;
+}
+
+export interface InsuranceRecord {
+  id: string;
+  employeeId: string;
+  employeeCode: string;
+  employeeName: string;
+  projectId: string;
+  insuranceBookNumber: string; // Mã số BHXH 10 chữ số
+  insuranceSalary: number;
+  employeeRate: number; // 10.5
+  companyRate: number;  // 21.5
+  fromDate?: string;     // YYYY-MM-DD
+  toDate?: string;       // YYYY-MM-DD
+  effectiveMonth: string; // YYYY-MM
+  status: "active" | "suspended" | "stopped";
+  hospitalName?: string; // Nơi ĐK KCB ban đầu
+  verifiedBy?: string;
+  verifiedAt?: string;
+}
+
+export type InsuranceChangeType =
+  | "increase"      // Báo tăng mới (ký HĐLĐ)
+  | "decrease"      // Báo giảm hẳn (nghỉ việc)
+  | "salary_adjust" // Điều chỉnh mức lương đóng
+  | "suspend"       // Tạm dừng (thai sản, nghỉ không lương > 14 ngày)
+  | "resume";       // Đóng trở lại sau tạm dừng
+
+export interface InsuranceChangeRecord {
+  id: string;
+  employeeId: string;
+  employeeCode: string;
+  employeeName: string;
+  projectId: string;
+  period: string; // YYYY-MM (Kỳ biến động, vd "2026-08")
+  changeType: InsuranceChangeType;
+  oldSalary?: number;
+  newSalary: number;
+  effectiveMonth: string; // YYYY-MM
+  reason: string;
+  status: "pending_agency_verification" | "verified" | "rejected";
+  agencyReceiptCode?: string; // Mã hồ sơ điện tử cơ quan BHXH
+  documentName?: string;
+  verifiedBy?: string;
+  verifiedAt?: string;
+  rejectionReason?: string;
+  createdAt: string;
+}
+
+export interface TaxConfigRecord {
+  id: string;
+  employeeId: string;
+  employeeCode: string;
+  employeeName: string;
+  projectId: string;
+  taxCode: string;
+  taxType: "progressive" | "flat_10" | "non_resident_20" | "commitment_08";
+  hasCommitment08: boolean;
+  approvedDependentsCount: number;
+  personalDeduction: number;
+  dependentDeduction: number;
+}
+
 export interface MockDatabase {
   schemaVersion: number;
   projects: Project[];
@@ -222,4 +372,12 @@ export interface MockDatabase {
   formulaVariables: FormulaVariable[];
   dataMappings: DataMapping[];
   testEmployees: TestEmployee[];
+  employees: Employee[];
+  dependents: Dependent[];
+  leaveRecords: LeaveRecord[];
+  unionFees: UnionFeeRecord[];
+  standardWorkdays: StandardWorkdayRecord[];
+  insuranceRecords: InsuranceRecord[];
+  insuranceChanges: InsuranceChangeRecord[];
+  taxConfigs: TaxConfigRecord[];
 }

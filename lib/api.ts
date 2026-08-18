@@ -2,7 +2,13 @@ import type {
   ApiResponse,
   AttendanceConfig,
   DataMapping,
+  Dependent,
+  Employee,
   FormulaVariable,
+  InsuranceChangeRecord,
+  InsuranceRecord,
+  LeaveHistoryItem,
+  LeaveRecord,
   OvertimeType,
   PaginationMeta,
   PolicyDefinition,
@@ -10,8 +16,11 @@ import type {
   ProjectOvertimeConfig,
   ProjectPolicy,
   SalaryFormula,
+  StandardWorkdayRecord,
+  TaxConfigRecord,
   TestEmployee,
   TestRunResult,
+  UnionFeeRecord,
 } from "@/lib/types";
 
 export class ApiRequestError extends Error {
@@ -65,4 +74,74 @@ export const api = {
   validateDataMappings: (id: string) => request<{ valid: boolean; issues: string[]; checkedAt: string }>(`/api/projects/${id}/data-mappings/validate`, { method: "POST" }).then((item) => item.data),
   getTestEmployees: () => request<TestEmployee[]>("/api/test-employees").then((item) => item.data),
   runTest: (id: string, payload: { employeeId: string; period: string }) => request<TestRunResult>(`/api/projects/${id}/test-runs`, { method: "POST", body: JSON.stringify(payload) }).then((item) => item.data),
+
+  // Employee Management APIs
+  getEmployees: (params?: { projectId?: string; q?: string }) => {
+    const query = new URLSearchParams(Object.entries(params ?? {}).filter(([, v]) => v !== undefined).map(([k, v]) => [k, String(v)]));
+    return request<Employee[]>(`/api/employees?${query}`).then((item) => item.data);
+  },
+  getDependents: (params?: { projectId?: string; employeeId?: string; status?: string }) => {
+    const query = new URLSearchParams(Object.entries(params ?? {}).filter(([, v]) => v !== undefined).map(([k, v]) => [k, String(v)]));
+    return request<Dependent[]>(`/api/dependents?${query}`).then((item) => item.data);
+  },
+  createDependent: (payload: Partial<Dependent>) =>
+    request<Dependent>("/api/dependents", { method: "POST", body: JSON.stringify(payload) }).then((item) => item.data),
+  importDependents: (payload: { projectId: string; items: Partial<Dependent>[] }) =>
+    request<Dependent[]>("/api/dependents/import", { method: "POST", body: JSON.stringify(payload) }).then((item) => item.data),
+  confirmDependents: (ids: string[], verifiedBy?: string) =>
+    request<Dependent[]>("/api/dependents/confirm", { method: "POST", body: JSON.stringify({ ids, verifiedBy }) }).then((item) => item.data),
+  rejectDependent: (id: string, reason: string) =>
+    request<Dependent>(`/api/dependents/${id}/reject`, { method: "POST", body: JSON.stringify({ reason }) }).then((item) => item.data),
+  updateDependentAttachment: (id: string, payload: { attachmentType: string; attachmentName: string; attachmentUrl?: string }) =>
+    request<Dependent>(`/api/dependents/${id}/attachment`, { method: "PATCH", body: JSON.stringify(payload) }).then((item) => item.data),
+  getLeaveRecords: (params?: { projectId?: string }) => {
+    const query = new URLSearchParams(Object.entries(params ?? {}).filter(([, v]) => v !== undefined).map(([k, v]) => [k, String(v)]));
+    return request<LeaveRecord[]>(`/api/leave-records?${query}`).then((item) => item.data);
+  },
+  addLeaveHistory: (employeeId: string, item: Omit<LeaveHistoryItem, "id" | "approvedAt">) =>
+    request<LeaveRecord>(`/api/leave-records/${employeeId}/history`, { method: "POST", body: JSON.stringify(item) }).then((item) => item.data),
+  getUnionFees: (params?: { projectId?: string; period?: string }) => {
+    const query = new URLSearchParams(Object.entries(params ?? {}).filter(([, v]) => v !== undefined).map(([k, v]) => [k, String(v)]));
+    return request<UnionFeeRecord[]>(`/api/union-fees?${query}`).then((item) => item.data);
+  },
+  importUnionFees: (payload: { projectId: string; period: string; items: Partial<UnionFeeRecord>[] }) =>
+    request<UnionFeeRecord[]>("/api/union-fees/import", { method: "POST", body: JSON.stringify(payload) }).then((item) => item.data),
+  getStandardWorkdays: (params?: { projectId?: string }) => {
+    const query = new URLSearchParams(Object.entries(params ?? {}).filter(([, v]) => v !== undefined).map(([k, v]) => [k, String(v)]));
+    return request<StandardWorkdayRecord[]>(`/api/standard-workdays?${query}`).then((item) => item.data);
+  },
+  saveStandardWorkdayOverride: (id: string, payload: { overrideDays?: number; isOverridden: boolean; reason?: string }) =>
+    request<StandardWorkdayRecord>(`/api/standard-workdays/${id}`, { method: "PATCH", body: JSON.stringify(payload) }).then((item) => item.data),
+  getInsuranceRecords: (params?: { projectId?: string; fromDate?: string; toDate?: string }) => {
+    const query = new URLSearchParams(Object.entries(params ?? {}).filter(([, v]) => v !== undefined).map(([k, v]) => [k, String(v)]));
+    return request<InsuranceRecord[]>(`/api/insurance-records?${query}`).then((item) => item.data);
+  },
+  getInsuranceMasterRecords: (params?: { projectId?: string }) => {
+    const query = new URLSearchParams(Object.entries(params ?? {}).filter(([, v]) => v !== undefined).map(([k, v]) => [k, String(v)]));
+    return request<InsuranceRecord[]>(`/api/insurance/master?${query}`).then((item) => item.data);
+  },
+  getInsuranceChanges: (params?: { projectId?: string; period?: string; status?: string }) => {
+    const query = new URLSearchParams(Object.entries(params ?? {}).filter(([, v]) => v !== undefined).map(([k, v]) => [k, String(v)]));
+    return request<InsuranceChangeRecord[]>(`/api/insurance/changes?${query}`).then((item) => item.data);
+  },
+  createInsuranceChange: (payload: Partial<InsuranceChangeRecord>) =>
+    request<InsuranceChangeRecord>("/api/insurance/changes", { method: "POST", body: JSON.stringify(payload) }).then((item) => item.data),
+  batchImportInsuranceChanges: (items: Partial<InsuranceChangeRecord>[]) =>
+    request<InsuranceChangeRecord[]>("/api/insurance/changes/batch-import", { method: "POST", body: JSON.stringify({ items }) }).then((item) => item.data),
+  verifyInsuranceChange: (id: string, payload?: { verifiedBy?: string; agencyReceiptCode?: string }) =>
+    request<InsuranceChangeRecord>(`/api/insurance/changes/${id}/verify`, { method: "POST", body: JSON.stringify(payload ?? {}) }).then((item) => item.data),
+  batchVerifyInsuranceChanges: (payload: { ids: string[]; verifiedBy?: string; agencyReceiptCode?: string }) =>
+    request<InsuranceChangeRecord[]>("/api/insurance/changes/batch-verify", { method: "POST", body: JSON.stringify(payload) }).then((item) => item.data),
+  rejectInsuranceChange: (id: string, payload: { rejectionReason: string }) =>
+    request<InsuranceChangeRecord>(`/api/insurance/changes/${id}/reject`, { method: "POST", body: JSON.stringify(payload) }).then((item) => item.data),
+  verifyInsuranceRecord: (id: string, verifiedBy?: string) =>
+    request<InsuranceRecord>(`/api/insurance-records/${id}/verify`, { method: "POST", body: JSON.stringify({ verifiedBy }) }).then((item) => item.data),
+  batchVerifyInsurance: (ids: string[], verifiedBy?: string) =>
+    request<InsuranceRecord[]>("/api/insurance-records/batch-verify", { method: "POST", body: JSON.stringify({ ids, verifiedBy }) }).then((item) => item.data),
+  getTaxConfigs: (params?: { projectId?: string }) => {
+    const query = new URLSearchParams(Object.entries(params ?? {}).filter(([, v]) => v !== undefined).map(([k, v]) => [k, String(v)]));
+    return request<TaxConfigRecord[]>(`/api/tax-configs?${query}`).then((item) => item.data);
+  },
+  saveTaxConfig: (id: string, payload: Partial<TaxConfigRecord>) =>
+    request<TaxConfigRecord>(`/api/tax-configs/${id}`, { method: "PATCH", body: JSON.stringify(payload) }).then((item) => item.data),
 };

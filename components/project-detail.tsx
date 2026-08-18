@@ -1,10 +1,9 @@
 "use client";
 
 import { useQuery } from "@tanstack/react-query";
-import { CalendarClock, FunctionSquare, LoaderCircle, ScrollText } from "lucide-react";
+import { FunctionSquare, LoaderCircle, ScrollText } from "lucide-react";
 import { useState } from "react";
 import { AdminShell } from "@/components/admin-shell";
-import { AttendanceTab } from "@/components/tabs/attendance-tab";
 import { FormulaTab } from "@/components/tabs/formula-tab";
 import { OverviewTab } from "@/components/tabs/overview-tab";
 import { PoliciesTab } from "@/components/tabs/policies-tab";
@@ -12,7 +11,7 @@ import { ErrorState, LoadingBlock } from "@/components/ui";
 import { api } from "@/lib/api";
 import { formatDate } from "@/lib/utils";
 
-type TabId = "policies" | "attendance" | "formulas";
+type TabId = "policies" | "formulas";
 
 export function ProjectDetail({ projectId }: { projectId: string }) {
   const [activeTab, setActiveTab] = useState<TabId>("policies");
@@ -79,14 +78,6 @@ export function ProjectDetail({ projectId }: { projectId: string }) {
         </button>
         <button
           type="button"
-          className={`project-tab-btn ${activeTab === "attendance" ? "active" : ""}`}
-          onClick={() => setActiveTab("attendance")}
-        >
-          <CalendarClock />
-          Chi phí tăng ca
-        </button>
-        <button
-          type="button"
           className={`project-tab-btn ${activeTab === "formulas" ? "active" : ""}`}
           onClick={() => setActiveTab("formulas")}
         >
@@ -98,7 +89,6 @@ export function ProjectDetail({ projectId }: { projectId: string }) {
       {/* Active Tab Content Area */}
       <div className="tab-content-area">
         {activeTab === "policies" && <PoliciesTab projectId={project.id} embedded />}
-        {activeTab === "attendance" && <AttendanceTab projectId={project.id} embedded />}
         {activeTab === "formulas" && <FormulaTab projectId={project.id} embedded />}
       </div>
 

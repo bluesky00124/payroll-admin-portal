@@ -139,7 +139,7 @@ export function AttendanceTab({ projectId, embedded = false }: { projectId: stri
 
       <section className="content-card">
         <div className="table-toolbar">
-          <label className="search-field" style={{ width: "100%", maxWidth: "360px" }}>
+          <label className="search-field">
             <Search />
             <input value={search} onChange={(e) => setSearch(e.target.value)} placeholder="Tìm chi phí tăng ca..." />
           </label>

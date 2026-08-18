@@ -50,7 +50,7 @@ export function ProjectsList() {
 
       <section className="content-card project-card">
         <div className="table-toolbar">
-          <label className="search-field" style={{ width: "100%", maxWidth: "360px" }}>
+          <label className="search-field">
             <Search />
             <input
               value={query}
