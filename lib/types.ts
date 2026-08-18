@@ -230,11 +230,15 @@ export interface Dependent {
   employeeId: string;
   employeeCode: string;
   employeeName: string;
+  employeeIdCard?: string;
+  employeeTaxCode?: string;
   projectId: string;
+  projectCode?: string;
   fullName: string;
   relationship: "child" | "spouse" | "parent" | "other";
   dob: string;
   idCardOrTaxCode: string;
+  taxCode?: string;
   startDate: string; // YYYY-MM
   endDate?: string;  // YYYY-MM
   attachmentUrl?: string;
@@ -264,10 +268,18 @@ export interface LeaveRecord {
   employeeCode: string;
   employeeName: string;
   projectId: string;
-  totalEntitled: number;
-  seniorityDays: number;
-  usedDays: number;
-  remainingDays: number;
+  projectCode?: string;
+  contractType: "official" | "probation" | "seasonal"; // Loại hợp đồng lao động
+  employeeStatus: "active" | "resigned" | "probation";  // Trạng thái nhân sự
+  eligibilityStatus: "eligible" | "probation_ineligible" | "resigned"; // Tình trạng hưởng phép năm
+  entitlementDate?: string; // YYYY-MM-DD (Thời điểm bắt đầu được hưởng phép năm)
+  resignationDate?: string; // YYYY-MM-DD (Thời điểm nghỉ việc nếu đã thôi việc)
+  accruedDays: number;     // Số ngày phép đã tích lũy lũy kế đến kỳ hiện tại (VD: 8 tháng = 8 ngày)
+  availableDays: number;   // Số ngày phép khả dụng có thể sử dụng ngay tại thời điểm hiện tại
+  totalEntitled: number;   // Tổng số ngày phép tiêu chuẩn cả năm (12 ngày)
+  seniorityDays: number;   // Số ngày phép thâm niên
+  usedDays: number;        // Số ngày phép đã sử dụng
+  remainingDays: number;   // Tổng số ngày phép còn lại cả năm = (totalEntitled + seniorityDays) - usedDays
   history: LeaveHistoryItem[];
 }
 

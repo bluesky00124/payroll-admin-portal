@@ -38,6 +38,7 @@ import {
   MonthPicker,
   StatusBadge,
   TablePaginationFooter,
+  TableRowActions,
 } from "@/components/ui";
 import { api } from "@/lib/api";
 import type {
@@ -46,7 +47,7 @@ import type {
   InsuranceChangeType,
   InsuranceRecord,
 } from "@/lib/types";
-import { formatCurrency, formatDate, formatMonthYear } from "@/lib/utils";
+import { cn, formatCurrency, formatDate, formatMonthYear } from "@/lib/utils";
 
 export function InsuranceSubtab({
   projectId,
@@ -318,35 +319,15 @@ export function InsuranceSubtab({
   const renderChangeTypeBadge = (type: InsuranceChangeType) => {
     switch (type) {
       case "increase":
-        return (
-          <span className="change-type-tag change-type-increase">
-            <UserPlus /> Báo tăng mới
-          </span>
-        );
+        return <span className="font-medium text-foreground">Báo tăng mới</span>;
       case "decrease":
-        return (
-          <span className="change-type-tag change-type-decrease">
-            <UserMinus /> Báo giảm hẳn
-          </span>
-        );
+        return <span className="font-medium text-foreground">Báo giảm hẳn</span>;
       case "salary_adjust":
-        return (
-          <span className="change-type-tag change-type-adjust">
-            <TrendingUp /> Điều chỉnh mức đóng
-          </span>
-        );
+        return <span className="font-medium text-foreground">Điều chỉnh mức đóng</span>;
       case "suspend":
-        return (
-          <span className="change-type-tag change-type-suspend">
-            <AlertCircle /> Tạm dừng đóng
-          </span>
-        );
+        return <span className="font-medium text-foreground">Tạm dừng đóng</span>;
       case "resume":
-        return (
-          <span className="change-type-tag change-type-resume">
-            <RefreshCw /> Đóng trở lại
-          </span>
-        );
+        return <span className="font-medium text-foreground">Đóng trở lại</span>;
     }
   };
 
@@ -535,19 +516,6 @@ export function InsuranceSubtab({
                 </button>
               </div>
 
-              {(searchTerm || masterStatusFilter !== "all") && (
-                <Button
-                  variant="ghost"
-                  size="sm"
-                  onClick={() => {
-                    setSearchTerm("");
-                    setMasterStatusFilter("all");
-                    setMasterPage(1);
-                  }}
-                >
-                  <X /> Xóa bộ lọc
-                </Button>
-              )}
             </div>
           </div>
 
@@ -558,7 +526,8 @@ export function InsuranceSubtab({
             />
           ) : (
             <div className="data-table-wrap">
-              <table className="data-table">
+              <div className="data-table-scroll">
+                <table className="data-table">
                 <thead>
                   <tr>
                     <th style={{ width: "45px" }} className="text-center">STT</th>
@@ -590,9 +559,7 @@ export function InsuranceSubtab({
                             </span>
                           </div>
                         </td>
-                        <td>
-                          <code className="code-badge font-bold tracking-wider">{item.insuranceBookNumber}</code>
-                        </td>
+                        <td className="font-mono text-sm">{item.insuranceBookNumber}</td>
                         <td className="text-right font-mono">
                           <strong className="text-primary text-[13.5px]">{formatCurrency(item.insuranceSalary)}</strong>
                         </td>
@@ -633,21 +600,22 @@ export function InsuranceSubtab({
                   })}
                 </tbody>
               </table>
-
-              <TablePaginationFooter
-                totalItems={filteredMaster.length}
-                currentPage={masterPage}
-                pageSize={masterPageSize}
-                onPageChange={setMasterPage}
-                onPageSizeChange={(newSize) => {
-                  setMasterPageSize(newSize);
-                  setMasterPage(1);
-                }}
-              />
             </div>
-          )}
-        </div>
-      )}
+
+            <TablePaginationFooter
+              totalItems={filteredMaster.length}
+              currentPage={masterPage}
+              pageSize={masterPageSize}
+              onPageChange={setMasterPage}
+              onPageSizeChange={(newSize) => {
+                setMasterPageSize(newSize);
+                setMasterPage(1);
+              }}
+            />
+          </div>
+        )}
+      </div>
+    )}
 
       {/* TAB 2: BIẾN ĐỘNG TRONG KỲ */}
       {activeView === "changes" && (
@@ -769,19 +737,6 @@ export function InsuranceSubtab({
                 </button>
               </div>
 
-              {(searchTerm || changeStatusFilter !== "all") && (
-                <Button
-                  variant="ghost"
-                  size="sm"
-                  onClick={() => {
-                    setSearchTerm("");
-                    setChangeStatusFilter("all");
-                    setChangesPage(1);
-                  }}
-                >
-                  <X /> Xóa bộ lọc
-                </Button>
-              )}
             </div>
           </div>
 
@@ -801,7 +756,8 @@ export function InsuranceSubtab({
             />
           ) : (
             <div className="data-table-wrap">
-              <table className="data-table">
+              <div className="data-table-scroll">
+                <table className="data-table">
                 <thead>
                   <tr>
                     {isAccountant && (
@@ -824,7 +780,7 @@ export function InsuranceSubtab({
                     <th>Lý do & Chứng từ</th>
                     <th>Trạng thái đối chiếu</th>
                     <th>Kết quả cơ quan BHXH</th>
-                    {isAccountant && <th style={{ width: "140px" }} className="text-center">Thao tác</th>}
+                    <th style={{ width: "80px" }} className="text-center">Thao tác</th>
                   </tr>
                 </thead>
                 <tbody>
@@ -921,61 +877,70 @@ export function InsuranceSubtab({
                             <span className="text-muted text-xs">—</span>
                           )}
                         </td>
-                        {isAccountant && (
-                          <td className="text-center">
-                            {isPending ? (
-                              <div className="action-buttons-compact">
-                                <Button
-                                  variant="primary"
-                                  size="sm"
-                                  onClick={() => {
-                                    setSelectedChangeForAction(item);
-                                    setVerifyModalOpen(true);
-                                  }}
-                                  title="Xác nhận đối chiếu hợp lệ với cơ quan BHXH"
-                                >
-                                  <Check /> Duyệt
-                                </Button>
-                                <Button
-                                  variant="danger"
-                                  size="sm"
-                                  onClick={() => {
-                                    setSelectedChangeForAction(item);
-                                    setRejectModalOpen(true);
-                                  }}
-                                  title="Từ chối nếu số liệu chưa khớp"
-                                >
-                                  <X /> Từ chối
-                                </Button>
-                              </div>
-                            ) : (
-                              <span className="text-muted text-xs font-medium">
-                                {isVerified ? "✓ Đã cập nhật sổ BHXH" : "Đã từ chối"}
-                              </span>
-                            )}
-                          </td>
-                        )}
+                        <td className="text-center">
+                          <TableRowActions
+                            items={[
+                              ...(isAccountant && isPending
+                                ? [
+                                    {
+                                      key: "verify",
+                                      label: "Xác nhận đối chiếu BHXH",
+                                      icon: <Check />,
+                                      onClick: () => {
+                                        setSelectedChangeForAction(item);
+                                        setVerifyModalOpen(true);
+                                      },
+                                    },
+                                    {
+                                      key: "reject",
+                                      label: "Từ chối hồ sơ",
+                                      icon: <X />,
+                                      danger: true,
+                                      onClick: () => {
+                                        setSelectedChangeForAction(item);
+                                        setRejectModalOpen(true);
+                                      },
+                                    },
+                                  ]
+                                : []),
+                              ...(item.documentName
+                                ? [
+                                    {
+                                      key: "document",
+                                      label: `Xem chứng từ: ${item.documentName}`,
+                                      icon: <FileText />,
+                                      onClick: () => {
+                                        notify(`Xem chứng từ đính kèm: ${item.documentName}`);
+                                      },
+                                    },
+                                  ]
+                                : []),
+                            ]}
+                          />
+                        </td>
                       </tr>
                     );
                   })}
                 </tbody>
               </table>
-
-              <TablePaginationFooter
-                totalItems={filteredChanges.length}
-                selectedCount={selectedChangeIds.size}
-                currentPage={changesPage}
-                pageSize={changesPageSize}
-                onPageChange={setChangesPage}
-                onPageSizeChange={(newSize) => {
-                  setChangesPageSize(newSize);
-                  setChangesPage(1);
-                }}
-              />
             </div>
-          )}
-        </div>
-      )}
+
+            {/* Attached Table Footer */}
+            <TablePaginationFooter
+              totalItems={filteredChanges.length}
+              selectedCount={selectedChangeIds.size}
+              currentPage={changesPage}
+              pageSize={changesPageSize}
+              onPageChange={setChangesPage}
+              onPageSizeChange={(newSize) => {
+                setChangesPageSize(newSize);
+                setChangesPage(1);
+              }}
+            />
+          </div>
+        )}
+      </div>
+    )}
 
       {/* MODAL 1: TẢI LÊN DANH SÁCH BIẾN ĐỘNG (DÙNG COMPONENT CHUNG) */}
       <ExcelImportModal
@@ -1193,76 +1158,35 @@ export function InsuranceSubtab({
             )}
           </div>
 
-          {/* 2. Chọn loại biến động (5 Cards Đều Nhau Tuyệt Đối) */}
+          {/* 2. Chọn loại biến động (Đơn giản, tinh gọn chuẩn SOP) */}
           <div className="declare-section-block">
             <div className="declare-section-header">
               <div className="declare-section-header-left">
                 <span className="declare-section-badge">2</span>
-                <span className="declare-section-title">Loại biến động bảo hiểm xã hội</span>
+                <span className="declare-section-title">Loại biến động BHXH *</span>
               </div>
-              <span className="declare-section-hint">Chọn 1 trong 5 hình thức phát sinh</span>
             </div>
 
-            <div className="change-type-grid-5">
-              <button
-                type="button"
-                className={`change-type-card-equal ${formChangeType === "increase" ? "active" : ""}`}
-                onClick={() => setFormChangeType("increase")}
-              >
-                <div className="change-type-icon-box increase">
-                  <UserPlus className="w-4 h-4" />
-                </div>
-                <span className="change-type-card-equal-title">Báo tăng mới</span>
-                <span className="change-type-card-equal-desc">Ký HĐLĐ chính thức sau thử việc</span>
-              </button>
-
-              <button
-                type="button"
-                className={`change-type-card-equal ${formChangeType === "salary_adjust" ? "active" : ""}`}
-                onClick={() => setFormChangeType("salary_adjust")}
-              >
-                <div className="change-type-icon-box adjust">
-                  <TrendingUp className="w-4 h-4" />
-                </div>
-                <span className="change-type-card-equal-title">Điều chỉnh lương</span>
-                <span className="change-type-card-equal-desc">Tăng/giảm theo phụ lục HĐLĐ</span>
-              </button>
-
-              <button
-                type="button"
-                className={`change-type-card-equal ${formChangeType === "suspend" ? "active" : ""}`}
-                onClick={() => setFormChangeType("suspend")}
-              >
-                <div className="change-type-icon-box suspend">
-                  <AlertCircle className="w-4 h-4" />
-                </div>
-                <span className="change-type-card-equal-title">Tạm dừng đóng</span>
-                <span className="change-type-card-equal-desc">Thai sản / Nghỉ không lương &gt;14 ngày</span>
-              </button>
-
-              <button
-                type="button"
-                className={`change-type-card-equal ${formChangeType === "resume" ? "active" : ""}`}
-                onClick={() => setFormChangeType("resume")}
-              >
-                <div className="change-type-icon-box resume">
-                  <RefreshCw className="w-4 h-4" />
-                </div>
-                <span className="change-type-card-equal-title">Đóng trở lại</span>
-                <span className="change-type-card-equal-desc">Hết thời hạn tạm dừng/thai sản</span>
-              </button>
-
-              <button
-                type="button"
-                className={`change-type-card-equal ${formChangeType === "decrease" ? "active" : ""}`}
-                onClick={() => setFormChangeType("decrease")}
-              >
-                <div className="change-type-icon-box decrease">
-                  <UserMinus className="w-4 h-4" />
-                </div>
-                <span className="change-type-card-equal-title">Báo giảm hẳn</span>
-                <span className="change-type-card-equal-desc">Chấm dứt HĐLĐ / Thôi việc</span>
-              </button>
+            <div className="change-type-simple-pills">
+              {[
+                { value: "increase", label: "Báo tăng mới" },
+                { value: "salary_adjust", label: "Điều chỉnh lương" },
+                { value: "suspend", label: "Tạm dừng đóng" },
+                { value: "resume", label: "Đóng trở lại" },
+                { value: "decrease", label: "Báo giảm hẳn" },
+              ].map((opt) => (
+                <button
+                  key={opt.value}
+                  type="button"
+                  className={cn(
+                    "change-type-pill-btn",
+                    formChangeType === opt.value && "active"
+                  )}
+                  onClick={() => setFormChangeType(opt.value as any)}
+                >
+                  {opt.label}
+                </button>
+              ))}
             </div>
           </div>
 

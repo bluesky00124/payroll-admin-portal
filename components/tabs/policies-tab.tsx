@@ -4,10 +4,10 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { Check, Pencil, Plus, Save, Search, ScrollText, Trash2, X } from "lucide-react";
 import { useMemo, useState, useEffect } from "react";
 import { useToast } from "@/components/providers";
-import { Badge, Button, EmptyState, ErrorState, LoadingBlock, Modal } from "@/components/ui";
+import { Badge, Button, EmptyState, ErrorState, LoadingBlock, Modal, StatusBadge, TablePaginationFooter, TableRowActions } from "@/components/ui";
 import { api } from "@/lib/api";
 import { type PolicyDefinition, type ProjectPolicy, type TargetRole } from "@/lib/types";
-import { formatCurrency } from "@/lib/utils";
+import { cn, formatCurrency } from "@/lib/utils";
 
 export function calculateAutoFillValues(
   policyId: string,
@@ -246,6 +246,14 @@ export function PoliciesTab({ projectId }: { projectId: string; embedded?: boole
     );
   });
 
+  const [page, setPage] = useState(1);
+  const [pageSize, setPageSize] = useState(10);
+
+  const paginatedPolicies = useMemo(() => {
+    const start = (page - 1) * pageSize;
+    return visiblePolicies.slice(start, start + pageSize);
+  }, [visiblePolicies, page, pageSize]);
+
   const saveSingleRowMutation = useMutation({
     mutationFn: async (policy: ProjectPolicy) => {
       const targetVals = roleValuesMap[policy.policyId];
@@ -369,25 +377,31 @@ export function PoliciesTab({ projectId }: { projectId: string; embedded?: boole
     );
 
   return (
-    <>
-      <div className="tab-heading">
-        <div>
-          <span className="section-kicker">QUY CHẾ SWM-DN 2026</span>
-          <h2>Danh sách chế độ dự án</h2>
-        </div>
-        <div className="heading-actions">
-          <Button variant="primary" onClick={() => setModalOpen(true)}>
-            <Plus /> Thêm chế độ
-          </Button>
-        </div>
-      </div>
-
-      <section className="content-card">
-        <div className="table-toolbar">
-          <label className="search-field">
-            <Search />
-            <input value={search} onChange={(event) => setSearch(event.target.value)} placeholder="Tìm chế độ..." />
-          </label>
+    <div className="subtab-content">
+      {/* Table Card */}
+      <div className="table-card">
+        {/* Table Card Toolbar */}
+        <div className="table-card-toolbar">
+          <div className="filter-panel-top">
+            <div className="filter-panel-inputs">
+              <label className="search-field">
+                <Search />
+                <input
+                  value={search}
+                  onChange={(event) => {
+                    setSearch(event.target.value);
+                    setPage(1);
+                  }}
+                  placeholder="Tìm chế độ, mã chính sách..."
+                />
+              </label>
+            </div>
+            <div className="filter-panel-actions">
+              <Button variant="primary" onClick={() => setModalOpen(true)}>
+                <Plus /> Thêm chế độ
+              </Button>
+            </div>
+          </div>
         </div>
 
         {visiblePolicies.length === 0 ? (
@@ -404,21 +418,23 @@ export function PoliciesTab({ projectId }: { projectId: string; embedded?: boole
           />
         ) : (
           <div className="data-table-wrap">
-            <table className="data-table policy-table">
+            <div className="data-table-scroll">
+              <table className="data-table policy-table">
               <thead>
                 <tr>
                   <th style={{ width: "45px" }} className="text-center">STT</th>
                   <th>Nội dung chế độ</th>
                   <th style={{ width: "240px" }}>Quản lý / Shift Leader</th>
                   <th style={{ width: "240px" }}>Công nhân chính thức</th>
-                  <th style={{ width: "130px" }} className="text-center">Thao tác</th>
+                  <th style={{ width: "80px" }} className="text-center">Thao tác</th>
                 </tr>
               </thead>
               <tbody>
-                {visiblePolicies.map((policy, index) => {
+                {paginatedPolicies.map((policy, index) => {
                   const definition = definitionMap.get(policy.policyId)!;
                   const firstField = definition.fields[0];
                   const isEditingThisRow = editingRowId === policy.id;
+                  const stt = (page - 1) * pageSize + index + 1;
 
                   const getRawVal = (role: TargetRole) => {
                     const roleDict = roleValuesMap[policy.policyId]?.[role];
@@ -430,9 +446,9 @@ export function PoliciesTab({ projectId }: { projectId: string; embedded?: boole
 
                   return (
                     <tr key={policy.id} className={isEditingThisRow ? "bg-amber-50/50 dark:bg-amber-950/20" : ""}>
-                      <td className="text-center font-mono text-xs text-muted font-medium">{index + 1}</td>
+                      <td className="text-center text-muted font-medium">{stt}</td>
                       <td>
-                        <strong className="text-foreground font-semibold text-sm">{definition.name}</strong>
+                        <strong className="text-foreground font-semibold">{definition.name}</strong>
                       </td>
 
                       {/* Shift Leader Cell */}
@@ -446,7 +462,7 @@ export function PoliciesTab({ projectId }: { projectId: string; embedded?: boole
                               handleCellChange(policy.policyId, "shift_leader", firstField?.key ?? "", val);
                             }
                           }}
-                          colorClass="text-sky-600 dark:text-sky-400"
+                          colorClass="text-primary font-bold font-mono"
                         />
                       </td>
 
@@ -461,14 +477,14 @@ export function PoliciesTab({ projectId }: { projectId: string; embedded?: boole
                               handleCellChange(policy.policyId, "chinh_thuc", firstField?.key ?? "", val);
                             }
                           }}
-                          colorClass="text-emerald-600 dark:text-emerald-400"
+                          colorClass="text-foreground font-semibold font-mono"
                         />
                       </td>
 
                       {/* Action Column */}
                       <td className="text-center">
                         {isEditingThisRow ? (
-                          <div className="flex items-center gap-1 justify-center">
+                          <div className="flex items-center gap-1.5 justify-center">
                             <Button
                               size="sm"
                               variant="primary"
@@ -488,26 +504,23 @@ export function PoliciesTab({ projectId }: { projectId: string; embedded?: boole
                             </Button>
                           </div>
                         ) : (
-                          <div className="flex items-center gap-1 justify-center">
-                            <Button
-                              size="icon"
-                              variant="ghost"
-                              onClick={() => setEditingRowId(policy.id)}
-                              aria-label={`Sửa ${definition.name}`}
-                              title="Chỉnh sửa dòng này"
-                            >
-                              <Pencil className="w-4 h-4 text-primary" />
-                            </Button>
-                            <Button
-                              size="icon"
-                              variant="ghost"
-                              onClick={() => setDeleteTarget(policy)}
-                              aria-label={`Gỡ ${definition.name}`}
-                              title="Gỡ chế độ"
-                            >
-                              <Trash2 className="w-4 h-4 text-muted hover:text-destructive transition-colors" />
-                            </Button>
-                          </div>
+                          <TableRowActions
+                            items={[
+                              {
+                                key: "edit",
+                                label: "Chỉnh sửa chế độ",
+                                icon: <Pencil />,
+                                onClick: () => setEditingRowId(policy.id),
+                              },
+                              {
+                                key: "delete",
+                                label: "Gỡ chế độ khỏi dự án",
+                                icon: <Trash2 />,
+                                danger: true,
+                                onClick: () => setDeleteTarget(policy),
+                              },
+                            ]}
+                          />
                         )}
                       </td>
                     </tr>
@@ -516,8 +529,21 @@ export function PoliciesTab({ projectId }: { projectId: string; embedded?: boole
               </tbody>
             </table>
           </div>
-        )}
-      </section>
+
+          {/* Attached Table Footer */}
+          <TablePaginationFooter
+            totalItems={visiblePolicies.length}
+            currentPage={page}
+            pageSize={pageSize}
+            onPageChange={setPage}
+            onPageSizeChange={(newSize) => {
+              setPageSize(newSize);
+              setPage(1);
+            }}
+          />
+        </div>
+      )}
+    </div>
 
       {/* Modal Popup to select and add policies */}
       <Modal
@@ -604,7 +630,7 @@ export function PoliciesTab({ projectId }: { projectId: string; embedded?: boole
       >
         <p className="modal-note">Chế độ sẽ được xóa khỏi cấu hình hiện tại của dự án.</p>
       </Modal>
-    </>
+    </div>
   );
 }
 
@@ -635,10 +661,10 @@ function PolicyCellRenderer({
 
     if (!isEditing) {
       return (
-        <div className="inline-flex items-center min-w-[124px]">
-          <Badge tone={checked ? "success" : "neutral"}>
+        <div className="inline-flex items-center min-w-[110px]">
+          <StatusBadge tone={checked ? "success" : "neutral"} dot={false}>
             {checked ? "Có áp dụng" : "Không áp dụng"}
-          </Badge>
+          </StatusBadge>
         </div>
       );
     }
@@ -662,7 +688,7 @@ function PolicyCellRenderer({
   }
 
   return (
-    <span className={`font-semibold ${colorClass}`}>
+    <span className={cn("font-medium", colorClass)}>
       {formatFieldValue(field, value)}
     </span>
   );

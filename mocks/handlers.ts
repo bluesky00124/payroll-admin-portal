@@ -489,6 +489,36 @@ export const handlers = [
     return rejectedItem ? ok(rejectedItem) : fail(404, "DEPENDENT_NOT_FOUND", "Không tìm thấy người phụ thuộc");
   }),
 
+  http.put("/api/dependents/:id", async ({ params, request }) => {
+    await delay(250);
+    const id = String(params.id);
+    const payload = (await request.json()) as Partial<Dependent>;
+
+    let updatedItem: Dependent | undefined;
+    mutateMockDatabase((db) => {
+      const idx = (db.dependents ?? []).findIndex((d) => d.id === id);
+      if (idx >= 0) {
+        db.dependents[idx] = {
+          ...db.dependents[idx],
+          ...payload,
+        };
+        updatedItem = db.dependents[idx];
+
+        const empId = db.dependents[idx].employeeId;
+        const approvedCount = db.dependents.filter((d) => d.employeeId === empId && d.status === "approved").length;
+        const tcIdx = (db.taxConfigs ?? []).findIndex((t) => t.employeeId === empId);
+        if (tcIdx >= 0) {
+          db.taxConfigs[tcIdx] = {
+            ...db.taxConfigs[tcIdx],
+            approvedDependentsCount: approvedCount,
+            dependentDeduction: approvedCount * 4400000,
+          };
+        }
+      }
+    });
+    return updatedItem ? ok(updatedItem) : fail(404, "DEPENDENT_NOT_FOUND", "Không tìm thấy người phụ thuộc");
+  }),
+
   http.patch("/api/dependents/:id/attachment", async ({ params, request }) => {
     await delay(250);
     const id = String(params.id);
@@ -537,11 +567,14 @@ export const handlers = [
       if (idx >= 0) {
         const current = db.leaveRecords[idx];
         const usedDays = current.usedDays + payload.days;
-        const remainingDays = Math.max(0, current.totalEntitled - usedDays);
+        const totalWithSeniority = current.totalEntitled + (current.seniorityDays || 0);
+        const remainingDays = Math.max(0, totalWithSeniority - usedDays);
+        const availableDays = Math.max(0, (current.accruedDays || 8) - usedDays);
         db.leaveRecords[idx] = {
           ...current,
           usedDays,
           remainingDays,
+          availableDays,
           history: [newHistory, ...current.history],
         };
         updatedRecord = db.leaveRecords[idx];

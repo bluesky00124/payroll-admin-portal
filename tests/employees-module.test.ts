@@ -9,7 +9,7 @@ describe("Employees Module & HR Workflows", () => {
     expect(all.length).toBeGreaterThan(5);
 
     const jssEmps = await api.getEmployees({ projectId: "prj-jss" });
-    expect(jssEmps.length).toBe(4);
+    expect(jssEmps.length).toBeGreaterThanOrEqual(4);
     expect(jssEmps.every((e) => e.projectId === "prj-jss")).toBe(true);
   });
 

@@ -2,10 +2,8 @@
 
 import { useQuery } from "@tanstack/react-query";
 import {
-  Calendar,
   History,
   Search,
-  X,
 } from "lucide-react";
 import { useMemo, useState } from "react";
 import {
@@ -15,11 +13,42 @@ import {
   ErrorState,
   LoadingBlock,
   Modal,
+  StatusBadge,
   TablePaginationFooter,
+  TableRowActions,
 } from "@/components/ui";
 import { api } from "@/lib/api";
 import type { Employee, LeaveRecord } from "@/lib/types";
-import { formatDate } from "@/lib/utils";
+import { formatDate, formatMonthYear } from "@/lib/utils";
+
+type FilterStatusType = "all" | "official" | "probation" | "resigned" | "available" | "exhausted";
+
+function formatLeaveNumber(num: number | undefined | null): string {
+  if (typeof num !== "number" || isNaN(num)) return "0.0";
+  return num.toFixed(1);
+}
+
+function getAvailableDays(rec: LeaveRecord): number {
+  if (typeof rec.availableDays === "number") return rec.availableDays;
+  const accrued = typeof rec.accruedDays === "number" ? rec.accruedDays : 8.0;
+  const used = typeof rec.usedDays === "number" ? rec.usedDays : 0;
+  return Math.max(0, accrued - used);
+}
+
+function getAccruedDays(rec: LeaveRecord): number {
+  return typeof rec.accruedDays === "number" ? rec.accruedDays : 8.0;
+}
+
+function getUsedDays(rec: LeaveRecord): number {
+  return typeof rec.usedDays === "number" ? rec.usedDays : 0;
+}
+
+function getRemainingDays(rec: LeaveRecord): number {
+  if (typeof rec.remainingDays === "number") return rec.remainingDays;
+  const total = (rec.totalEntitled || 12) + (rec.seniorityDays || 0);
+  const used = getUsedDays(rec);
+  return Math.max(0, total - used);
+}
 
 export function LeaveSubtab({
   projectId,
@@ -29,7 +58,7 @@ export function LeaveSubtab({
   employees: Employee[];
 }) {
   const [searchTerm, setSearchTerm] = useState("");
-  const [filterStatus, setFilterStatus] = useState<"all" | "remaining" | "exhausted">("all");
+  const [filterStatus, setFilterStatus] = useState<FilterStatusType>("all");
   const [selectedRecord, setSelectedRecord] = useState<LeaveRecord | null>(null);
   const [historyModalOpen, setHistoryModalOpen] = useState(false);
 
@@ -42,23 +71,67 @@ export function LeaveSubtab({
 
   const filteredRecords = useMemo(() => {
     return leaveRecords.filter((rec) => {
-      const term = searchTerm.toLowerCase();
+      const term = searchTerm.toLowerCase().trim();
       const matchSearch =
-        !searchTerm ||
-        rec.employeeName.toLowerCase().includes(term) ||
-        rec.employeeCode.toLowerCase().includes(term);
+        !term ||
+        (rec.employeeName && rec.employeeName.toLowerCase().includes(term)) ||
+        (rec.employeeCode && rec.employeeCode.toLowerCase().includes(term)) ||
+        (rec.projectCode && rec.projectCode.toLowerCase().includes(term));
 
-      const matchStatus =
-        filterStatus === "all" ||
-        (filterStatus === "remaining" && rec.remainingDays > 0) ||
-        (filterStatus === "exhausted" && rec.remainingDays <= 0);
+      const isProbation = rec.contractType === "probation" || rec.employeeStatus === "probation" || rec.eligibilityStatus === "probation_ineligible";
+      const isResigned = rec.employeeStatus === "resigned" || rec.eligibilityStatus === "resigned";
+      const isOfficial = !isProbation && !isResigned;
+      const avail = getAvailableDays(rec);
+
+      let matchStatus = true;
+      if (filterStatus === "official") {
+        matchStatus = isOfficial;
+      } else if (filterStatus === "probation") {
+        matchStatus = isProbation;
+      } else if (filterStatus === "resigned") {
+        matchStatus = isResigned;
+      } else if (filterStatus === "available") {
+        matchStatus = isOfficial && avail > 0;
+      } else if (filterStatus === "exhausted") {
+        matchStatus = isOfficial && avail <= 0;
+      }
 
       return matchSearch && matchStatus;
     });
   }, [leaveRecords, searchTerm, filterStatus]);
 
-  const remainingCount = useMemo(() => leaveRecords.filter((r) => r.remainingDays > 0).length, [leaveRecords]);
-  const exhaustedCount = useMemo(() => leaveRecords.filter((r) => r.remainingDays <= 0).length, [leaveRecords]);
+  // Counts for filter pills
+  const counts = useMemo(() => {
+    let official = 0;
+    let probation = 0;
+    let resigned = 0;
+    let available = 0;
+    let exhausted = 0;
+
+    leaveRecords.forEach((rec) => {
+      const isProbation = rec.contractType === "probation" || rec.employeeStatus === "probation" || rec.eligibilityStatus === "probation_ineligible";
+      const isResigned = rec.employeeStatus === "resigned" || rec.eligibilityStatus === "resigned";
+      if (isProbation) {
+        probation++;
+      } else if (isResigned) {
+        resigned++;
+      } else {
+        official++;
+        const avail = getAvailableDays(rec);
+        if (avail > 0) available++;
+        else exhausted++;
+      }
+    });
+
+    return {
+      all: leaveRecords.length,
+      official,
+      probation,
+      resigned,
+      available,
+      exhausted,
+    };
+  }, [leaveRecords]);
 
   const [page, setPage] = useState(1);
   const [pageSize, setPageSize] = useState(10);
@@ -106,7 +179,7 @@ export function LeaveSubtab({
                 <input
                   value={searchTerm}
                   onChange={(e) => setSearchTerm(e.target.value)}
-                  placeholder="Tìm theo tên nhân viên, mã NV..."
+                  placeholder="Tìm theo tên nhân viên, mã NV, mã dự án..."
                 />
               </label>
             </div>
@@ -119,37 +192,43 @@ export function LeaveSubtab({
                 className={`pill-btn ${filterStatus === "all" ? "active" : ""}`}
                 onClick={() => setFilterStatus("all")}
               >
-                Tất cả ({leaveRecords.length})
+                Tất cả ({counts.all})
               </button>
               <button
                 type="button"
-                className={`pill-btn success ${filterStatus === "remaining" ? "active" : ""}`}
-                onClick={() => setFilterStatus("remaining")}
+                className={`pill-btn success ${filterStatus === "official" ? "active" : ""}`}
+                onClick={() => setFilterStatus("official")}
               >
-                Còn phép ({remainingCount})
+                Chính thức có phép ({counts.official})
               </button>
               <button
                 type="button"
-                className={`pill-btn danger ${filterStatus === "exhausted" ? "active" : ""}`}
+                className={`pill-btn warning ${filterStatus === "probation" ? "active" : ""}`}
+                onClick={() => setFilterStatus("probation")}
+              >
+                Thử việc / Chưa có HĐLĐ ({counts.probation})
+              </button>
+              <button
+                type="button"
+                className={`pill-btn danger ${filterStatus === "resigned" ? "active" : ""}`}
+                onClick={() => setFilterStatus("resigned")}
+              >
+                Đã nghỉ việc ({counts.resigned})
+              </button>
+              <button
+                type="button"
+                className={`pill-btn ${filterStatus === "available" ? "active" : ""}`}
+                onClick={() => setFilterStatus("available")}
+              >
+                Còn phép khả dụng ({counts.available})
+              </button>
+              <button
+                type="button"
+                className={`pill-btn ${filterStatus === "exhausted" ? "active" : ""}`}
                 onClick={() => setFilterStatus("exhausted")}
               >
-                Hết phép ({exhaustedCount})
+                Hết phép ({counts.exhausted})
               </button>
-            </div>
-
-            <div className="filter-panel-meta">
-              {(searchTerm || filterStatus !== "all") && (
-                <button
-                  type="button"
-                  className="btn-clear-filters"
-                  onClick={() => {
-                    setSearchTerm("");
-                    setFilterStatus("all");
-                  }}
-                >
-                  <X /> Xóa bộ lọc
-                </button>
-              )}
             </div>
           </div>
         </div>
@@ -158,71 +237,159 @@ export function LeaveSubtab({
         {filteredRecords.length === 0 ? (
           <EmptyState
             title="Chưa có dữ liệu phép năm"
-            description={searchTerm ? "Không tìm thấy nhân viên phù hợp." : "Chưa có danh sách phép năm trong dự án này."}
+            description={searchTerm ? "Không tìm thấy nhân viên phù hợp với từ khóa." : "Chưa có danh sách phép năm trong bộ lọc này."}
           />
         ) : (
           <div className="data-table-wrap">
-            <table className="data-table">
-              <thead>
-                <tr>
-                  <th style={{ width: "45px" }} className="text-center">STT</th>
-                  <th>Người lao động</th>
-                  <th className="text-center" style={{ width: "130px" }}>Tổng ngày phép</th>
-                  <th className="text-center" style={{ width: "120px" }}>Thâm niên</th>
-                  <th className="text-center" style={{ width: "130px" }}>Đã sử dụng</th>
-                  <th className="text-center" style={{ width: "140px" }}>Còn lại</th>
-                  <th style={{ width: "150px" }} className="text-center">Lịch sử nghỉ</th>
-                </tr>
-              </thead>
-              <tbody>
-                {paginatedRecords.map((rec, idx) => {
-                  const isExhausted = rec.remainingDays <= 0;
-                  const stt = (page - 1) * pageSize + idx + 1;
+            <div className="data-table-scroll">
+              <table className="data-table">
+                <thead>
+                  <tr>
+                    <th style={{ width: "45px" }} className="text-center">STT</th>
+                    <th style={{ width: "105px" }}>MÃ NV</th>
+                    <th style={{ width: "95px" }}>MÃ DỰ ÁN</th>
+                    <th>HỌ VÀ TÊN</th>
+                    <th style={{ width: "115px" }}>LOẠI HĐ</th>
+                    <th style={{ width: "140px" }}>THỜI ĐIỂM HƯỞNG</th>
+                    <th className="text-center" style={{ width: "165px" }}>
+                      KHẢ DỤNG HIỆN TẠI
+                    </th>
+                    <th className="text-center" style={{ width: "135px" }}>TỔNG PHÉP NĂM</th>
+                    <th className="text-center" style={{ width: "115px" }}>ĐÃ SỬ DỤNG</th>
+                    <th className="text-center" style={{ width: "130px" }}>CÒN LẠI CẢ NĂM</th>
+                    <th style={{ width: "70px" }} className="text-center">THAO TÁC</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {paginatedRecords.map((rec, idx) => {
+                    const isProbation = rec.contractType === "probation" || rec.employeeStatus === "probation" || rec.eligibilityStatus === "probation_ineligible";
+                    const isResigned = rec.employeeStatus === "resigned" || rec.eligibilityStatus === "resigned";
+                    const isOfficial = !isProbation && !isResigned;
+                    const stt = (page - 1) * pageSize + idx + 1;
 
-                  return (
-                    <tr key={rec.id}>
-                      <td className="text-center text-muted font-medium">{stt}</td>
-                      <td>
-                        <div className="employee-cell-info">
-                          <span className="employee-cell-name">{rec.employeeName}</span>
-                          <span className="employee-cell-sub">
-                            <span className="employee-code-badge">{rec.employeeCode}</span>
-                          </span>
-                        </div>
-                      </td>
-                      <td className="text-center font-semibold">
-                        {rec.totalEntitled} ngày
-                      </td>
-                      <td className="text-center text-muted">
-                        {rec.seniorityDays > 0 ? `+${rec.seniorityDays} thâm niên` : "—"}
-                      </td>
-                      <td className="text-center">
-                        <strong className="text-warning">{rec.usedDays} ngày</strong>
-                      </td>
-                      <td className="text-center">
-                        <strong className={isExhausted ? "text-danger" : "text-success"}>
-                          {rec.remainingDays} ngày
-                        </strong>
-                      </td>
-                      <td className="text-center">
-                        <Button
-                          variant="ghost"
-                          size="sm"
-                          onClick={() => {
-                            setSelectedRecord(rec);
-                            setHistoryModalOpen(true);
-                          }}
-                        >
-                          <History /> Chi tiết ({rec.history.length})
-                        </Button>
-                      </td>
-                    </tr>
-                  );
-                })}
-              </tbody>
-            </table>
+                    const availDays = getAvailableDays(rec);
+                    const accruedDays = getAccruedDays(rec);
+                    const usedDays = getUsedDays(rec);
+                    const remDays = getRemainingDays(rec);
+                    const totalEntitled = rec.totalEntitled ?? 12;
+                    const seniority = rec.seniorityDays ?? 0;
 
-            {/* Table Footer */}
+                    return (
+                      <tr key={rec.id}>
+                        <td className="text-center text-muted font-medium">{stt}</td>
+                        <td className="font-mono text-xs font-semibold text-primary">
+                          {rec.employeeCode}
+                        </td>
+                        <td className="font-mono text-xs text-muted">
+                          {rec.projectCode || "JSS-ST"}
+                        </td>
+                        <td>
+                          <div className="employee-cell-info">
+                            <span className="employee-cell-name font-semibold">{rec.employeeName}</span>
+                          </div>
+                        </td>
+                        <td>
+                          {isResigned ? (
+                            <StatusBadge tone="danger">Đã nghỉ</StatusBadge>
+                          ) : isProbation ? (
+                            <StatusBadge tone="warning">Thử việc</StatusBadge>
+                          ) : (
+                            <StatusBadge tone="success">Chính thức</StatusBadge>
+                          )}
+                        </td>
+                        <td>
+                          {isResigned ? (
+                            <span className="text-xs text-rose-600 dark:text-rose-400 font-medium">
+                              Nghỉ từ {formatDate(rec.resignationDate || "2026-06-30")}
+                            </span>
+                          ) : isProbation ? (
+                            <span className="text-xs text-muted font-medium">Chờ ký HĐLĐ</span>
+                          ) : (
+                            <Badge tone="neutral">{formatDate(rec.entitlementDate || "2026-01-01")}</Badge>
+                          )}
+                        </td>
+                        <td className="text-center">
+                          {isProbation ? (
+                            <div>
+                              <span className="text-xs text-muted font-semibold">Chưa có phép</span>
+                              <div className="text-[11px] text-muted">(0.0 ngày)</div>
+                            </div>
+                          ) : isResigned ? (
+                            <div>
+                              <strong className={availDays > 0 ? "text-amber-600 dark:text-amber-400 text-[13.5px]" : "text-muted text-[13px]"}>
+                                {formatLeaveNumber(availDays)} ngày tồn
+                              </strong>
+                              <div className="text-[11px] text-muted">
+                                {availDays > 0 ? "Quyết toán thôi việc" : "Đã quyết toán"}
+                              </div>
+                            </div>
+                          ) : (
+                            <div>
+                              <strong className={availDays > 0 ? "text-emerald-600 dark:text-emerald-400 text-[14px] font-bold" : "text-rose-600 dark:text-rose-400 text-[13.5px] font-bold"}>
+                                {formatLeaveNumber(availDays)} ngày
+                              </strong>
+                              <div className="text-[11px] text-muted">
+                                Lũy kế: {formatLeaveNumber(accruedDays)} ngày
+                              </div>
+                            </div>
+                          )}
+                        </td>
+                        <td className="text-center">
+                          {isProbation ? (
+                            <span className="text-muted">—</span>
+                          ) : isResigned ? (
+                            <span>
+                              {accruedDays} ngày <span className="text-[11px] text-muted">(thực tế)</span>
+                            </span>
+                          ) : (
+                            <span>
+                              {totalEntitled} ngày {seniority > 0 ? `(+${seniority})` : ""}
+                            </span>
+                          )}
+                        </td>
+                        <td className="text-center">
+                          {isProbation ? (
+                            <span className="text-muted">—</span>
+                          ) : (
+                            <strong className="text-amber-600 dark:text-amber-400 font-semibold">
+                              {formatLeaveNumber(usedDays)} ngày
+                            </strong>
+                          )}
+                        </td>
+                        <td className="text-center">
+                          {isProbation ? (
+                            <span className="text-muted">—</span>
+                          ) : isResigned ? (
+                            <span className="text-muted font-medium">{formatLeaveNumber(remDays)} ngày</span>
+                          ) : (
+                            <strong className={remDays <= 0 ? "text-rose-600 dark:text-rose-400 font-bold" : "text-teal-700 dark:text-teal-400 font-bold"}>
+                              {formatLeaveNumber(remDays)} ngày
+                            </strong>
+                          )}
+                        </td>
+                        <td className="text-center">
+                          <TableRowActions
+                            items={[
+                              {
+                                key: "history",
+                                label: `Lịch sử nghỉ phép (${rec.history?.length || 0})`,
+                                icon: <History />,
+                                onClick: () => {
+                                  setSelectedRecord(rec);
+                                  setHistoryModalOpen(true);
+                                },
+                              },
+                            ]}
+                          />
+                        </td>
+                      </tr>
+                    );
+                  })}
+                </tbody>
+              </table>
+            </div>
+
+            {/* Attached Table Footer */}
             <TablePaginationFooter
               totalItems={filteredRecords.length}
               currentPage={page}
@@ -242,7 +409,7 @@ export function LeaveSubtab({
         open={historyModalOpen}
         onOpenChange={setHistoryModalOpen}
         title={`Lịch sử nghỉ phép: ${selectedRecord?.employeeName}`}
-        description={`Mã NV: ${selectedRecord?.employeeCode} · Tổng: ${selectedRecord?.totalEntitled} ngày · Đã dùng: ${selectedRecord?.usedDays} ngày · Còn lại: ${selectedRecord?.remainingDays} ngày`}
+        description={`Mã NV: ${selectedRecord?.employeeCode} · Khả dụng hiện tại: ${selectedRecord ? formatLeaveNumber(getAvailableDays(selectedRecord)) : "0.0"} ngày · Đã dùng: ${selectedRecord ? formatLeaveNumber(getUsedDays(selectedRecord)) : "0.0"} ngày · Tổng cả năm: ${selectedRecord?.totalEntitled ?? 12} ngày`}
         size="lg"
         footer={<Button onClick={() => setHistoryModalOpen(false)}>Đóng</Button>}
       >
@@ -283,7 +450,7 @@ export function LeaveSubtab({
         ) : (
           <EmptyState
             title="Chưa có lịch sử nghỉ phép"
-            description="Người lao động chưa sử dụng ngày phép nào trong năm hiện tại."
+            description="Người lao động chưa phát sinh đơn xin nghỉ phép nào trong năm hiện tại."
           />
         )}
       </Modal>

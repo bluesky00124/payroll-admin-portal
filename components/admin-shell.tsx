@@ -8,7 +8,7 @@ import { useState } from "react";
 import { useResetDemo, useTheme, useToast, useUserRole, type ThemePreset } from "@/components/providers";
 import { Button, Modal } from "@/components/ui";
 
-const themeLabels: Record<ThemePreset, string> = { corporate: "Corporate Blue", emerald: "Emerald", graphite: "Graphite" };
+const themeLabels: Record<ThemePreset, string> = { corporate: "Corporate Teal (SOP)", emerald: "Emerald", graphite: "Graphite" };
 
 export function AdminShell({ children, detailLabel }: { children: React.ReactNode; detailLabel?: string }) {
   const pathname = usePathname();
@@ -30,7 +30,7 @@ export function AdminShell({ children, detailLabel }: { children: React.ReactNod
   return (
     <div className={`admin-layout ${collapsed ? "sidebar-collapsed" : ""}`}>
       <aside className="sidebar">
-        <div className="brand"><span>GS</span><div><strong>Payroll Admin</strong><small>Project configuration</small></div></div>
+        <div className="brand"><span>GS</span><div><strong>Payroll Admin</strong><small>Cấu hình dự án</small></div></div>
         <nav aria-label="Menu chính">
           <Link className={pathname.startsWith("/projects") ? "active" : ""} href="/projects"><BriefcaseBusiness /><span>Dự án</span></Link>
           <Link className={isEmployeesPage ? "active" : ""} href="/employees"><Users /><span>Người lao động</span></Link>

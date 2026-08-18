@@ -12,7 +12,7 @@ import {
 } from "lucide-react";
 import { useMemo, useState } from "react";
 import { useToast } from "@/components/providers";
-import { Badge, Button, EmptyState, ErrorState, LoadingBlock, Modal, StatusBadge, TablePaginationFooter } from "@/components/ui";
+import { Badge, Button, EmptyState, ErrorState, LoadingBlock, Modal, StatusBadge, TablePaginationFooter, TableRowActions } from "@/components/ui";
 import { api } from "@/lib/api";
 import type { Employee, StandardWorkdayRecord } from "@/lib/types";
 
@@ -115,19 +115,6 @@ export function StandardWorkdaysSubtab({
 
   return (
     <div className="standard-workdays-subtab">
-      {/* Banner explaining inheritance & overwrite */}
-      <div className="workflow-info-banner mb-4">
-        <div className="banner-icon-side">
-          <CalendarDays />
-        </div>
-        <div>
-          <strong>Cơ chế kế thừa Ngày công chuẩn từ Dự án:</strong>
-          <p>
-            Mặc định toàn bộ NLĐ kế thừa <strong>26 ngày công chuẩn</strong> từ cấu hình Dự án. Kế toán có thể <em>ghi đè (overwrite)</em> ngày công chuẩn riêng cho từng cá nhân (áp dụng cho đối tượng ca kíp đặc thù, thử việc hoặc thỏa thuận riêng).
-          </p>
-        </div>
-      </div>
-
       {/* Integrated Single Card: Toolbar + Filters + Data Table */}
       <div className="integrated-table-card">
         {/* Table Card Toolbar */}
@@ -142,10 +129,6 @@ export function StandardWorkdaysSubtab({
                   placeholder="Tìm theo tên nhân viên, mã NV..."
                 />
               </label>
-            </div>
-
-            <div className="filter-panel-actions">
-              <Badge tone="info">Mặc định dự án: 26 công</Badge>
             </div>
           </div>
 
@@ -173,21 +156,6 @@ export function StandardWorkdaysSubtab({
                 Mặc định theo dự án ({workdays.length - overriddenCount})
               </button>
             </div>
-
-            <div className="filter-panel-meta">
-              {(searchTerm || filterMode !== "all") && (
-                <button
-                  type="button"
-                  className="btn-clear-filters"
-                  onClick={() => {
-                    setSearchTerm("");
-                    setFilterMode("all");
-                  }}
-                >
-                  <X /> Xóa bộ lọc
-                </button>
-              )}
-            </div>
           </div>
         </div>
 
@@ -199,7 +167,8 @@ export function StandardWorkdaysSubtab({
           />
         ) : (
           <div className="data-table-wrap">
-            <table className="data-table">
+            <div className="data-table-scroll">
+              <table className="data-table">
               <thead>
                 <tr>
                   <th style={{ width: "45px" }} className="text-center">STT</th>
@@ -253,47 +222,49 @@ export function StandardWorkdaysSubtab({
                         {item.updatedAt && <div className="text-xs text-muted">{item.updatedAt}</div>}
                       </td>
                       <td className="text-center">
-                        <div className="action-buttons-compact">
-                          <Button
-                            variant="ghost"
-                            size="sm"
-                            onClick={() => openOverrideModal(item)}
-                            title="Ghi đè ngày công chuẩn riêng"
-                          >
-                            <Pencil /> Ghi đè
-                          </Button>
-                          {item.isOverridden && (
-                            <Button
-                              variant="ghost"
-                              size="sm"
-                              onClick={() => handleResetToDefault(item)}
-                              title="Khôi phục về mức mặc định của dự án"
-                            >
-                              <RotateCcw />
-                            </Button>
-                          )}
-                        </div>
+                        <TableRowActions
+                          items={[
+                            {
+                              key: "override",
+                              label: "Ghi đè ngày công",
+                              icon: <Pencil />,
+                              onClick: () => openOverrideModal(item),
+                            },
+                            ...(item.isOverridden
+                              ? [
+                                  {
+                                    key: "reset",
+                                    label: "Khôi phục mặc định dự án",
+                                    icon: <RotateCcw />,
+                                    danger: true,
+                                    onClick: () => handleResetToDefault(item),
+                                  },
+                                ]
+                              : []),
+                          ]}
+                        />
                       </td>
                     </tr>
                   );
                 })}
               </tbody>
             </table>
-
-            {/* Table Footer */}
-            <TablePaginationFooter
-              totalItems={filteredList.length}
-              currentPage={page}
-              pageSize={pageSize}
-              onPageChange={setPage}
-              onPageSizeChange={(newSize) => {
-                setPageSize(newSize);
-                setPage(1);
-              }}
-            />
           </div>
-        )}
-      </div>
+
+          {/* Attached Table Footer */}
+          <TablePaginationFooter
+            totalItems={filteredList.length}
+            currentPage={page}
+            pageSize={pageSize}
+            onPageChange={setPage}
+            onPageSizeChange={(newSize) => {
+              setPageSize(newSize);
+              setPage(1);
+            }}
+          />
+        </div>
+      )}
+    </div>
 
       {/* Modal Overwrite */}
       <Modal

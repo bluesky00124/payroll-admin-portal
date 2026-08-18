@@ -4,21 +4,28 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import {
   Calculator,
   Check,
+  CreditCard,
   FileCheck,
+  FileText,
+  Globe,
+  Hash,
+  Info,
   Pencil,
   Percent,
   Search,
   ShieldAlert,
+  Sparkles,
+  TrendingUp,
   UserCheck,
   Users,
   X,
 } from "lucide-react";
 import { useMemo, useState } from "react";
 import { useToast } from "@/components/providers";
-import { Badge, Button, EmptyState, ErrorState, LoadingBlock, Modal, StatusBadge, TablePaginationFooter } from "@/components/ui";
+import { Badge, Button, EmptyState, ErrorState, LoadingBlock, Modal, StatusBadge, TablePaginationFooter, TableRowActions } from "@/components/ui";
 import { api } from "@/lib/api";
 import type { Employee, TaxConfigRecord } from "@/lib/types";
-import { formatCurrency } from "@/lib/utils";
+import { cn, formatCurrency } from "@/lib/utils";
 
 export function TaxSubtab({
   projectId,
@@ -70,7 +77,6 @@ export function TaxSubtab({
   const progressiveCount = useMemo(() => taxConfigs.filter((t) => t.taxType === "progressive").length, [taxConfigs]);
   const flat10Count = useMemo(() => taxConfigs.filter((t) => t.taxType === "flat_10").length, [taxConfigs]);
   const commitmentCount = useMemo(() => taxConfigs.filter((t) => t.hasCommitment08).length, [taxConfigs]);
-  const totalApprovedNpt = useMemo(() => taxConfigs.reduce((sum, t) => sum + t.approvedDependentsCount, 0), [taxConfigs]);
 
   const [page, setPage] = useState(1);
   const [pageSize, setPageSize] = useState(10);
@@ -86,40 +92,40 @@ export function TaxSubtab({
       if (!editRecord) return;
       return api.saveTaxConfig(editRecord.id, {
         taxCode: formTaxCode,
-        taxType: formTaxType,
-        hasCommitment08: formCommitment08,
+        taxType: formTaxType as any,
+        hasCommitment08: formTaxType === "flat_10" ? formCommitment08 : false,
       });
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["tax-configs"] });
+      queryClient.invalidateQueries({ queryKey: ["taxConfigs"] });
+      notify("Đã cập nhật cấu hình thuế TNCN thành công", "success");
       setEditModalOpen(false);
-      setEditRecord(null);
-      notify("Đã cập nhật cấu hình Thuế TNCN cho Người lao động!");
     },
     onError: (err: Error) => notify(err.message, "error"),
   });
 
-  const openEditModal = (rec: TaxConfigRecord) => {
-    setEditRecord(rec);
-    setFormTaxCode(rec.taxCode);
-    setFormTaxType(rec.taxType);
-    setFormCommitment08(rec.hasCommitment08);
+  const openEditModal = (item: TaxConfigRecord) => {
+    setEditRecord(item);
+    setFormTaxCode(item.taxCode || "");
+    setFormTaxType(item.taxType);
+    setFormCommitment08(item.hasCommitment08 || false);
     setEditModalOpen(true);
   };
 
-  const taxTypeBadge = (type: string, hasCommitment: boolean) => {
-    if (hasCommitment) {
-      return <StatusBadge tone="warning">Cam kết 08 (Tạm miễn 10%)</StatusBadge>;
-    }
+  const taxTypeBadge = (type: string, has08: boolean) => {
     switch (type) {
       case "progressive":
-        return <StatusBadge tone="success">Lũy tiến (&ge; 3 tháng)</StatusBadge>;
+        return <StatusBadge tone="success">Lũy tiến</StatusBadge>;
       case "flat_10":
-        return <StatusBadge tone="warning">Khấu trừ toàn phần 10%</StatusBadge>;
+        return has08 ? (
+          <StatusBadge tone="warning">Khấu trừ 10% (Có 08/CK)</StatusBadge>
+        ) : (
+          <StatusBadge tone="neutral">Khấu trừ 10%</StatusBadge>
+        );
       case "non_resident_20":
-        return <StatusBadge tone="danger">Không cư trú 20%</StatusBadge>;
+        return <StatusBadge tone="danger">Không cư trú (20%)</StatusBadge>;
       default:
-        return <StatusBadge tone="neutral" dot={false}>{type}</StatusBadge>;
+        return <StatusBadge tone="neutral">{type}</StatusBadge>;
     }
   };
 
@@ -127,7 +133,7 @@ export function TaxSubtab({
   if (taxQuery.isError) return <ErrorState message="Không thể tải dữ liệu Thuế TNCN" retry={() => taxQuery.refetch()} />;
 
   return (
-    <div className="tax-subtab">
+    <div className="subtab-content">
       {/* Integrated Single Card: Toolbar + Filters + Data Table */}
       <div className="integrated-table-card">
         {/* Table Card Toolbar */}
@@ -142,10 +148,6 @@ export function TaxSubtab({
                   placeholder="Tìm theo tên NV, mã NV, MST..."
                 />
               </label>
-            </div>
-
-            <div className="filter-panel-actions">
-              <Badge tone="info">Tự động liên kết {totalApprovedNpt} NPT đã duyệt</Badge>
             </div>
           </div>
 
@@ -180,21 +182,6 @@ export function TaxSubtab({
                 Cam kết 08 ({commitmentCount})
               </button>
             </div>
-
-            <div className="filter-panel-meta">
-              {(searchTerm || taxTypeFilter !== "all") && (
-                <button
-                  type="button"
-                  className="btn-clear-filters"
-                  onClick={() => {
-                    setSearchTerm("");
-                    setTaxTypeFilter("all");
-                  }}
-                >
-                  <X /> Xóa bộ lọc
-                </button>
-              )}
-            </div>
           </div>
         </div>
 
@@ -206,7 +193,8 @@ export function TaxSubtab({
           />
         ) : (
           <div className="data-table-wrap">
-            <table className="data-table">
+            <div className="data-table-scroll">
+              <table className="data-table">
               <thead>
                 <tr>
                   <th style={{ width: "45px" }} className="text-center">STT</th>
@@ -236,21 +224,21 @@ export function TaxSubtab({
                           </span>
                         </div>
                       </td>
-                      <td>
-                        <code className="code-badge">{item.taxCode || "Chưa có MST"}</code>
-                      </td>
+                      <td className="font-mono text-sm">{item.taxCode || "—"}</td>
                       <td>{taxTypeBadge(item.taxType, item.hasCommitment08)}</td>
-                      <td className="text-center">
-                        <button
-                          type="button"
-                          className="btn-link-npt"
-                          title="Xem danh sách người phụ thuộc đã duyệt"
-                          onClick={onNavigateToDependents}
-                        >
-                          <Badge tone={item.approvedDependentsCount > 0 ? "info" : "neutral"}>
+                      <td className="text-center font-semibold">
+                        {item.approvedDependentsCount > 0 ? (
+                          <button
+                            type="button"
+                            className="btn-link-npt text-primary hover:underline font-semibold"
+                            title="Xem danh sách người phụ thuộc đã duyệt"
+                            onClick={onNavigateToDependents}
+                          >
                             {item.approvedDependentsCount} NPT
-                          </Badge>
-                        </button>
+                          </button>
+                        ) : (
+                          <span className="text-muted font-normal">0</span>
+                        )}
                       </td>
                       <td className="text-right font-mono text-muted">
                         {formatCurrency(item.personalDeduction)}
@@ -262,43 +250,46 @@ export function TaxSubtab({
                         <strong className="text-success">{formatCurrency(totalDeduction)}</strong>
                       </td>
                       <td className="text-center">
-                        <Button
-                          variant="ghost"
-                          size="sm"
-                          onClick={() => openEditModal(item)}
-                          title="Chỉnh sửa diện tính thuế & MST"
-                        >
-                          <Pencil /> Sửa
-                        </Button>
+                        <TableRowActions
+                          items={[
+                            {
+                              key: "edit-tax",
+                              label: "Cấu hình thuế & MST",
+                              icon: <Pencil />,
+                              onClick: () => openEditModal(item),
+                            },
+                          ]}
+                        />
                       </td>
                     </tr>
                   );
                 })}
               </tbody>
             </table>
-
-            {/* Table Footer */}
-            <TablePaginationFooter
-              totalItems={filteredList.length}
-              currentPage={page}
-              pageSize={pageSize}
-              onPageChange={setPage}
-              onPageSizeChange={(newSize) => {
-                setPageSize(newSize);
-                setPage(1);
-              }}
-            />
           </div>
-        )}
-      </div>
 
-      {/* Edit Tax Modal */}
+          {/* Attached Table Footer */}
+          <TablePaginationFooter
+            totalItems={filteredList.length}
+            currentPage={page}
+            pageSize={pageSize}
+            onPageChange={setPage}
+            onPageSizeChange={(newSize) => {
+              setPageSize(newSize);
+              setPage(1);
+            }}
+          />
+        </div>
+      )}
+    </div>
+
+      {/* Redesigned Edit Tax Modal */}
       <Modal
         open={editModalOpen}
         onOpenChange={setEditModalOpen}
-        title={`Cấu hình Thuế TNCN: ${editRecord?.employeeName}`}
-        description={`Mã NV: ${editRecord?.employeeCode} · Số NPT hợp lệ đã duyệt: ${editRecord?.approvedDependentsCount}`}
-        size="md"
+        title="Cấu hình diện tính thuế TNCN"
+        description="Thiết lập mã số thuế cá nhân và phương pháp khấu trừ thuế thu nhập cá nhân"
+        size="lg"
         footer={
           <>
             <Button onClick={() => setEditModalOpen(false)}>Hủy</Button>
@@ -312,51 +303,185 @@ export function TaxSubtab({
           </>
         }
       >
-        <div className="form-grid">
-          <label className="form-field full-width">
-            <span>Mã số thuế cá nhân (MST) *</span>
+        <div className="tax-config-modal-body">
+          {/* Employee Summary Card */}
+          {editRecord && (() => {
+            const emp = employees.find((e) => e.id === editRecord.employeeId);
+            return (
+              <div className="tax-modal-employee-card">
+                <div className="tax-employee-info">
+                  <span className="tax-employee-name">{editRecord.employeeName}</span>
+                  <div className="tax-employee-meta">
+                    <span className="employee-code-badge">{editRecord.employeeCode}</span>
+                    {emp?.department && (
+                      <>
+                        <span>·</span>
+                        <span>{emp.department}</span>
+                      </>
+                    )}
+                  </div>
+                </div>
+                <StatusBadge
+                  tone={
+                    editRecord.taxType === "progressive"
+                      ? "success"
+                      : editRecord.hasCommitment08
+                      ? "warning"
+                      : "neutral"
+                  }
+                >
+                  {editRecord.taxType === "progressive"
+                    ? "Biểu lũy tiến"
+                    : editRecord.taxType === "flat_10"
+                    ? (editRecord.hasCommitment08 ? "Cam kết 08 (0%)" : "Khấu trừ 10%")
+                    : "Không cư trú (20%)"}
+                </StatusBadge>
+              </div>
+            );
+          })()}
+
+          {/* Section 1: MST Input */}
+          <div className="form-field">
+            <label className="text-xs font-semibold text-foreground flex items-center justify-between">
+              <span className="flex items-center gap-1.5">
+                <Hash className="w-3.5 h-3.5 text-primary" />
+                Mã số thuế cá nhân (MST) *
+              </span>
+              <span className="text-muted text-[11px] font-normal">Cấp bởi Cơ quan Thuế</span>
+            </label>
             <input
               type="text"
               value={formTaxCode}
               onChange={(e) => setFormTaxCode(e.target.value)}
-              placeholder="VD: 8012345678"
+              placeholder="VD: 8012345678 (10 hoặc 13 chữ số)"
               required
             />
-          </label>
-
-          <label className="form-field full-width">
-            <span>Phương pháp tính thuế áp dụng *</span>
-            <select
-              value={formTaxType}
-              onChange={(e) => setFormTaxType(e.target.value as any)}
-            >
-              <option value="progressive">Biểu lũy tiến từng phần (HĐLĐ từ 3 tháng trở lên)</option>
-              <option value="flat_10">Khấu trừ toàn phần 10% (Vãng lai / Thử việc / Dưới 3 tháng)</option>
-              <option value="non_resident_20">Cá nhân không cư trú (20%)</option>
-            </select>
-          </label>
-
-          <label className="checkbox-field full-width mt-2">
-            <input
-              type="checkbox"
-              checked={formCommitment08}
-              onChange={(e) => setFormCommitment08(e.target.checked)}
-            />
-            <div>
-              <strong>Có cam kết mẫu 08/CK-TNCN (Tạm không khấu trừ 10%)</strong>
-              <p>Áp dụng khi NLĐ chỉ có thu nhập duy nhất tại đơn vị và ước tính tổng thu nhập chịu thuế sau khi trừ gia cảnh chưa đến mức phải nộp thuế.</p>
-            </div>
-          </label>
-
-          <div className="auto-synced-npt-card full-width mt-2">
-            <div className="npt-sync-header">
-              <FileCheck />
-              <span>Số lượng Người Phụ Thuộc hợp lệ: <strong>{editRecord?.approvedDependentsCount} người</strong></span>
-            </div>
-            <p className="text-xs text-muted">
-              ✓ Dữ liệu được đồng bộ tự động từ Phân hệ Người phụ thuộc sau khi Kế toán kiểm tra và Xác nhận hợp lệ.
-            </p>
           </div>
+
+          {/* Section 2: Interactive Tax Method Selection Cards */}
+          <div className="flex flex-col gap-2">
+            <label className="text-xs font-semibold text-foreground">
+              Phương pháp tính thuế áp dụng *
+            </label>
+
+            <div className="tax-method-grid">
+              {/* Option 1: Progressive */}
+              <div
+                className={cn("tax-method-card", formTaxType === "progressive" && "selected")}
+                onClick={() => setFormTaxType("progressive")}
+              >
+                <div className="tax-method-icon">
+                  <TrendingUp className="w-4 h-4" />
+                </div>
+                <div className="tax-method-content">
+                  <div className="tax-method-header">
+                    <span className="tax-method-title">Biểu lũy tiến từng phần (5% – 35%)</span>
+                    <span className="tax-method-badge">HĐLĐ ≥ 3 tháng</span>
+                  </div>
+                  <p className="tax-method-desc">
+                    Áp dụng giảm trừ gia cảnh bản thân (11 triệu/tháng) và người phụ thuộc (4.4 triệu/tháng).
+                  </p>
+                </div>
+              </div>
+
+              {/* Option 2: Flat 10% */}
+              <div
+                className={cn("tax-method-card", formTaxType === "flat_10" && "selected")}
+                onClick={() => setFormTaxType("flat_10")}
+              >
+                <div className="tax-method-icon">
+                  <Percent className="w-4 h-4" />
+                </div>
+                <div className="tax-method-content">
+                  <div className="tax-method-header">
+                    <span className="tax-method-title">Khấu trừ toàn phần 10% tại nguồn</span>
+                    <span className="tax-method-badge">Vãng lai / Dưới 3 tháng</span>
+                  </div>
+                  <p className="tax-method-desc">
+                    Áp dụng cho thu nhập từ 2.000.000đ/lần trở lên. Có thể làm cam kết 08 nếu đủ điều kiện.
+                  </p>
+                </div>
+              </div>
+
+              {/* Option 3: Non-Resident 20% */}
+              <div
+                className={cn("tax-method-card", formTaxType === "non_resident_20" && "selected")}
+                onClick={() => setFormTaxType("non_resident_20")}
+              >
+                <div className="tax-method-icon">
+                  <Globe className="w-4 h-4" />
+                </div>
+                <div className="tax-method-content">
+                  <div className="tax-method-header">
+                    <span className="tax-method-title">Cá nhân không cư trú (20%)</span>
+                    <span className="tax-method-badge">Không cư trú</span>
+                  </div>
+                  <p className="tax-method-desc">
+                    Khấu trừ cố định 20% trên tổng thu nhập chịu thuế phát sinh tại Việt Nam.
+                  </p>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          {/* Section 3: Commitment 08 Toggle (When 10% Flat is chosen) */}
+          {formTaxType === "flat_10" && (
+            <div
+              className={cn("commitment-08-card", formCommitment08 && "checked")}
+              onClick={() => setFormCommitment08(!formCommitment08)}
+            >
+              <input
+                type="checkbox"
+                checked={formCommitment08}
+                onChange={(e) => setFormCommitment08(e.target.checked)}
+                onClick={(e) => e.stopPropagation()}
+                className="mt-0.5"
+              />
+              <div className="flex flex-col gap-1">
+                <strong className="text-xs font-semibold text-foreground">
+                  Có cam kết mẫu 08/CK-TNCN (Tạm không khấu trừ 10%)
+                </strong>
+                <p className="text-xs text-muted leading-relaxed">
+                  Áp dụng khi NLĐ chỉ có duy nhất thu nhập tại đơn vị và ước tính tổng mức thu nhập chịu thuế sau khi trừ gia cảnh chưa đến mức phải nộp thuế.
+                </p>
+              </div>
+            </div>
+          )}
+
+          {/* Section 4: Auto Synced Family Deductions (When Progressive is chosen) */}
+          {formTaxType === "progressive" && editRecord && (
+            <div className="tax-deduction-summary-card">
+              <div className="flex items-center justify-between">
+                <span className="text-xs font-semibold text-foreground flex items-center gap-1.5">
+                  <FileCheck className="w-4 h-4 text-primary" />
+                  Mức giảm trừ gia cảnh áp dụng
+                </span>
+                <span className="text-[11px] text-muted">Đồng bộ tự động từ Phân hệ NPT</span>
+              </div>
+
+              <div className="deduction-stat-grid">
+                <div className="deduction-stat-item">
+                  <span className="deduction-stat-label">Giảm trừ bản thân</span>
+                  <span className="deduction-stat-val">11.000.000 đ</span>
+                </div>
+                <div className="deduction-stat-item">
+                  <span className="deduction-stat-label">
+                    Giảm trừ NPT ({editRecord.approvedDependentsCount} người)
+                  </span>
+                  <span className="deduction-stat-val text-primary">
+                    {formatCurrency(editRecord.approvedDependentsCount * 4400000)}
+                  </span>
+                </div>
+              </div>
+
+              <div className="flex items-center justify-between pt-2 border-t border-border/50 text-xs">
+                <span className="text-muted font-medium">Tổng giảm trừ hàng tháng:</span>
+                <strong className="font-mono text-sm text-success">
+                  {formatCurrency(11000000 + editRecord.approvedDependentsCount * 4400000)}
+                </strong>
+              </div>
+            </div>
+          )}
         </div>
       </Modal>
     </div>

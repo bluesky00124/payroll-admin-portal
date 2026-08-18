@@ -19,7 +19,7 @@ import { LeaveSubtab } from "@/components/employees/leave-subtab";
 import { StandardWorkdaysSubtab } from "@/components/employees/standard-workdays-subtab";
 import { TaxSubtab } from "@/components/employees/tax-subtab";
 import { UnionFeesSubtab } from "@/components/employees/union-fees-subtab";
-import { Badge, EmptyState, ErrorState, LoadingBlock } from "@/components/ui";
+import { Badge, EmptyState, ErrorState, LoadingBlock, SearchableSelect } from "@/components/ui";
 import { api } from "@/lib/api";
 
 type EmployeeSubtab = "dependents" | "leave" | "union" | "workdays" | "insurance" | "tax";
@@ -60,24 +60,22 @@ export function EmployeesTab({
         </div>
 
         {!embedded && (
-          <div className="heading-actions">
-            <div className="project-select-filter">
-              <Filter />
-              <label htmlFor="project-filter-select" className="sr-only">Lọc theo dự án</label>
-              <select
-                id="project-filter-select"
-                className="filter-select"
-                value={selectedProjectId}
-                onChange={(e) => setSelectedProjectId(e.target.value)}
-              >
-                <option value="all">Tất cả dự án ({projects.length})</option>
-                {projects.map((p) => (
-                  <option key={p.id} value={p.id}>
-                    {p.code} - {p.name}
-                  </option>
-                ))}
-              </select>
-            </div>
+          <div className="heading-actions" style={{ minWidth: "280px" }}>
+            <SearchableSelect
+              icon={<Filter />}
+              value={selectedProjectId}
+              onChange={setSelectedProjectId}
+              placeholder="Chọn dự án..."
+              searchPlaceholder="Tìm mã hoặc tên dự án..."
+              options={[
+                { value: "all", label: `Tất cả dự án (${projects.length})` },
+                ...projects.map((p) => ({
+                  value: p.id,
+                  label: `${p.code} - ${p.name}`,
+                  subLabel: p.client || p.location,
+                })),
+              ]}
+            />
           </div>
         )}
       </div>

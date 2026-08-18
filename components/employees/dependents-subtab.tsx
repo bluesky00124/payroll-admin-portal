@@ -11,6 +11,7 @@ import {
   FileSpreadsheet,
   FileText,
   Image as ImageIcon,
+  Pencil,
   Plus,
   Search,
   Trash2,
@@ -23,7 +24,7 @@ import {
 import { useMemo, useRef, useState } from "react";
 import { AttachmentPreviewModal } from "@/components/employees/attachment-preview-modal";
 import { useToast, useUserRole } from "@/components/providers";
-import { Badge, Button, EmptyState, ErrorState, LoadingBlock, Modal, MonthPicker, StatusBadge, TablePaginationFooter } from "@/components/ui";
+import { Badge, Button, EmptyState, ErrorState, LoadingBlock, Modal, MonthPicker, SearchableSelect, StatusBadge, TablePaginationFooter, TableRowActions } from "@/components/ui";
 import { api } from "@/lib/api";
 import type { Dependent, Employee } from "@/lib/types";
 import { formatDate, formatMonthYear } from "@/lib/utils";
@@ -40,6 +41,8 @@ export function DependentsSubtab({
   const isAccountant = role === "accountant";
   const queryClient = useQueryClient();
 
+  const employeeMap = useMemo(() => new Map(employees.map((e) => [e.id, e])), [employees]);
+
   const [statusFilter, setStatusFilter] = useState<string>("all");
   const [relationshipFilter, setRelationshipFilter] = useState<string>("all");
   const [searchTerm, setSearchTerm] = useState("");
@@ -50,6 +53,21 @@ export function DependentsSubtab({
   const [importModalOpen, setImportModalOpen] = useState(false);
   const [rejectModalOpen, setRejectModalOpen] = useState(false);
   const [previewModalOpen, setPreviewModalOpen] = useState(false);
+  const [confirmModalOpen, setConfirmModalOpen] = useState(false);
+  const [confirmTargetIds, setConfirmTargetIds] = useState<string[]>([]);
+  const [confirmTargetDependent, setConfirmTargetDependent] = useState<Dependent | null>(null);
+
+  // Edit Modal State
+  const [editModalOpen, setEditModalOpen] = useState(false);
+  const [editingDependent, setEditingDependent] = useState<Dependent | null>(null);
+  const [editFullName, setEditFullName] = useState("");
+  const [editRelationship, setEditRelationship] = useState<"child" | "spouse" | "parent" | "other">("child");
+  const [editDob, setEditDob] = useState("");
+  const [editIdCard, setEditIdCard] = useState("");
+  const [editTaxCode, setEditTaxCode] = useState("");
+  const [editStartDate, setEditStartDate] = useState("2026-08");
+  const [editEndDate, setEditEndDate] = useState("");
+  const [editAttachmentType, setEditAttachmentType] = useState<"cccd_2_sided" | "disability_cert" | "birth_cert">("cccd_2_sided");
 
   const [selectedDependent, setSelectedDependent] = useState<Dependent | null>(null);
   const [rejectionReason, setRejectionReason] = useState("");
@@ -343,6 +361,43 @@ export function DependentsSubtab({
     onError: (err: Error) => notify(err.message, "error"),
   });
 
+  const handleOpenEditModal = (item: Dependent) => {
+    setEditingDependent(item);
+    setEditFullName(item.fullName || "");
+    setEditRelationship(item.relationship || "child");
+    setEditDob(item.dob || "");
+    setEditIdCard(item.idCardOrTaxCode || "");
+    setEditTaxCode(item.taxCode || "");
+    setEditStartDate(item.startDate || "2026-08");
+    setEditEndDate(item.endDate || "");
+    setEditAttachmentType(item.attachmentType || "cccd_2_sided");
+    setEditModalOpen(true);
+  };
+
+  const updateDependentMutation = useMutation({
+    mutationFn: async () => {
+      if (!editingDependent) return;
+      return api.updateDependent(editingDependent.id, {
+        fullName: editFullName,
+        relationship: editRelationship,
+        dob: editDob,
+        idCardOrTaxCode: editIdCard,
+        taxCode: editTaxCode || undefined,
+        startDate: editStartDate,
+        endDate: editEndDate || undefined,
+        attachmentType: editAttachmentType,
+      });
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["dependents"] });
+      queryClient.invalidateQueries({ queryKey: ["tax-configs"] });
+      setEditModalOpen(false);
+      setEditingDependent(null);
+      notify("Đã cập nhật thông tin người phụ thuộc thành công!");
+    },
+    onError: (err: Error) => notify(err.message, "error"),
+  });
+
   const confirmMutation = useMutation({
     mutationFn: async (ids: string[]) => api.confirmDependents(ids),
     onSuccess: () => {
@@ -350,7 +405,9 @@ export function DependentsSubtab({
       queryClient.invalidateQueries({ queryKey: ["tax-configs"] });
       setSelectedIds(new Set());
       setPreviewModalOpen(false);
-      notify("Kế toán đã xác nhận hợp lệ hồ sơ Người phụ thuộc!");
+      setConfirmModalOpen(false);
+      setConfirmTargetDependent(null);
+      notify("Đã xác nhận hồ sơ Người phụ thuộc thành công!");
     },
     onError: (err: Error) => notify(err.message, "error"),
   });
@@ -482,10 +539,14 @@ export function DependentsSubtab({
                       <Badge tone="info">Đã tích chọn {selectedIds.size} hồ sơ</Badge>
                       <Button
                         variant="primary"
-                        onClick={() => confirmMutation.mutate(Array.from(selectedIds))}
+                        onClick={() => {
+                          setConfirmTargetIds(Array.from(selectedIds));
+                          setConfirmTargetDependent(null);
+                          setConfirmModalOpen(true);
+                        }}
                         loading={confirmMutation.isPending}
                       >
-                        <CheckCheck /> Duyệt {selectedIds.size} hồ sơ đã chọn
+                        <CheckCheck /> Xác nhận {selectedIds.size} hồ sơ đã chọn
                       </Button>
                       <Button variant="ghost" size="sm" onClick={() => setSelectedIds(new Set())}>
                         Bỏ chọn
@@ -497,11 +558,13 @@ export function DependentsSubtab({
                         variant="outline"
                         onClick={() => {
                           const pendingIds = dependents.filter((d) => d.status === "pending_approval").map((d) => d.id);
-                          confirmMutation.mutate(pendingIds);
+                          setConfirmTargetIds(pendingIds);
+                          setConfirmTargetDependent(null);
+                          setConfirmModalOpen(true);
                         }}
                         loading={confirmMutation.isPending}
                       >
-                        <CheckCheck /> Duyệt tất cả ({pendingCount})
+                        <CheckCheck /> Xác nhận tất cả ({pendingCount})
                       </Button>
                     )
                   )}
@@ -533,14 +596,14 @@ export function DependentsSubtab({
                 className={`pill-btn warning ${statusFilter === "pending_approval" ? "active" : ""}`}
                 onClick={() => setStatusFilter("pending_approval")}
               >
-                Chờ duyệt ({pendingCount})
+                Đang xử lý ({pendingCount})
               </button>
               <button
                 type="button"
                 className={`pill-btn success ${statusFilter === "approved" ? "active" : ""}`}
                 onClick={() => setStatusFilter("approved")}
               >
-                Đã duyệt ({approvedCount})
+                Xác nhận ({approvedCount})
               </button>
               <button
                 type="button"
@@ -549,14 +612,6 @@ export function DependentsSubtab({
               >
                 Từ chối ({rejectedCount})
               </button>
-            </div>
-
-            <div className="filter-panel-meta">
-              {isFilterActive && (
-                <button type="button" className="btn-clear-filters" onClick={handleClearFilters}>
-                  <X /> Xóa bộ lọc
-                </button>
-              )}
             </div>
           </div>
         </div>
@@ -570,7 +625,7 @@ export function DependentsSubtab({
                 ? "Không tìm thấy người phụ thuộc phù hợp với từ khóa."
                 : isAccountant
                 ? "Nhấn 'Import danh sách NPT' để tải lên danh sách người phụ thuộc từ Excel."
-                : "Nhấn 'Khai báo người phụ thuộc' để gửi hồ sơ người phụ thuộc lên kế toán duyệt."
+                : "Nhấn 'Khai báo người phụ thuộc' để gửi hồ sơ người phụ thuộc lên kế toán xác nhận."
             }
             action={
               !searchTerm ? (
@@ -588,7 +643,8 @@ export function DependentsSubtab({
           />
         ) : (
           <div className="data-table-wrap">
-            <table className="data-table">
+            <div className="data-table-scroll">
+              <table className="data-table">
               <thead>
                 <tr>
                   {isAccountant && (
@@ -598,20 +654,25 @@ export function DependentsSubtab({
                         checked={isAllPendingSelected}
                         onChange={toggleSelectAll}
                         disabled={pendingItems.length === 0}
-                        title="Chọn tất cả hồ sơ chờ duyệt"
+                        title="Chọn tất cả hồ sơ đang xử lý"
                       />
                     </th>
                   )}
                   <th style={{ width: "45px" }} className="text-center">STT</th>
-                  <th>Người lao động</th>
-                  <th>Họ và tên NPT</th>
-                  <th>Quan hệ</th>
-                  <th>Ngày sinh</th>
-                  <th>Số CCCD / Mã ĐD</th>
-                  <th>Tháng áp dụng</th>
-                  <th style={{ width: "140px" }} className="text-center">Hồ sơ đính kèm</th>
-                  <th style={{ width: "140px" }}>Trạng thái</th>
-                  {isAccountant && <th style={{ width: "140px" }} className="text-center">Thao tác</th>}
+                  <th style={{ width: "105px" }}>MÃ NV</th>
+                  <th style={{ width: "95px" }}>MÃ DỰ ÁN</th>
+                  <th>HỌ TÊN NNT</th>
+                  <th>CCCD NNT</th>
+                  <th>MST NNT</th>
+                  <th>HỌ TÊN NPT</th>
+                  <th>MST NPT</th>
+                  <th>NGÀY SINH</th>
+                  <th>CCCD NPT</th>
+                  <th>QUAN HỆ</th>
+                  <th>NGÀY ÁP DỤNG</th>
+                  <th>NGÀY KẾT THÚC</th>
+                  <th style={{ width: "120px" }}>TRẠNG THÁI</th>
+                  <th style={{ width: "60px" }} className="text-center">THAO TÁC</th>
                 </tr>
               </thead>
               <tbody>
@@ -620,6 +681,7 @@ export function DependentsSubtab({
                   const isApproved = item.status === "approved";
                   const isSelected = selectedIds.has(item.id);
                   const stt = (page - 1) * pageSize + idx + 1;
+                  const emp = employeeMap.get(item.employeeId);
 
                   return (
                     <tr
@@ -646,139 +708,132 @@ export function DependentsSubtab({
                         </td>
                       )}
                       <td className="text-center text-muted font-medium">{stt}</td>
-                      <td>
-                        <div className="employee-cell-info">
-                          <span className="employee-cell-name">{item.employeeName}</span>
-                          <span className="employee-cell-sub">
-                            <span className="employee-code-badge">{item.employeeCode}</span>
-                          </span>
-                        </div>
+                      <td className="font-mono font-semibold text-slate-700 dark:text-slate-200">
+                        {item.employeeCode || emp?.code || "—"}
+                      </td>
+                      <td className="font-mono text-xs text-muted">
+                        {item.projectCode || emp?.projectCode || "—"}
                       </td>
                       <td>
-                        <strong className="text-foreground">{item.fullName}</strong>
+                        <strong className="text-foreground">{item.employeeName || emp?.name || "—"}</strong>
+                      </td>
+                      <td className="font-mono text-xs">
+                        {item.employeeIdCard || emp?.idCard || "—"}
+                      </td>
+                      <td className="font-mono text-xs">
+                        {item.employeeTaxCode || (emp?.idCard ? `80${emp.idCard.slice(-8)}` : "—")}
                       </td>
                       <td>
-                        <span className="relationship-tag">{relationshipLabel(item.relationship)}</span>
+                        <strong className="text-foreground font-semibold">{item.fullName}</strong>
+                      </td>
+                      <td className="font-mono text-xs">
+                        {item.taxCode || "—"}
                       </td>
                       <td>{formatDate(item.dob)}</td>
-                      <td>
-                        <code className="code-badge">{item.idCardOrTaxCode}</code>
+                      <td className="font-mono text-xs">
+                        {item.idCardOrTaxCode || "—"}
                       </td>
-                      <td>{formatMonthYear(item.startDate)}</td>
-                      <td className="text-center">
-                        {item.attachmentName && item.attachmentName.trim() !== "" ? (
-                          <div className="action-buttons-compact">
-                            <Button
-                              variant="ghost"
-                              size="sm"
-                              onClick={() => {
-                                setSelectedDependent(item);
-                                setPreviewModalOpen(true);
-                              }}
-                              className="doc-preview-btn"
-                              title="Xem hồ sơ chứng từ"
-                            >
-                              <Eye />
-                              <span className="truncate max-w-[85px]">{item.attachmentName}</span>
-                            </Button>
-                            <Button
-                              variant="ghost"
-                              size="sm"
-                              onClick={() => {
-                                setSelectedDependentForUpload(item);
-                                setUploadDocType(item.attachmentType || "cccd_2_sided");
-                                setUploadAttachmentModalOpen(true);
-                              }}
-                              title="Thay đổi / Cập nhật hồ sơ đính kèm"
-                            >
-                              <UploadCloud />
-                            </Button>
-                          </div>
+                      <td>{relationshipLabel(item.relationship)}</td>
+                      <td>
+                        <Badge tone="neutral">{formatMonthYear(item.startDate)}</Badge>
+                      </td>
+                      <td>
+                        {item.endDate ? (
+                          <Badge tone="neutral">{formatMonthYear(item.endDate)}</Badge>
                         ) : (
-                          <Button
-                            variant="secondary"
-                            size="sm"
-                            onClick={() => {
-                              setSelectedDependentForUpload(item);
-                              setUploadDocType(item.attachmentType || "cccd_2_sided");
-                              setUploadAttachmentModalOpen(true);
-                            }}
-                            title="Bấm để tải lên tài liệu chứng minh cho người phụ thuộc này"
-                          >
-                            <UploadCloud />
-                            <span>Tải lên hồ sơ</span>
-                          </Button>
+                          <span className="text-muted text-xs">Vô thời hạn</span>
                         )}
                       </td>
                       <td>
                         {isPending ? (
-                          <StatusBadge tone="warning">Chờ duyệt</StatusBadge>
+                          <StatusBadge tone="warning">Đang xử lý</StatusBadge>
                         ) : isApproved ? (
-                          <StatusBadge tone="success">Đã duyệt</StatusBadge>
+                          <StatusBadge tone="success">Xác nhận</StatusBadge>
                         ) : (
-                          <div className="rejection-hint">
-                            <StatusBadge tone="danger">Từ chối</StatusBadge>
-                            {item.rejectionReason && (
-                              <span className="rejection-note" title={item.rejectionReason}>
-                                : {item.rejectionReason}
-                              </span>
-                            )}
-                          </div>
+                          <StatusBadge tone="danger">Từ chối</StatusBadge>
                         )}
                       </td>
-                      {isAccountant && (
-                        <td className="text-center">
-                          {isPending ? (
-                            <div className="action-buttons-compact">
-                              <Button
-                                variant="primary"
-                                size="sm"
-                                onClick={() => confirmMutation.mutate([item.id])}
-                                loading={confirmMutation.isPending}
-                                title="Duyệt hợp lệ"
-                              >
-                                <Check /> Duyệt
-                              </Button>
-                              <Button
-                                variant="danger"
-                                size="sm"
-                                onClick={() => {
-                                  setSelectedDependent(item);
-                                  setRejectModalOpen(true);
-                                }}
-                                title="Từ chối hồ sơ này"
-                              >
-                                <X /> Từ chối
-                              </Button>
-                            </div>
-                          ) : (
-                            <span className="text-muted text-xs font-medium">
-                              {isApproved ? `✓ ${item.verifiedBy?.split("(")[0] || "Đã duyệt"}` : "Đã từ chối"}
-                            </span>
-                          )}
-                        </td>
-                      )}
+                      <td className="text-center">
+                        <TableRowActions
+                          items={[
+                            ...(isAccountant && isPending
+                              ? [
+                                  {
+                                    key: "approve",
+                                    label: "Xác nhận hồ sơ",
+                                    icon: <Check />,
+                                    onClick: () => {
+                                      setConfirmTargetIds([item.id]);
+                                      setConfirmTargetDependent(item);
+                                      setConfirmModalOpen(true);
+                                    },
+                                  },
+                                  {
+                                    key: "reject",
+                                    label: "Từ chối hồ sơ",
+                                    icon: <X />,
+                                    danger: true,
+                                    onClick: () => {
+                                      setSelectedDependent(item);
+                                      setRejectModalOpen(true);
+                                    },
+                                  },
+                                ]
+                              : []),
+                            {
+                              key: "edit",
+                              label: "Chỉnh sửa thông tin",
+                              icon: <Pencil />,
+                              onClick: () => handleOpenEditModal(item),
+                            },
+                            ...(item.attachmentName && item.attachmentName.trim() !== ""
+                              ? [
+                                  {
+                                    key: "preview",
+                                    label: "Xem chứng từ",
+                                    icon: <Eye />,
+                                    onClick: () => {
+                                      setSelectedDependent(item);
+                                      setPreviewModalOpen(true);
+                                    },
+                                  },
+                                ]
+                              : []),
+                            {
+                              key: "upload",
+                              label: item.attachmentName ? "Cập nhật chứng từ" : "Tải lên chứng từ",
+                              icon: <UploadCloud />,
+                              onClick: () => {
+                                setSelectedDependentForUpload(item);
+                                setUploadDocType(item.attachmentType || "cccd_2_sided");
+                                setUploadAttachmentModalOpen(true);
+                              },
+                            },
+                          ]}
+                        />
+                      </td>
                     </tr>
                   );
                 })}
               </tbody>
             </table>
-
-            {/* Table Footer */}
-            <TablePaginationFooter
-              totalItems={filteredDependents.length}
-              selectedCount={selectedIds.size}
-              currentPage={page}
-              pageSize={pageSize}
-              onPageChange={setPage}
-              onPageSizeChange={(newSize) => {
-                setPageSize(newSize);
-                setPage(1);
-              }}
-            />
           </div>
-        )}
-      </div>
+
+          {/* Attached Table Footer */}
+          <TablePaginationFooter
+            totalItems={filteredDependents.length}
+            selectedCount={selectedIds.size}
+            currentPage={page}
+            pageSize={pageSize}
+            onPageChange={setPage}
+            onPageSizeChange={(newSize) => {
+              setPageSize(newSize);
+              setPage(1);
+            }}
+          />
+        </div>
+      )}
+    </div>
 
       {/* Modal 1: BCSX Khai báo NPT */}
       <Modal
@@ -797,21 +852,20 @@ export function DependentsSubtab({
         }
       >
         <div className="form-grid">
-          <label className="form-field full-width">
+          <div className="form-field full-width">
             <span>Chọn Người lao động *</span>
-            <select
+            <SearchableSelect
               value={formEmployeeId}
-              onChange={(e) => setFormEmployeeId(e.target.value)}
-              required
-            >
-              <option value="">-- Chọn nhân viên trong danh sách --</option>
-              {employees.map((emp) => (
-                <option key={emp.id} value={emp.id}>
-                  {emp.code} - {emp.name} ({emp.department})
-                </option>
-              ))}
-            </select>
-          </label>
+              onChange={setFormEmployeeId}
+              placeholder="-- Chọn nhân viên trong danh sách --"
+              searchPlaceholder="Tìm theo tên hoặc mã NV..."
+              options={employees.map((emp) => ({
+                value: emp.id,
+                label: `${emp.code} - ${emp.name}`,
+                subLabel: emp.department,
+              }))}
+            />
+          </div>
 
           <label className="form-field">
             <span>Họ và tên Người phụ thuộc *</span>
@@ -1316,6 +1370,169 @@ export function DependentsSubtab({
               )}
             </div>
           )}
+        </div>
+      </Modal>
+
+      {/* Confirm Approval Modal */}
+      <Modal
+        open={confirmModalOpen}
+        onOpenChange={(open) => !open && setConfirmModalOpen(false)}
+        title="Xác nhận hồ sơ Người phụ thuộc"
+        description={
+          confirmTargetDependent
+            ? `Xác nhận hồ sơ người phụ thuộc cho nhân viên ${confirmTargetDependent.employeeName} (${confirmTargetDependent.employeeCode})`
+            : `Bạn có chắc chắn muốn xác nhận ${confirmTargetIds.length} hồ sơ người phụ thuộc đã chọn?`
+        }
+        size="sm"
+        footer={
+          <>
+            <Button onClick={() => setConfirmModalOpen(false)}>Hủy</Button>
+            <Button
+              variant="primary"
+              loading={confirmMutation.isPending}
+              onClick={() => confirmMutation.mutate(confirmTargetIds)}
+            >
+              <Check /> Xác nhận hồ sơ
+            </Button>
+          </>
+        }
+      >
+        {confirmTargetDependent ? (
+          <div className="space-y-3 text-xs">
+            <div className="p-3 bg-secondary/50 rounded-lg space-y-2 border border-border">
+              <div className="flex justify-between">
+                <span className="text-muted">Người nộp thuế:</span>
+                <strong className="text-foreground">{confirmTargetDependent.employeeName}</strong>
+              </div>
+              <div className="flex justify-between">
+                <span className="text-muted">Người phụ thuộc:</span>
+                <strong className="text-foreground">{confirmTargetDependent.fullName}</strong>
+              </div>
+              <div className="flex justify-between">
+                <span className="text-muted">Mối quan hệ:</span>
+                <span>{relationshipLabel(confirmTargetDependent.relationship)}</span>
+              </div>
+              <div className="flex justify-between">
+                <span className="text-muted">Tháng áp dụng:</span>
+                <Badge tone="neutral">{formatMonthYear(confirmTargetDependent.startDate)}</Badge>
+              </div>
+            </div>
+            <p className="text-muted leading-relaxed">
+              Sau khi xác nhận, người phụ thuộc này sẽ được tính vào mức giảm trừ gia cảnh của nhân viên từ tháng áp dụng.
+            </p>
+          </div>
+        ) : (
+          <p className="modal-note">
+            Toàn bộ {confirmTargetIds.length} hồ sơ người phụ thuộc được chọn sẽ được chuyển sang trạng thái Đã xác nhận và tự động liên kết với Thuế TNCN.
+          </p>
+        )}
+      </Modal>
+
+      {/* Edit Dependent Modal */}
+      <Modal
+        open={editModalOpen}
+        onOpenChange={(open) => !open && setEditModalOpen(false)}
+        title="Chỉnh sửa thông tin Người phụ thuộc"
+        description={editingDependent ? `Người nộp thuế: ${editingDependent.employeeName} (${editingDependent.employeeCode})` : ""}
+        size="md"
+        footer={
+          <>
+            <Button onClick={() => setEditModalOpen(false)}>Hủy</Button>
+            <Button
+              variant="primary"
+              loading={updateDependentMutation.isPending}
+              onClick={() => updateDependentMutation.mutate()}
+            >
+              <Check /> Lưu thay đổi
+            </Button>
+          </>
+        }
+      >
+        <div className="form-grid">
+          <label className="form-field">
+            <span>Họ và tên Người phụ thuộc *</span>
+            <input
+              type="text"
+              value={editFullName}
+              onChange={(e) => setEditFullName(e.target.value)}
+              placeholder="Họ và tên NPT"
+              required
+            />
+          </label>
+
+          <label className="form-field">
+            <span>Mối quan hệ nhân thân *</span>
+            <select
+              value={editRelationship}
+              onChange={(e) => setEditRelationship(e.target.value as any)}
+            >
+              <option value="child">Con ruột / Con nuôi</option>
+              <option value="spouse">Vợ / Chồng</option>
+              <option value="parent">Cha / Mẹ ruột hoặc Cha/Mẹ chồng/vợ</option>
+              <option value="other">Người phụ thuộc khác</option>
+            </select>
+          </label>
+
+          <label className="form-field">
+            <span>Ngày tháng năm sinh *</span>
+            <input
+              type="date"
+              value={editDob}
+              onChange={(e) => setEditDob(e.target.value)}
+              required
+            />
+          </label>
+
+          <label className="form-field">
+            <span>Số CCCD / Mã số định danh *</span>
+            <input
+              type="text"
+              value={editIdCard}
+              onChange={(e) => setEditIdCard(e.target.value)}
+              placeholder="12 số CCCD / Mã định danh"
+              required
+            />
+          </label>
+
+          <label className="form-field">
+            <span>Mã số thuế NPT (nếu có)</span>
+            <input
+              type="text"
+              value={editTaxCode}
+              onChange={(e) => setEditTaxCode(e.target.value)}
+              placeholder="Mã số thuế NPT"
+            />
+          </label>
+
+          <div className="form-field">
+            <span>Tháng bắt đầu tính giảm trừ *</span>
+            <MonthPicker
+              value={editStartDate}
+              onChange={(val) => setEditStartDate(val)}
+              variant="form"
+            />
+          </div>
+
+          <div className="form-field">
+            <span>Tháng kết thúc giảm trừ</span>
+            <MonthPicker
+              value={editEndDate || "2026-12"}
+              onChange={(val) => setEditEndDate(val)}
+              variant="form"
+            />
+          </div>
+
+          <label className="form-field full-width">
+            <span>Loại giấy tờ chứng minh đính kèm</span>
+            <select
+              value={editAttachmentType}
+              onChange={(e) => setEditAttachmentType(e.target.value as any)}
+            >
+              <option value="cccd_2_sided">Hình chụp CCCD 2 mặt (Mặt trước + Mặt sau)</option>
+              <option value="birth_cert">Giấy khai sinh (Trẻ em dưới 18 tuổi)</option>
+              <option value="disability_cert">Giấy chứng nhận mất khả năng lao động / Y tế</option>
+            </select>
+          </label>
         </div>
       </Modal>
     </div>

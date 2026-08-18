@@ -208,19 +208,6 @@ export function UnionFeesSubtab({
                 Không tham gia ({unionFees.length - activeCount})
               </button>
             </div>
-
-            {(searchTerm || statusFilter !== "all") && (
-              <Button
-                variant="ghost"
-                size="sm"
-                onClick={() => {
-                  setSearchTerm("");
-                  setStatusFilter("all");
-                }}
-              >
-                <X /> Xóa bộ lọc
-              </Button>
-            )}
           </div>
         </div>
 
@@ -237,7 +224,8 @@ export function UnionFeesSubtab({
           />
         ) : (
           <div className="data-table-wrap">
-            <table className="data-table">
+            <div className="data-table-scroll">
+              <table className="data-table">
               <thead>
                 <tr>
                   <th style={{ width: "45px" }} className="text-center">STT</th>
@@ -267,7 +255,7 @@ export function UnionFeesSubtab({
                         <Badge tone="neutral">{formatMonthYear(item.period)}</Badge>
                       </td>
                       <td>
-                        {item.feeType === "percentage" ? "1% Lương đóng bảo hiểm" : "Mức cố định"}
+                        {item.feeType === "percentage" ? "1%" : "Cố định"}
                       </td>
                       <td className="text-right font-mono">
                         <strong className="text-primary">{formatCurrency(item.amount)}</strong>
@@ -284,21 +272,22 @@ export function UnionFeesSubtab({
                 })}
               </tbody>
             </table>
-
-            {/* Table Footer */}
-            <TablePaginationFooter
-              totalItems={filteredFees.length}
-              currentPage={page}
-              pageSize={pageSize}
-              onPageChange={setPage}
-              onPageSizeChange={(newSize) => {
-                setPageSize(newSize);
-                setPage(1);
-              }}
-            />
           </div>
-        )}
-      </div>
+
+          {/* Attached Table Footer */}
+          <TablePaginationFooter
+            totalItems={filteredFees.length}
+            currentPage={page}
+            pageSize={pageSize}
+            onPageChange={setPage}
+            onPageSizeChange={(newSize) => {
+              setPageSize(newSize);
+              setPage(1);
+            }}
+          />
+        </div>
+      )}
+    </div>
 
       {/* Shared Reusable Excel Import Modal */}
       <ExcelImportModal
@@ -327,7 +316,7 @@ export function UnionFeesSubtab({
             label: "Hình thức trích",
             render: (row) => (
               <Badge tone="neutral">
-                {row.feeType === "percentage" ? "1% Lương đóng BH" : "Mức cố định"}
+                {row.feeType === "percentage" ? "1%" : "Cố định"}
               </Badge>
             ),
           },
