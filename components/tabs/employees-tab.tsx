@@ -22,6 +22,15 @@ import { api } from "@/lib/api";
 
 type EmployeeSubtab = "dependents" | "leave" | "union" | "workdays" | "insurance" | "policies";
 
+const SUBTABS: { id: EmployeeSubtab; label: string; icon: React.ComponentType<{ className?: string }> }[] = [
+  { id: "dependents", label: "Người phụ thuộc", icon: Users },
+  { id: "leave", label: "Phép năm", icon: Palmtree },
+  { id: "union", label: "Công đoàn phí", icon: Coins },
+  { id: "workdays", label: "Ngày công chuẩn", icon: CalendarDays },
+  { id: "insurance", label: "Bảo hiểm xã hội", icon: ShieldCheck },
+  { id: "policies", label: "Chế độ & Phụ cấp", icon: ScrollText },
+];
+
 export function EmployeesTab({
   projectId,
   embedded = false,
@@ -78,61 +87,24 @@ export function EmployeesTab({
         )}
       </div>
 
-      {/* Sub-navigation tabs */}
+      {/* Sub-navigation tabs (Clean Minimalist Underline) */}
       <nav className="employee-subnav" aria-label="Phân hệ người lao động">
-        <button
-          type="button"
-          className={`subnav-item ${activeSubtab === "dependents" ? "active" : ""}`}
-          onClick={() => setActiveSubtab("dependents")}
-        >
-          <Users />
-          <span>Người phụ thuộc</span>
-        </button>
-
-        <button
-          type="button"
-          className={`subnav-item ${activeSubtab === "leave" ? "active" : ""}`}
-          onClick={() => setActiveSubtab("leave")}
-        >
-          <Palmtree />
-          <span>Phép năm</span>
-        </button>
-
-        <button
-          type="button"
-          className={`subnav-item ${activeSubtab === "union" ? "active" : ""}`}
-          onClick={() => setActiveSubtab("union")}
-        >
-          <Coins />
-          <span>Công đoàn phí</span>
-        </button>
-
-        <button
-          type="button"
-          className={`subnav-item ${activeSubtab === "workdays" ? "active" : ""}`}
-          onClick={() => setActiveSubtab("workdays")}
-        >
-          <CalendarDays />
-          <span>Ngày công chuẩn</span>
-        </button>
-
-        <button
-          type="button"
-          className={`subnav-item ${activeSubtab === "insurance" ? "active" : ""}`}
-          onClick={() => setActiveSubtab("insurance")}
-        >
-          <ShieldCheck />
-          <span>Bảo hiểm xã hội</span>
-        </button>
-
-        <button
-          type="button"
-          className={`subnav-item ${activeSubtab === "policies" ? "active" : ""}`}
-          onClick={() => setActiveSubtab("policies")}
-        >
-          <ScrollText />
-          <span>Chế độ &amp; Phụ cấp</span>
-        </button>
+        {SUBTABS.map((tab) => {
+          const Icon = tab.icon;
+          const isActive = activeSubtab === tab.id;
+          return (
+            <button
+              key={tab.id}
+              type="button"
+              className={`subnav-item ${isActive ? "active" : ""}`}
+              onClick={() => setActiveSubtab(tab.id)}
+            >
+              <Icon />
+              <span>{tab.label}</span>
+              {isActive && <span className="subnav-indicator" />}
+            </button>
+          );
+        })}
       </nav>
 
       {/* Subtab Content Area */}

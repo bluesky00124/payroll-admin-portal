@@ -659,16 +659,9 @@ export function DependentsSubtab({
                     </th>
                   )}
                   <th style={{ width: "45px" }} className="text-center">STT</th>
-                  <th style={{ minWidth: "160px" }}>NGƯỜI LAO ĐỘNG</th>
-                  <th>CCCD NNT</th>
-                  <th>MST NNT</th>
-                  <th>HỌ TÊN NPT</th>
-                  <th>MST NPT</th>
-                  <th>NGÀY SINH</th>
-                  <th>CCCD NPT</th>
-                  <th>QUAN HỆ</th>
-                  <th>NGÀY ÁP DỤNG</th>
-                  <th>NGÀY KẾT THÚC</th>
+                  <th style={{ minWidth: "200px" }}>NGƯỜI LAO ĐỘNG (NNT)</th>
+                  <th style={{ minWidth: "220px" }}>NGƯỜI PHỤ THUỘC (NPT)</th>
+                  <th style={{ width: "160px" }}>HIỆU LỰC ÁP DỤNG</th>
                   <th style={{ width: "120px" }}>TRẠNG THÁI</th>
                   <th style={{ width: "60px" }} className="text-center">THAO TÁC</th>
                 </tr>
@@ -681,6 +674,8 @@ export function DependentsSubtab({
                   const stt = (page - 1) * pageSize + idx + 1;
                   const emp = employeeMap.get(item.employeeId);
                   const projectCode = item.projectCode || emp?.projectCode;
+                  const empIdCard = item.employeeIdCard || emp?.idCard;
+                  const empTaxCode = item.employeeTaxCode || (emp?.idCard ? `80${emp.idCard.slice(-8)}` : null);
 
                   return (
                     <tr
@@ -708,40 +703,59 @@ export function DependentsSubtab({
                       )}
                       <td className="text-center text-muted font-medium">{stt}</td>
                       <td>
-                        <div className="employee-cell-info">
-                          <span className="employee-cell-name font-semibold">{item.employeeName || emp?.name || "—"}</span>
-                          <span className="employee-cell-sub">
+                        <div className="flex flex-col space-y-0.5">
+                          <span className="employee-cell-name font-semibold text-foreground">{item.employeeName || emp?.name || "—"}</span>
+                          <div className="flex items-center gap-1.5 text-[11px] text-muted">
                             <span className="employee-code-badge">{item.employeeCode || emp?.code || "—"}</span>
-                            {projectCode && <span className="text-muted text-[11px] font-normal">· {projectCode}</span>}
-                          </span>
+                            {projectCode && <span>· {projectCode}</span>}
+                          </div>
+                          {empIdCard && (
+                            <div className="text-[11px] text-muted font-mono">
+                              CCCD: <span className="text-foreground font-medium">{empIdCard}</span>
+                            </div>
+                          )}
+                          {empTaxCode && (
+                            <div className="text-[11px] text-muted font-mono">
+                              MST: <span className="text-foreground font-medium">{empTaxCode}</span>
+                            </div>
+                          )}
                         </div>
                       </td>
-                      <td className="font-mono text-xs">
-                        {item.employeeIdCard || emp?.idCard || "—"}
-                      </td>
-                      <td className="font-mono text-xs">
-                        {item.employeeTaxCode || (emp?.idCard ? `80${emp.idCard.slice(-8)}` : "—")}
+                      <td>
+                        <div className="flex flex-col space-y-0.5">
+                          <div className="flex items-center gap-1.5">
+                            <strong className="text-foreground font-semibold">{item.fullName}</strong>
+                            <Badge tone="neutral">
+                              {relationshipLabel(item.relationship)}
+                            </Badge>
+                          </div>
+                          {item.dob && (
+                            <div className="text-[11px] text-muted">
+                              <span>Ngày sinh: <span className="text-foreground font-medium font-mono">{formatDate(item.dob)}</span></span>
+                            </div>
+                          )}
+                          {item.idCardOrTaxCode && (
+                            <div className="text-[11px] text-muted font-mono">
+                              CCCD/ĐD: <span className="text-foreground font-medium">{item.idCardOrTaxCode}</span>
+                            </div>
+                          )}
+                          {item.taxCode && item.taxCode !== item.idCardOrTaxCode && (
+                            <div className="text-[11px] text-muted font-mono">
+                              MST: <span className="text-foreground font-medium">{item.taxCode}</span>
+                            </div>
+                          )}
+                        </div>
                       </td>
                       <td>
-                        <strong className="text-foreground font-semibold">{item.fullName}</strong>
-                      </td>
-                      <td className="font-mono text-xs">
-                        {item.taxCode || "—"}
-                      </td>
-                      <td>{formatDate(item.dob)}</td>
-                      <td className="font-mono text-xs">
-                        {item.idCardOrTaxCode || "—"}
-                      </td>
-                      <td>{relationshipLabel(item.relationship)}</td>
-                      <td>
-                        <Badge tone="neutral">{formatMonthYear(item.startDate)}</Badge>
-                      </td>
-                      <td>
-                        {item.endDate ? (
-                          <Badge tone="neutral">{formatMonthYear(item.endDate)}</Badge>
-                        ) : (
-                          <span className="text-muted text-xs">Vô thời hạn</span>
-                        )}
+                        <div className="font-mono text-xs flex items-center gap-1">
+                          <Badge tone="neutral">{formatMonthYear(item.startDate)}</Badge>
+                          <span className="text-muted">→</span>
+                          {item.endDate ? (
+                            <Badge tone="neutral">{formatMonthYear(item.endDate)}</Badge>
+                          ) : (
+                            <span className="text-muted text-[11px] font-sans">Vô thời hạn</span>
+                          )}
+                        </div>
                       </td>
                       <td>
                         {isPending ? (

@@ -1,7 +1,7 @@
 import { seedDatabase } from "@/lib/mock-data";
 import type { MockDatabase } from "@/lib/types";
 
-const STORAGE_KEY = "payroll-admin-demo-db-v10";
+const STORAGE_KEY = "payroll-admin-demo-db-v15";
 
 const cloneSeed = () => structuredClone(seedDatabase);
 
@@ -15,7 +15,7 @@ export function readMockDatabase(): MockDatabase {
   }
   try {
     const parsed = JSON.parse(raw) as MockDatabase;
-    if (parsed.schemaVersion !== seedDatabase.schemaVersion) {
+    if (parsed.schemaVersion !== seedDatabase.schemaVersion || !parsed.projectEmployeeGroups || parsed.projectEmployeeGroups.length === 0) {
       return resetMockDatabase();
     }
     return parsed;

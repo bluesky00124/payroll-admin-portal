@@ -23,6 +23,7 @@ import type {
   UnionFeeRecord,
   EmployeePolicyItem,
   EmployeePolicyRecord,
+  ProjectEmployeeGroup,
 } from "@/lib/types";
 
 export class ApiRequestError extends Error {
@@ -164,4 +165,14 @@ export const api = {
     request<EmployeePolicyRecord[]>("/api/employee-policies/batch-import", { method: "POST", body: JSON.stringify(payload) }).then((item) => item.data),
   resetEmployeePoliciesToDefault: (employeeId: string) =>
     request<EmployeePolicyRecord>(`/api/employee-policies/${employeeId}/reset`, { method: "POST" }).then((item) => item.data),
+  getProjectEmployeeGroups: (projectId: string) =>
+    request<ProjectEmployeeGroup[]>(`/api/projects/${projectId}/employee-groups`).then((item) => item.data),
+  createProjectEmployeeGroup: (projectId: string, payload: Partial<ProjectEmployeeGroup>) =>
+    request<ProjectEmployeeGroup>(`/api/projects/${projectId}/employee-groups`, { method: "POST", body: JSON.stringify(payload) }).then((item) => item.data),
+  updateProjectEmployeeGroup: (projectId: string, groupId: string, payload: Partial<ProjectEmployeeGroup>) =>
+    request<ProjectEmployeeGroup>(`/api/projects/${projectId}/employee-groups/${groupId}`, { method: "PATCH", body: JSON.stringify(payload) }).then((item) => item.data),
+  deleteProjectEmployeeGroup: (projectId: string, groupId: string) =>
+    request<{ success: boolean }>(`/api/projects/${projectId}/employee-groups/${groupId}`, { method: "DELETE" }).then((item) => item.data),
+  assignEmployeesToGroup: (projectId: string, groupId: string, payload: { employeeIds: string[] }) =>
+    request<{ success: boolean; updatedCount: number }>(`/api/projects/${projectId}/employee-groups/${groupId}/assign`, { method: "POST", body: JSON.stringify(payload) }).then((item) => item.data),
 };

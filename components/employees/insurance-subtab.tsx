@@ -422,8 +422,8 @@ export function InsuranceSubtab({
 
   return (
     <div className="insurance-subtab">
-      {/* Navigation Switcher: Danh sách tham gia BHXH vs Biến động trong kỳ */}
-      <div className="subtab-view-switcher">
+      {/* Navigation Switcher: Minimalist Underline Tabs */}
+      <nav className="subtab-view-switcher" aria-label="Phân hệ bảo hiểm">
         <button
           type="button"
           className={`subtab-view-btn ${activeView === "master" ? "active" : ""}`}
@@ -433,7 +433,8 @@ export function InsuranceSubtab({
           }}
         >
           <BookOpen />
-          <span>Danh sách tham gia BHXH ({masterRecords.length})</span>
+          <span>Danh sách tham gia BHXH</span>
+          {activeView === "master" && <span className="tab-indicator" />}
         </button>
         <button
           type="button"
@@ -445,9 +446,9 @@ export function InsuranceSubtab({
         >
           <FileSpreadsheet />
           <span>Biến động trong kỳ</span>
-          {pendingCount > 0 && <span className="subtab-view-counter">{pendingCount}</span>}
+          {activeView === "changes" && <span className="tab-indicator" />}
         </button>
-      </div>
+      </nav>
 
       {/* TAB 1: DANH SÁCH THAM GIA BHXH (SỔ THEO DÕI HIỆN HÀNH) */}
       {activeView === "master" && (

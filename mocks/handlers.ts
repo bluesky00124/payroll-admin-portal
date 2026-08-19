@@ -14,6 +14,7 @@ import type {
   LeaveHistoryItem,
   LeaveRecord,
   Project,
+  ProjectEmployeeGroup,
   ProjectOvertimeConfig,
   ProjectPolicy,
   SalaryFormula,
@@ -321,6 +322,97 @@ export const handlers = [
     let list = database.employees ?? [];
     if (projId && projId !== "all") {
       list = list.filter((e) => e.projectId === projId);
+      // Auto-generate sample employees for this project if none exist
+      if (list.length === 0) {
+        mutateMockDatabase((db) => {
+          if (!db.employees) db.employees = [];
+          const projectCode = projId.toUpperCase().replace(/^PRJ-/, "");
+          const sampleEmps: Employee[] = [
+            {
+              id: `emp-${projId}-001`,
+              code: `NV-${projectCode}-001`,
+              name: "Nguyễn Văn An",
+              idCard: "079095001234",
+              phone: "0908123456",
+              email: `an.nguyen@${projId}.vn`,
+              projectId: projId,
+              projectCode,
+              department: "Xưởng Sản Xuất 1",
+              position: "Công nhân bậc 2",
+              joinDate: "2023-03-15",
+              status: "active",
+              groupId: `grp-off-${projId}`,
+              groupName: "Công nhân chính thức",
+            },
+            {
+              id: `emp-${projId}-002`,
+              code: `NV-${projectCode}-002`,
+              name: "Trần Thị Bình",
+              idCard: "079198005678",
+              phone: "0912345678",
+              email: `binh.tran@${projId}.vn`,
+              projectId: projId,
+              projectCode,
+              department: "Xưởng Sản Xuất 1",
+              position: "Tổ trưởng dây chuyền",
+              joinDate: "2022-06-01",
+              status: "active",
+              groupId: `grp-mgmt-${projId}`,
+              groupName: "Quản lý / Shift Leader",
+            },
+            {
+              id: `emp-${projId}-003`,
+              code: `NV-${projectCode}-003`,
+              name: "Lê Văn Cường",
+              idCard: "080092009876",
+              phone: "0987654321",
+              email: `cuong.le@${projId}.vn`,
+              projectId: projId,
+              projectCode,
+              department: "Bộ phận Kỹ thuật",
+              position: "Kỹ thuật viên bảo trì",
+              joinDate: "2024-01-10",
+              status: "active",
+              groupId: `grp-off-${projId}`,
+              groupName: "Công nhân chính thức",
+            },
+            {
+              id: `emp-${projId}-004`,
+              code: `NV-${projectCode}-004`,
+              name: "Phạm Thu Hà",
+              idCard: "079196004321",
+              phone: "0933445566",
+              email: `ha.pham@${projId}.vn`,
+              projectId: projId,
+              projectCode,
+              department: "Phòng Quản lý chất lượng",
+              position: "Chuyên viên QA/QC",
+              joinDate: "2023-09-20",
+              status: "active",
+              groupId: `grp-off-${projId}`,
+              groupName: "Công nhân chính thức",
+            },
+            {
+              id: `emp-${projId}-005`,
+              code: `NV-${projectCode}-005`,
+              name: "Vũ Hoàng Nam",
+              idCard: "079099008899",
+              phone: "0911223344",
+              email: `nam.vu@${projId}.vn`,
+              projectId: projId,
+              projectCode,
+              department: "Xưởng Sản Xuất 2",
+              position: "Công nhân thử việc",
+              joinDate: "2026-07-01",
+              status: "probation",
+              groupId: `grp-prob-${projId}`,
+              groupName: "Học việc (29 ngày)",
+            },
+          ];
+          db.employees.push(...sampleEmps);
+          list = sampleEmps;
+        });
+      }
     }
     if (q) {
       list = list.filter(
@@ -1263,5 +1355,176 @@ export const handlers = [
       }
     });
     return updated ? ok(updated) : fail(404, "RECORD_NOT_FOUND", "Không tìm thấy chế độ nhân sự");
+  }),
+
+  // Project Employee Groups APIs
+  http.get("/api/projects/:projectId/employee-groups", async ({ params }) => {
+    await delay(120);
+    const pId = projectId(params.projectId);
+    const db = readMockDatabase();
+    let groups = (db.projectEmployeeGroups ?? []).filter((g) => g.projectId === pId);
+    
+    // Auto-seed default 3 groups for this project if none exist yet!
+    if (groups.length === 0) {
+      mutateMockDatabase((database) => {
+        if (!database.projectEmployeeGroups) database.projectEmployeeGroups = [];
+        const defaults: ProjectEmployeeGroup[] = [
+          {
+            id: `grp-mgmt-${pId}`,
+            projectId: pId,
+            code: "shift_leader",
+            name: "Quản lý / Shift Leader",
+            description: "Nhóm trưởng ca, quản lý chuyền sản xuất",
+            colorTone: "info",
+            isDefault: false,
+            sortOrder: 1,
+            createdAt: new Date().toISOString().slice(0, 10),
+          },
+          {
+            id: `grp-off-${pId}`,
+            projectId: pId,
+            code: "chinh_thuc",
+            name: "Công nhân chính thức",
+            description: "Công nhân ký hợp đồng lao động chính thức",
+            colorTone: "success",
+            isDefault: true,
+            sortOrder: 2,
+            createdAt: new Date().toISOString().slice(0, 10),
+          },
+          {
+            id: `grp-prob-${pId}`,
+            projectId: pId,
+            code: "hoc_viec",
+            name: "Học việc (29 ngày)",
+            description: "Lao động mới tham gia đào tạo học nghề",
+            colorTone: "warning",
+            isDefault: false,
+            sortOrder: 3,
+            createdAt: new Date().toISOString().slice(0, 10),
+          },
+        ];
+        database.projectEmployeeGroups.push(...defaults);
+        groups = defaults;
+      });
+    }
+
+    // Enrich with dynamic employee counts
+    const enriched = groups.map((grp) => {
+      const count = (db.employees ?? []).filter((emp) => {
+        if (emp.projectId !== pId) return false;
+        if (emp.groupId === grp.id || emp.groupId === grp.code) return true;
+        if (!emp.groupId && grp.isDefault) return true;
+        return false;
+      }).length;
+      return { ...grp, employeeCount: count };
+    });
+
+    return ok(enriched);
+  }),
+
+  http.post("/api/projects/:projectId/employee-groups", async ({ params, request }) => {
+    await delay(180);
+    const pId = projectId(params.projectId);
+    const body = (await request.json()) as Partial<ProjectEmployeeGroup>;
+    if (!body.name) {
+      return fail(400, "VALIDATION_ERROR", "Tên nhóm người lao động là bắt buộc");
+    }
+
+    let created: ProjectEmployeeGroup | undefined;
+    mutateMockDatabase((db) => {
+      if (!db.projectEmployeeGroups) db.projectEmployeeGroups = [];
+      const newGroup: ProjectEmployeeGroup = {
+        id: uid("grp"),
+        projectId: pId,
+        code: body.code || uid("code"),
+        name: body.name!,
+        description: body.description || "",
+        colorTone: body.colorTone || "primary",
+        isDefault: Boolean(body.isDefault),
+        sortOrder: db.projectEmployeeGroups.filter((g) => g.projectId === pId).length + 1,
+        createdAt: new Date().toISOString().slice(0, 10),
+      };
+      db.projectEmployeeGroups.push(newGroup);
+      created = { ...newGroup, employeeCount: 0 };
+    });
+
+    return ok(created, { status: 201 });
+  }),
+
+  http.patch("/api/projects/:projectId/employee-groups/:groupId", async ({ params, request }) => {
+    await delay(150);
+    const pId = projectId(params.projectId);
+    const gId = String(params.groupId);
+    const body = (await request.json()) as Partial<ProjectEmployeeGroup>;
+
+    let updated: ProjectEmployeeGroup | undefined;
+    mutateMockDatabase((db) => {
+      const idx = (db.projectEmployeeGroups ?? []).findIndex(
+        (g) => g.projectId === pId && (g.id === gId || g.code === gId)
+      );
+      if (idx >= 0) {
+        db.projectEmployeeGroups[idx] = {
+          ...db.projectEmployeeGroups[idx],
+          ...body,
+          updatedAt: new Date().toISOString().slice(0, 10),
+        };
+        const count = (db.employees ?? []).filter(
+          (e) => e.projectId === pId && (e.groupId === gId || e.groupId === db.projectEmployeeGroups[idx].code)
+        ).length;
+        updated = { ...db.projectEmployeeGroups[idx], employeeCount: count };
+      }
+    });
+
+    return updated ? ok(updated) : fail(404, "GROUP_NOT_FOUND", "Không tìm thấy nhóm người lao động");
+  }),
+
+  http.delete("/api/projects/:projectId/employee-groups/:groupId", async ({ params }) => {
+    await delay(150);
+    const pId = projectId(params.projectId);
+    const gId = String(params.groupId);
+
+    mutateMockDatabase((db) => {
+      db.projectEmployeeGroups = (db.projectEmployeeGroups ?? []).filter(
+        (g) => !(g.projectId === pId && (g.id === gId || g.code === gId))
+      );
+      // Reset employee groupId if belonged to deleted group
+      db.employees = (db.employees ?? []).map((emp) => {
+        if (emp.projectId === pId && (emp.groupId === gId)) {
+          return { ...emp, groupId: undefined, groupName: undefined };
+        }
+        return emp;
+      });
+    });
+
+    return ok({ success: true });
+  }),
+
+  http.post("/api/projects/:projectId/employee-groups/:groupId/assign", async ({ params, request }) => {
+    await delay(200);
+    const pId = projectId(params.projectId);
+    const gId = String(params.groupId);
+    const body = (await request.json()) as { employeeIds: string[] };
+
+    let updatedCount = 0;
+    mutateMockDatabase((db) => {
+      const targetGroup = (db.projectEmployeeGroups ?? []).find(
+        (g) => g.projectId === pId && (g.id === gId || g.code === gId)
+      );
+      const groupName = targetGroup?.name ?? "";
+
+      db.employees = (db.employees ?? []).map((emp) => {
+        if (emp.projectId === pId && body.employeeIds.includes(emp.id)) {
+          updatedCount++;
+          return {
+            ...emp,
+            groupId: targetGroup?.id ?? gId,
+            groupName,
+          };
+        }
+        return emp;
+      });
+    });
+
+    return ok({ success: true, updatedCount });
   }),
 ];

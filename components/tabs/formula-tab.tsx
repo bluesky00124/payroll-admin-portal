@@ -2,7 +2,6 @@
 
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import {
-  AlertCircle,
   Calculator,
   CheckCircle2,
   ChevronUp,
@@ -10,7 +9,6 @@ import {
   Coins,
   GripVertical,
   Home,
-  Landmark,
   Layers,
   Minus,
   Pencil,
@@ -24,16 +22,13 @@ import {
   Wand2,
   X,
 } from "lucide-react";
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useToast } from "@/components/providers";
 import { Badge, Button, ErrorState, LoadingBlock, SaveBar } from "@/components/ui";
 import { api } from "@/lib/api";
 import { SmartFormulaEditor } from "@/components/formula/smart-formula-editor";
 import {
-  evaluateExpression,
   expressionToFriendlyText,
-  expressionToText,
-  findVariableRanges,
   parseExpressionText,
   tokenizeFriendlyText,
   variableCodeToName,
@@ -673,7 +668,6 @@ export function FormulaTab({ projectId, embedded = false }: { projectId: string;
   const [formulas, setFormulas] = useState<SalaryFormula[]>([]);
   const [rawTexts, setRawTexts] = useState<Record<string, string>>({});
   const [editingFormulaIds, setEditingFormulaIds] = useState<Set<string>>(new Set());
-  const inputRefs = useRef<Record<string, HTMLInputElement | null>>({});
 
   const toggleEditFormula = (id: string) => {
     setEditingFormulaIds((prev) => {
@@ -686,9 +680,7 @@ export function FormulaTab({ projectId, embedded = false }: { projectId: string;
       return next;
     });
   };
-  const [activeTab, setActiveTab] = useState<"grossToNet" | "netToGross" | "severance">("grossToNet");
   const [filterSearch, setFilterSearch] = useState("");
-  const [prorateEnabled, setProrateEnabled] = useState(true);
   const [dirty, setDirty] = useState(false);
   const [validation, setValidation] = useState<{ valid: boolean; errors: string[] } | null>(null);
 
@@ -809,72 +801,6 @@ export function FormulaTab({ projectId, embedded = false }: { projectId: string;
     setDirty(true);
   };
 
-  const handleFormulaKeyDown = (
-    e: React.KeyboardEvent<HTMLInputElement>,
-    formulaId: string,
-    currentValue: string
-  ) => {
-    if (e.key !== "Backspace" && e.key !== "Delete") return;
-
-    const input = e.currentTarget;
-    const start = input.selectionStart;
-    const end = input.selectionEnd;
-
-    if (start === null || end === null) return;
-
-    const ranges = findVariableRanges(currentValue);
-    if (ranges.length === 0) return;
-
-    if (e.key === "Backspace") {
-      if (start !== end) {
-        for (const r of ranges) {
-          if ((start >= r.start && start < r.end) || (end > r.start && end <= r.end)) {
-            e.preventDefault();
-            const minStart = Math.min(start, r.start);
-            const maxEnd = Math.max(end, r.end);
-            const newValue = currentValue.slice(0, minStart) + currentValue.slice(maxEnd);
-            updateFormulaText(formulaId, newValue);
-            requestAnimationFrame(() => {
-              input.setSelectionRange(minStart, minStart);
-            });
-            return;
-          }
-        }
-        return;
-      }
-
-      for (const r of ranges) {
-        if (start > r.start && start <= r.end) {
-          e.preventDefault();
-          const newValue = currentValue.slice(0, r.start) + currentValue.slice(r.end);
-          updateFormulaText(formulaId, newValue);
-          requestAnimationFrame(() => {
-            input.setSelectionRange(r.start, r.start);
-          });
-          return;
-        }
-      }
-    } else if (e.key === "Delete") {
-      if (start !== end) return;
-      for (const r of ranges) {
-        if (start >= r.start && start < r.end) {
-          e.preventDefault();
-          const newValue = currentValue.slice(0, r.start) + currentValue.slice(r.end);
-          updateFormulaText(formulaId, newValue);
-          requestAnimationFrame(() => {
-            input.setSelectionRange(r.start, r.start);
-          });
-          return;
-        }
-      }
-    }
-  };
-
-  const toggleEnable = (id: string, enabled: boolean) => {
-    setFormulas((items) => items.map((item) => (item.id === id ? { ...item, enabled } : item)));
-    setDirty(true);
-  };
-
   const cancel = () => {
     const data = formulasQuery.data ?? [];
     setFormulas(structuredClone(data));
@@ -894,18 +820,6 @@ export function FormulaTab({ projectId, embedded = false }: { projectId: string;
       setFormulas(structuredClone(saved));
       setDirty(false);
       notify("Đã lưu cấu hình công thức lương thành công!");
-    },
-    onError: (error: Error) => notify(error.message, "error"),
-  });
-
-  const validateMutation = useMutation({
-    mutationFn: () => api.validateFormulas(projectId, formulas),
-    onSuccess: (result) => {
-      setValidation(result);
-      notify(
-        result.valid ? "Tất cả công thức tính hợp lệ 100%" : `Phát hiện ${result.errors.length} lỗi cần xử lý`,
-        result.valid ? "success" : "warning"
-      );
     },
     onError: (error: Error) => notify(error.message, "error"),
   });

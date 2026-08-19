@@ -57,12 +57,28 @@ export interface PolicyFieldDefinition {
   defaultValue?: string | number | boolean;
 }
 
-export type TargetRole = "shift_leader" | "chinh_thuc" | "hoc_viec";
+export type TargetRole = "shift_leader" | "chinh_thuc" | "hoc_viec" | string;
+
+export type GroupColorTone = "primary" | "success" | "warning" | "info" | "purple" | "neutral";
+
+export interface ProjectEmployeeGroup {
+  id: string;
+  projectId: string;
+  code: string;
+  name: string;
+  description?: string;
+  colorTone: GroupColorTone;
+  isDefault?: boolean;
+  employeeCount?: number;
+  sortOrder?: number;
+  createdAt?: string;
+  updatedAt?: string;
+}
 
 export interface TargetRoleInfo {
-  key: TargetRole;
+  key: string;
   label: string;
-  badgeTone: "info" | "success" | "warning";
+  badgeTone: "info" | "success" | "warning" | "neutral";
 }
 
 export const TARGET_ROLES: TargetRoleInfo[] = [
@@ -79,7 +95,7 @@ export interface PolicyDefinition {
   category: PolicyCategory;
   fields: PolicyFieldDefinition[];
   formula?: string;
-  targetValues?: Partial<Record<TargetRole, Record<string, string | number | boolean>>>;
+  targetValues?: Partial<Record<string, Record<string, string | number | boolean>>>;
 }
 
 export interface ProjectPolicy {
@@ -87,7 +103,7 @@ export interface ProjectPolicy {
   projectId: string;
   policyId: string;
   values: Record<string, string | number | boolean>;
-  targetValues?: Partial<Record<TargetRole, Record<string, string | number | boolean>>>;
+  targetValues?: Partial<Record<string, Record<string, string | number | boolean>>>;
   effectiveFrom: string;
   effectiveTo?: string;
   enabled: boolean;
@@ -224,6 +240,8 @@ export interface Employee {
   joinDate: string;
   resignationDate?: string;
   status: "active" | "resigned" | "probation";
+  groupId?: string;
+  groupName?: string;
 }
 
 export interface Dependent {
@@ -451,4 +469,5 @@ export interface MockDatabase {
   insuranceChanges: InsuranceChangeRecord[];
   taxConfigs: TaxConfigRecord[];
   employeePolicies: EmployeePolicyRecord[];
+  projectEmployeeGroups: ProjectEmployeeGroup[];
 }

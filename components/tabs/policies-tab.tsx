@@ -1,12 +1,13 @@
 "use client";
 
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { Check, Pencil, Plus, Save, Search, ScrollText, Trash2, X } from "lucide-react";
+import { Check, Pencil, Plus, Save, Search, ScrollText, Trash2, Users, X } from "lucide-react";
 import { useMemo, useState, useEffect } from "react";
 import { useToast } from "@/components/providers";
 import { Badge, Button, EmptyState, ErrorState, LoadingBlock, Modal, StatusBadge, TablePaginationFooter, TableRowActions } from "@/components/ui";
 import { api } from "@/lib/api";
-import { type PolicyDefinition, type ProjectPolicy, type TargetRole } from "@/lib/types";
+import { type PolicyDefinition, type ProjectEmployeeGroup, type ProjectPolicy, type TargetRole } from "@/lib/types";
+import { ManageEmployeeGroupsModal } from "@/components/policies/manage-employee-groups-modal";
 import { cn, formatCurrency } from "@/lib/utils";
 
 export function calculateAutoFillValues(
@@ -185,10 +186,27 @@ export function PoliciesTab({ projectId }: { projectId: string; embedded?: boole
   const [modalSearch, setModalSearch] = useState("");
   const [selectedIds, setSelectedIds] = useState<string[]>([]);
   const [deleteTarget, setDeleteTarget] = useState<ProjectPolicy | null>(null);
+  const [groupsModalOpen, setGroupsModalOpen] = useState(false);
 
-  // Editable values map: policyId -> TargetRole -> fieldKey -> value
+  // Project Employee Groups Query
+  const groupsQuery = useQuery({
+    queryKey: ["project-employee-groups", projectId],
+    queryFn: () => api.getProjectEmployeeGroups(projectId),
+  });
+
+  const projectGroups: ProjectEmployeeGroup[] = useMemo(() => {
+    const fetched = groupsQuery.data ?? [];
+    if (fetched.length > 0) return fetched;
+    return [
+      { id: "shift_leader", projectId, code: "shift_leader", name: "Quản lý / Shift Leader", colorTone: "info" },
+      { id: "chinh_thuc", projectId, code: "chinh_thuc", name: "Công nhân chính thức", colorTone: "success" },
+      { id: "hoc_viec", projectId, code: "hoc_viec", name: "Học việc (29 ngày)", colorTone: "warning" },
+    ];
+  }, [groupsQuery.data, projectId]);
+
+  // Editable values map: policyId -> TargetRole/GroupId -> fieldKey -> value
   const [roleValuesMap, setRoleValuesMap] = useState<
-    Record<string, Record<TargetRole, Record<string, string | number | boolean>>>
+    Record<string, Record<string, Record<string, string | number | boolean>>>
   >({});
 
   const definitionsQuery = useQuery({ queryKey: ["policy-definitions"], queryFn: api.getPolicyDefinitions });
@@ -220,19 +238,30 @@ export function PoliciesTab({ projectId }: { projectId: string; embedded?: boole
   // Sync server policies when loaded
   useEffect(() => {
     if (policies.length > 0 && definitions.length > 0 && !editingRowId) {
-      let initialMap: Record<string, Record<TargetRole, Record<string, string | number | boolean>>> = {};
+      let initialMap: Record<string, Record<string, Record<string, string | number | boolean>>> = {};
       for (const policy of policies) {
         const def = definitionMap.get(policy.policyId);
-        initialMap[policy.policyId] = {
-          shift_leader: { ...(def?.targetValues?.shift_leader ?? policy.targetValues?.shift_leader ?? policy.values) },
-          chinh_thuc: { ...(def?.targetValues?.chinh_thuc ?? policy.targetValues?.chinh_thuc ?? policy.values) },
-          hoc_viec: { ...(def?.targetValues?.hoc_viec ?? policy.targetValues?.hoc_viec ?? policy.values) },
-        };
+        const groupDict: Record<string, Record<string, string | number | boolean>> = {};
+        for (const grp of projectGroups) {
+          const grpKey = grp.code || grp.id;
+          groupDict[grpKey] = {
+            ...(def?.targetValues?.[grpKey] ??
+              policy.targetValues?.[grpKey] ??
+              def?.targetValues?.[grp.id] ??
+              policy.targetValues?.[grp.id] ??
+              policy.values),
+          };
+        }
+        if (!groupDict.shift_leader) groupDict.shift_leader = { ...(policy.targetValues?.shift_leader ?? policy.values) };
+        if (!groupDict.chinh_thuc) groupDict.chinh_thuc = { ...(policy.targetValues?.chinh_thuc ?? policy.values) };
+        if (!groupDict.hoc_viec) groupDict.hoc_viec = { ...(policy.targetValues?.hoc_viec ?? policy.values) };
+
+        initialMap[policy.policyId] = groupDict;
       }
       initialMap = computeImplicitFormulaValues(initialMap);
       setRoleValuesMap(initialMap);
     }
-  }, [policies, definitions, definitionMap, editingRowId]);
+  }, [policies, definitions, definitionMap, editingRowId, projectGroups]);
 
   const visiblePolicies = policies.filter((policy) => {
     const definition = definitionMap.get(policy.policyId);
@@ -396,7 +425,10 @@ export function PoliciesTab({ projectId }: { projectId: string; embedded?: boole
                 />
               </label>
             </div>
-            <div className="filter-panel-actions">
+            <div className="filter-panel-actions flex items-center gap-2">
+              <Button variant="secondary" onClick={() => setGroupsModalOpen(true)}>
+                <Users className="w-4 h-4" /> Quản lý nhóm ({projectGroups.length})
+              </Button>
               <Button variant="primary" onClick={() => setModalOpen(true)}>
                 <Plus /> Thêm chế độ
               </Button>
@@ -424,8 +456,16 @@ export function PoliciesTab({ projectId }: { projectId: string; embedded?: boole
                 <tr>
                   <th style={{ width: "45px" }} className="text-center">STT</th>
                   <th>Nội dung chế độ</th>
-                  <th style={{ width: "240px" }}>Quản lý / Shift Leader</th>
-                  <th style={{ width: "240px" }}>Công nhân chính thức</th>
+                  {projectGroups.map((group) => (
+                    <th key={group.id || group.code} style={{ minWidth: "190px", maxWidth: "260px" }}>
+                      <div className="flex items-center gap-1.5">
+                        <span>{group.name}</span>
+                        {typeof group.employeeCount === "number" && (
+                          <span className="text-[11px] font-normal text-muted">({group.employeeCount})</span>
+                        )}
+                      </div>
+                    </th>
+                  ))}
                   <th style={{ width: "80px" }} className="text-center">Thao tác</th>
                 </tr>
               </thead>
@@ -436,7 +476,7 @@ export function PoliciesTab({ projectId }: { projectId: string; embedded?: boole
                   const isEditingThisRow = editingRowId === policy.id;
                   const stt = (page - 1) * pageSize + index + 1;
 
-                  const getRawVal = (role: TargetRole) => {
+                  const getRawVal = (role: string) => {
                     const roleDict = roleValuesMap[policy.policyId]?.[role];
                     if (roleDict && firstField && roleDict[firstField.key] !== undefined) {
                       return roleDict[firstField.key];
@@ -451,35 +491,26 @@ export function PoliciesTab({ projectId }: { projectId: string; embedded?: boole
                         <strong className="text-foreground font-semibold">{definition.name}</strong>
                       </td>
 
-                      {/* Shift Leader Cell */}
-                      <td>
-                        <PolicyCellRenderer
-                          field={firstField}
-                          value={getRawVal("shift_leader")}
-                          isEditing={isEditingThisRow}
-                          onChange={(val) => {
-                            if (isEditingThisRow) {
-                              handleCellChange(policy.policyId, "shift_leader", firstField?.key ?? "", val);
-                            }
-                          }}
-                          colorClass="text-primary font-bold font-mono"
-                        />
-                      </td>
-
-                      {/* Công nhân chính thức Cell */}
-                      <td>
-                        <PolicyCellRenderer
-                          field={firstField}
-                          value={getRawVal("chinh_thuc")}
-                          isEditing={isEditingThisRow}
-                          onChange={(val) => {
-                            if (isEditingThisRow) {
-                              handleCellChange(policy.policyId, "chinh_thuc", firstField?.key ?? "", val);
-                            }
-                          }}
-                          colorClass="text-foreground font-semibold font-mono"
-                        />
-                      </td>
+                      {/* Dynamic Group Cells */}
+                      {projectGroups.map((group) => {
+                        const grpKey = group.code || group.id;
+                        const isPrimaryRole = group.code === "shift_leader";
+                        return (
+                          <td key={grpKey}>
+                            <PolicyCellRenderer
+                              field={firstField}
+                              value={getRawVal(grpKey)}
+                              isEditing={isEditingThisRow}
+                              onChange={(val) => {
+                                if (isEditingThisRow) {
+                                  handleCellChange(policy.policyId, grpKey, firstField?.key ?? "", val);
+                                }
+                              }}
+                              colorClass={isPrimaryRole ? "text-primary font-bold font-mono" : "text-foreground font-semibold font-mono"}
+                            />
+                          </td>
+                        );
+                      })}
 
                       {/* Action Column */}
                       <td className="text-center">
@@ -630,6 +661,13 @@ export function PoliciesTab({ projectId }: { projectId: string; embedded?: boole
       >
         <p className="modal-note">Chế độ sẽ được xóa khỏi cấu hình hiện tại của dự án.</p>
       </Modal>
+
+      {/* Manage Employee Groups Modal */}
+      <ManageEmployeeGroupsModal
+        projectId={projectId}
+        isOpen={groupsModalOpen}
+        onClose={() => setGroupsModalOpen(false)}
+      />
     </div>
   );
 }

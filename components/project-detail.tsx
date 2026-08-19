@@ -66,7 +66,7 @@ export function ProjectDetail({ projectId }: { projectId: string }) {
         <OverviewTab project={project} embedded />
       </div>
 
-      {/* Horizontal Tabs Navigation */}
+      {/* Horizontal Tabs Navigation (Minimalist Underline) */}
       <nav className="project-tabs-nav" aria-label="Cấu hình dự án">
         <button
           type="button"
@@ -74,7 +74,8 @@ export function ProjectDetail({ projectId }: { projectId: string }) {
           onClick={() => setActiveTab("policies")}
         >
           <ScrollText />
-          Danh sách chế độ
+          <span>Danh sách chế độ</span>
+          {activeTab === "policies" && <span className="tab-indicator" />}
         </button>
         <button
           type="button"
@@ -82,7 +83,8 @@ export function ProjectDetail({ projectId }: { projectId: string }) {
           onClick={() => setActiveTab("formulas")}
         >
           <FunctionSquare />
-          Công thức tính lương
+          <span>Công thức tính lương</span>
+          {activeTab === "formulas" && <span className="tab-indicator" />}
         </button>
       </nav>
 
