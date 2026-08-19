@@ -362,15 +362,15 @@ export function OperatorSymbol({
         viewBox="0 0 24 24"
         fill="none"
         stroke="currentColor"
-        strokeWidth="2.5"
+        strokeWidth="2.4"
         strokeLinecap="round"
         strokeLinejoin="round"
         className={className}
         aria-label="Dấu chia"
       >
-        <circle cx="12" cy="5.5" r="1.8" fill="currentColor" />
-        <line x1="4.5" y1="12" x2="19.5" y2="12" strokeWidth="2.8" />
-        <circle cx="12" cy="18.5" r="1.8" fill="currentColor" />
+        <line x1="5" y1="12" x2="19" y2="12" strokeWidth="2.6" />
+        <circle cx="12" cy="6" r="1.6" fill="currentColor" stroke="none" />
+        <circle cx="12" cy="18" r="1.6" fill="currentColor" stroke="none" />
       </svg>
     );
   }
@@ -381,14 +381,14 @@ export function OperatorSymbol({
         viewBox="0 0 24 24"
         fill="none"
         stroke="currentColor"
-        strokeWidth="2.8"
+        strokeWidth="2.6"
         strokeLinecap="round"
         strokeLinejoin="round"
         className={className}
         aria-label="Dấu nhân"
       >
-        <line x1="18" y1="6" x2="6" y2="18" />
-        <line x1="6" y1="6" x2="18" y2="18" />
+        <line x1="6.5" y1="6.5" x2="17.5" y2="17.5" />
+        <line x1="17.5" y1="6.5" x2="6.5" y2="17.5" />
       </svg>
     );
   }
@@ -399,7 +399,7 @@ export function OperatorSymbol({
         viewBox="0 0 24 24"
         fill="none"
         stroke="currentColor"
-        strokeWidth="2.8"
+        strokeWidth="2.6"
         strokeLinecap="round"
         strokeLinejoin="round"
         className={className}
@@ -417,7 +417,7 @@ export function OperatorSymbol({
         viewBox="0 0 24 24"
         fill="none"
         stroke="currentColor"
-        strokeWidth="2.8"
+        strokeWidth="2.6"
         strokeLinecap="round"
         strokeLinejoin="round"
         className={className}
@@ -656,10 +656,10 @@ function getSuggestedVariables(formula: SalaryFormula, variablesCatalog: { code:
   return variablesCatalog.length > 0
     ? variablesCatalog.slice(0, 5).map((v) => ({ code: v.code, name: v.name }))
     : [
-        { code: "LUONG_CO_BAN", name: "Lương cơ bản" },
-        { code: "GIO_CHUAN", name: "Giờ chuẩn tháng" },
-        { code: "GIO_THUONG", name: "Giờ công thường" },
-      ];
+      { code: "LUONG_CO_BAN", name: "Lương cơ bản" },
+      { code: "GIO_CHUAN", name: "Giờ chuẩn tháng" },
+      { code: "GIO_THUONG", name: "Giờ công thường" },
+    ];
 }
 
 
@@ -952,11 +952,10 @@ export function FormulaTab({ projectId, embedded = false }: { projectId: string;
       {/* Validation Banner */}
       {validation && (
         <div
-          className={`p-4 rounded-xl border flex items-center justify-between gap-3 shadow-sm ${
-            validation.valid
-              ? "bg-emerald-50/80 dark:bg-emerald-950/40 border-emerald-200 dark:border-emerald-800 text-emerald-800 dark:text-emerald-300"
-              : "bg-amber-50/80 dark:bg-amber-950/40 border-amber-200 dark:border-amber-800 text-amber-800 dark:text-amber-300"
-          }`}
+          className={`p-4 rounded-xl border flex items-center justify-between gap-3 shadow-sm ${validation.valid
+            ? "bg-emerald-50/80 dark:bg-emerald-950/40 border-emerald-200 dark:border-emerald-800 text-emerald-800 dark:text-emerald-300"
+            : "bg-amber-50/80 dark:bg-amber-950/40 border-amber-200 dark:border-amber-800 text-amber-800 dark:text-amber-300"
+            }`}
         >
           <div className="flex items-center gap-3">
             <CheckCircle2 className="w-5 h-5 shrink-0" />
@@ -976,35 +975,43 @@ export function FormulaTab({ projectId, embedded = false }: { projectId: string;
       )}
 
       {/* Main Workspace Layout Grid */}
-      <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 items-start">
-        {/* Left Column: Components Library Sidebar */}
-        <aside className="lg:col-span-4 content-card p-4 space-y-4">
-          <div className="flex items-center justify-between pb-3 border-b border-border">
-            <strong className="text-sm font-bold text-foreground flex items-center gap-2">
+      <div className="grid grid-cols-1 lg:grid-cols-12 gap-5 items-start">
+        {/* Left Column: Components Library Sidebar (Compact Width & Matching Chip Size) */}
+        <aside className="lg:col-span-4 xl:col-span-3 content-card p-3.5 space-y-3.5">
+          <div className="flex items-center justify-between pb-2.5 border-b border-border">
+            <strong className="text-xs font-bold text-foreground flex items-center gap-1.5">
               <Layers className="w-4 h-4 text-primary" /> Thư viện Thành phần Lương
             </strong>
           </div>
 
           {/* Search Filter */}
-          <label className="search-field w-full">
-            <Search className="w-4 h-4 text-muted" />
+          <label className="search-field w-full !max-w-full shrink-0 h-8 min-h-[32px] gap-2 px-2.5">
+            <Search className="w-3.5 h-3.5 text-muted shrink-0" />
             <input
               placeholder="Tìm kiếm thành phần lương..."
               value={filterSearch}
               onChange={(e) => setFilterSearch(e.target.value)}
+              className="text-xs"
             />
+            {filterSearch && (
+              <button
+                type="button"
+                onClick={() => setFilterSearch("")}
+                className="p-0.5 rounded text-muted hover:text-foreground shrink-0"
+                title="Xóa tìm kiếm"
+              >
+                <X className="w-3.5 h-3.5" />
+              </button>
+            )}
           </label>
 
           {/* Group 1: EARNINGS */}
-          <div className="space-y-2.5">
-            <div className="flex items-center justify-between text-xs font-extrabold tracking-wider text-muted uppercase">
-              <span>1. THU NHẬP (LƯƠNG, PHỤ CẤP)</span>
-              <span className="w-5 h-5 rounded-full bg-primary/10 text-primary border border-primary/20 text-[10px] flex items-center justify-center font-mono font-bold">
-                {earningsLibrary.length}
-              </span>
+          <div className="space-y-1.5">
+            <div className="flex items-center justify-between text-[11px] font-extrabold tracking-wider text-muted uppercase pb-0.5">
+              <span>1. THU NHẬP ({earningsLibrary.length})</span>
             </div>
 
-            <div className="space-y-2">
+            <div className="space-y-1.5">
               {earningsLibrary.map((item) => {
                 const isAdded = existingOutputCodes.has(item.outputVariable.toUpperCase());
 
@@ -1014,39 +1021,32 @@ export function FormulaTab({ projectId, embedded = false }: { projectId: string;
                     draggable={!isAdded}
                     onDragStart={() => setDraggedItem(item)}
                     onDragEnd={() => setDraggedItem(null)}
-                    className={`p-2.5 px-3 rounded-xl border transition-all flex items-center justify-between gap-2.5 ${
-                      isAdded
-                        ? "bg-secondary/40 border-border/20 opacity-50 cursor-not-allowed shadow-none"
-                        : "bg-card border-border/30 shadow-2xs hover:shadow-md hover:border-primary/40 cursor-grab hover:-translate-y-0.5"
-                    }`}
+                    className={`w-full min-h-[34px] px-2.5 py-1.5 rounded-lg border text-xs font-semibold flex items-center justify-between gap-2 transition-all group ${isAdded
+                      ? "bg-secondary/40 border-border/30 text-muted-foreground opacity-50 cursor-not-allowed shadow-none"
+                      : "bg-card border-border/50 hover:border-emerald-500/50 hover:bg-emerald-500/5 text-foreground shadow-2xs cursor-grab active:scale-[0.99]"
+                      }`}
                   >
-                    <div className="flex items-center gap-2.5 min-w-0">
-                      <GripVertical className="w-4 h-4 text-muted/60 shrink-0 cursor-grab" />
-                      <div className="min-w-0">
-                        <strong className="text-xs font-bold text-foreground truncate block leading-tight">
-                          {item.name}
-                        </strong>
-                      </div>
+                    <div className="flex items-center gap-2 min-w-0">
+                      <GripVertical className="w-3.5 h-3.5 text-muted/60 shrink-0 cursor-grab" />
+                      <span className="truncate block">{item.name}</span>
                     </div>
 
                     {isAdded ? (
-                      <span className="text-[11px] font-semibold text-muted shrink-0 flex items-center gap-1">
-                        <CheckCircle2 className="w-3.5 h-3.5 text-emerald-500" /> Đã thêm
+                      <span className="h-6 text-[11px] font-medium text-muted shrink-0 flex items-center">
+                        Đã thêm
                       </span>
                     ) : (
-                      <Button
+                      <button
                         type="button"
-                        variant="ghost"
-                        size="sm"
                         onClick={(e) => {
                           e.stopPropagation();
                           addComponentToStructure(item);
                         }}
                         title={`Thêm "${item.name}" vào cấu trúc`}
-                        className="h-7 w-7 p-0 rounded-lg text-primary hover:bg-primary-soft shrink-0"
+                        className="h-6 w-6 rounded-md text-primary hover:bg-primary-soft flex items-center justify-center transition-colors shrink-0"
                       >
                         <Plus className="w-3.5 h-3.5" />
-                      </Button>
+                      </button>
                     )}
                   </div>
                 );
@@ -1055,15 +1055,12 @@ export function FormulaTab({ projectId, embedded = false }: { projectId: string;
           </div>
 
           {/* Group 2: DEDUCTIONS */}
-          <div className="space-y-2.5 pt-3 border-t border-border">
-            <div className="flex items-center justify-between text-xs font-extrabold tracking-wider text-muted uppercase">
-              <span>2. KHẤU TRỪ & TRÍCH NỘP</span>
-              <span className="w-5 h-5 rounded-full bg-destructive/10 text-destructive border border-destructive/20 text-[10px] flex items-center justify-center font-mono font-bold">
-                {deductionsLibrary.length}
-              </span>
+          <div className="space-y-1.5 pt-2.5 border-t border-border">
+            <div className="flex items-center justify-between text-[11px] font-extrabold tracking-wider text-muted uppercase pb-0.5">
+              <span>2. KHẤU TRỪ ({deductionsLibrary.length})</span>
             </div>
 
-            <div className="space-y-2">
+            <div className="space-y-1.5">
               {deductionsLibrary.map((item) => {
                 const isAdded = existingOutputCodes.has(item.outputVariable.toUpperCase());
 
@@ -1073,39 +1070,32 @@ export function FormulaTab({ projectId, embedded = false }: { projectId: string;
                     draggable={!isAdded}
                     onDragStart={() => setDraggedItem(item)}
                     onDragEnd={() => setDraggedItem(null)}
-                    className={`p-2.5 px-3 rounded-xl border transition-all flex items-center justify-between gap-2.5 ${
-                      isAdded
-                        ? "bg-secondary/40 border-border/20 opacity-50 cursor-not-allowed shadow-none"
-                        : "bg-card border-border/30 shadow-2xs hover:shadow-md hover:border-primary/40 cursor-grab hover:-translate-y-0.5"
-                    }`}
+                    className={`w-full min-h-[34px] px-2.5 py-1.5 rounded-lg border text-xs font-semibold flex items-center justify-between gap-2 transition-all group ${isAdded
+                      ? "bg-secondary/40 border-border/30 text-muted-foreground opacity-50 cursor-not-allowed shadow-none"
+                      : "bg-card border-border/50 hover:border-rose-500/50 hover:bg-rose-500/5 text-foreground shadow-2xs cursor-grab active:scale-[0.99]"
+                      }`}
                   >
-                    <div className="flex items-center gap-2.5 min-w-0">
-                      <GripVertical className="w-4 h-4 text-muted/60 shrink-0 cursor-grab" />
-                      <div className="min-w-0">
-                        <strong className="text-xs font-bold text-foreground truncate block leading-tight">
-                          {item.name}
-                        </strong>
-                      </div>
+                    <div className="flex items-center gap-2 min-w-0">
+                      <GripVertical className="w-3.5 h-3.5 text-muted/60 shrink-0 cursor-grab" />
+                      <span className="truncate block">{item.name}</span>
                     </div>
 
                     {isAdded ? (
-                      <span className="text-[11px] font-semibold text-muted shrink-0 flex items-center gap-1">
-                        <CheckCircle2 className="w-3.5 h-3.5 text-emerald-500" /> Đã thêm
+                      <span className="h-6 text-[11px] font-medium text-muted shrink-0 flex items-center">
+                        Đã thêm
                       </span>
                     ) : (
-                      <Button
+                      <button
                         type="button"
-                        variant="ghost"
-                        size="sm"
                         onClick={(e) => {
                           e.stopPropagation();
                           addComponentToStructure(item);
                         }}
                         title={`Thêm "${item.name}" vào cấu trúc`}
-                        className="h-7 w-7 p-0 rounded-lg text-primary hover:bg-primary-soft shrink-0"
+                        className="h-6 w-6 rounded-md text-primary hover:bg-primary-soft flex items-center justify-center transition-colors shrink-0"
                       >
                         <Plus className="w-3.5 h-3.5" />
-                      </Button>
+                      </button>
                     )}
                   </div>
                 );
@@ -1115,139 +1105,147 @@ export function FormulaTab({ projectId, embedded = false }: { projectId: string;
         </aside>
 
         {/* Right Column: Flow Canvas & Detailed Formula Cards */}
-        <section className="lg:col-span-8 space-y-6">
-          <div className="content-card p-4 space-y-4">
-            {/* 1. Gross Earnings Structure Box */}
-            <div className="formula-flow-node-income p-4 space-y-3">
-              <div className="flex items-center justify-between">
-                <div className="flex items-center gap-2">
-                  <Calculator className="w-4 h-4 text-primary" />
-                  <strong className="text-sm font-bold text-foreground">Cấu trúc Các khoản Thu nhập</strong>
+        <section className="lg:col-span-8 xl:col-span-9 space-y-5">
+          {/* 1. Unified Payroll Flow Architecture Pipeline (Balanced 2-Column Format) */}
+          <div className="content-card overflow-hidden !p-0 border border-border shadow-xs">
+            {/* Header with Title and Pipeline Equation Badge */}
+            <div className="px-4 py-3 bg-secondary/30 border-b border-border flex flex-wrap items-center justify-between gap-2">
+              <div className="flex items-center gap-2">
+                <div className="w-7 h-7 rounded-lg bg-primary/10 text-primary flex items-center justify-center">
+                  <Calculator className="w-4 h-4" />
+                </div>
+                <div>
+                  <strong className="text-sm font-bold text-foreground block">
+                    Cấu trúc Dòng tiền Lương (Payroll Architecture)
+                  </strong>
+                  <span className="text-[11px] text-muted-foreground">
+                    Kéo thả các thành phần từ thư viện bên trái vào từng nhóm tương ứng
+                  </span>
                 </div>
               </div>
 
-              {/* Dropzone Container */}
-              <div
-                onDragOver={(e) => e.preventDefault()}
-                onDrop={() => {
-                  if (draggedItem && draggedItem.category === "income") {
-                    addComponentToStructure(draggedItem);
-                  }
-                }}
-                className="border-2 border-dashed border-border bg-card rounded-lg p-4 min-h-[90px] flex flex-col justify-center transition-colors"
-              >
-                {grossComponents.length === 0 ? (
-                  <div className="text-center text-xs text-muted flex flex-col items-center gap-1 py-2">
-                    <div className="w-8 h-8 rounded bg-secondary text-muted flex items-center justify-center font-bold text-base mb-1">
-                      +
-                    </div>
-                    <span>Kéo thả các thành phần thu nhập vào đây</span>
+              <div className="flex items-center gap-2">
+                <span className="text-[11px] font-semibold text-emerald-600 dark:text-emerald-400 bg-emerald-500/10 px-2 py-0.5 rounded-full border border-emerald-500/20">
+                  {grossComponents.length} Thu nhập
+                </span>
+                <span className="text-xs text-muted-foreground font-bold">−</span>
+                <span className="text-[11px] font-semibold text-rose-600 dark:text-rose-400 bg-rose-500/10 px-2 py-0.5 rounded-full border border-rose-500/20">
+                  {deductionComponents.length} Khấu trừ
+                </span>
+              </div>
+            </div>
+
+            {/* Interactive Workspace: Inputs (Earnings - Deductions) -> Result (Net Payable) */}
+            <div className="p-4 space-y-3">
+              {/* Row 1: 2-Column Inputs (Thu Nhập - Khấu Trừ) */}
+              <div className="flex flex-col md:flex-row items-stretch gap-3">
+                {/* Left Box: Gross Earnings (Thu Nhập) */}
+                <div
+                  onDragOver={(e) => e.preventDefault()}
+                  onDrop={() => {
+                    if (draggedItem && draggedItem.category === "income") {
+                      addComponentToStructure(draggedItem);
+                    }
+                  }}
+                  className="flex-1 rounded-xl border border-emerald-500/25 bg-emerald-500/5 dark:bg-emerald-500/10 p-3.5 flex flex-col space-y-2.5 transition-all hover:border-emerald-500/40"
+                >
+                  <div className="flex items-center justify-between">
+                    <strong className="text-xs font-bold text-foreground uppercase tracking-wide">
+                      Các khoản Thu nhập
+                    </strong>
+                    <span className="text-[11px] font-bold text-emerald-600 dark:text-emerald-400">
+                      {grossComponents.length} khoản
+                    </span>
                   </div>
-                ) : (
-                  <div className="flex flex-wrap items-center gap-2.5 w-full">
-                    {grossComponents.map((item) => (
-                      <div
-                        key={item.id}
-                        className="px-3 py-1.5 rounded-lg border border-primary/30 bg-primary/10 text-foreground text-xs font-semibold inline-flex items-center gap-2 shadow-xs hover:border-primary transition-all max-w-full group"
-                      >
-                        <GripVertical className="w-3.5 h-3.5 text-primary shrink-0 opacity-60 cursor-grab" />
-                        <span className="truncate">{item.name}</span>
-                        <button
-                          type="button"
-                          onClick={() => removeComponentFromStructure(item.id)}
-                          className="text-muted hover:text-destructive p-1 rounded-md hover:bg-destructive/10 transition-colors ml-0.5"
-                          title={`Gỡ bỏ ${item.name}`}
-                          aria-label={`Gỡ bỏ ${item.name}`}
-                        >
-                          <Trash2 className="w-3 h-3" />
-                        </button>
+
+                  <div className="border border-dashed border-emerald-500/30 rounded-lg p-2.5 min-h-[76px] bg-card/60 flex flex-wrap items-center content-start gap-2 flex-1">
+                    {grossComponents.length === 0 ? (
+                      <div className="w-full text-center py-3 text-xs text-muted-foreground italic flex flex-col items-center gap-1">
+                        <Plus className="w-4 h-4 text-emerald-500/60" />
+                        <span>Kéo thả hoặc bấm (+) từ thư viện</span>
                       </div>
-                    ))}
-                  </div>
-                )}
-              </div>
-            </div>
-
-            {/* Minus Circle Badge Divider */}
-            <div className="flex justify-center items-center py-1">
-              <span className="formula-connector-ring w-8 h-8 rounded-full bg-card border border-border text-destructive font-bold text-base shadow-xs flex items-center justify-center">
-                <Minus className="w-4 h-4" />
-              </span>
-            </div>
-
-            {/* 2. Deductions Structure Box */}
-            <div className="formula-flow-node-deduction p-4 space-y-3">
-              <div className="flex items-center justify-between">
-                <div className="flex items-center gap-2">
-                  <Shield className="w-4 h-4 text-destructive" />
-                  <strong className="text-sm font-bold text-foreground">Cấu trúc Các khoản Khấu trừ</strong>
-                </div>
-              </div>
-
-              {/* Dropzone Container */}
-              <div
-                onDragOver={(e) => e.preventDefault()}
-                onDrop={() => {
-                  if (draggedItem && draggedItem.category === "deduction") {
-                    addComponentToStructure(draggedItem);
-                  }
-                }}
-                className="border-2 border-dashed border-border bg-card rounded-lg p-4 min-h-[90px] flex flex-col justify-center transition-colors"
-              >
-                {deductionComponents.length === 0 ? (
-                  <div className="text-center text-xs text-muted flex flex-col items-center gap-1 py-2">
-                    <div className="w-8 h-8 rounded bg-secondary text-muted flex items-center justify-center font-bold text-base mb-1">
-                      +
-                    </div>
-                    <span>Kéo thả các thành phần khấu trừ vào đây</span>
-                  </div>
-                ) : (
-                  <div className="flex flex-wrap items-center gap-2.5 w-full">
-                    {deductionComponents.map((item) => (
-                      <div
-                        key={item.id}
-                        className="px-3 py-1.5 rounded-lg border border-destructive/30 bg-destructive/10 text-foreground text-xs font-semibold inline-flex items-center gap-2 shadow-xs hover:border-destructive transition-all max-w-full group"
-                      >
-                        <GripVertical className="w-3.5 h-3.5 text-destructive shrink-0 opacity-60 cursor-grab" />
-                        <span className="truncate">{item.name}</span>
-                        <button
-                          type="button"
-                          onClick={() => removeComponentFromStructure(item.id)}
-                          className="text-muted hover:text-destructive p-1 rounded-md hover:bg-destructive/10 transition-colors ml-0.5"
-                          title={`Gỡ bỏ ${item.name}`}
-                          aria-label={`Gỡ bỏ ${item.name}`}
+                    ) : (
+                      grossComponents.map((item) => (
+                        <div
+                          key={item.id}
+                          className="px-2.5 py-1.5 rounded-lg border border-emerald-500/30 bg-card text-foreground text-xs font-semibold inline-flex items-center gap-1.5 shadow-2xs hover:border-emerald-500 transition-all max-w-full group"
                         >
-                          <Trash2 className="w-3 h-3" />
-                        </button>
-                      </div>
-                    ))}
+                          <GripVertical className="w-3 h-3 text-emerald-500/70 shrink-0 cursor-grab" />
+                          <span className="truncate">{item.name}</span>
+                          <button
+                            type="button"
+                            onClick={() => removeComponentFromStructure(item.id)}
+                            className="text-muted hover:text-destructive p-0.5 rounded hover:bg-destructive/10 transition-colors ml-0.5"
+                            title={`Gỡ bỏ ${item.name}`}
+                            aria-label={`Gỡ bỏ ${item.name}`}
+                          >
+                            <Trash2 className="w-3 h-3" />
+                          </button>
+                        </div>
+                      ))
+                    )}
                   </div>
-                )}
-              </div>
-            </div>
+                </div>
 
-            {/* Equals Circle Badge */}
-            <div className="flex justify-center items-center py-1">
-              <span className="formula-connector-ring w-8 h-8 rounded-full bg-card border border-border text-foreground font-bold text-sm shadow-xs flex items-center justify-center">
-                =
-              </span>
-            </div>
+                {/* Dedicated Center Operator Bridge (Never overlaps card borders) */}
+                <div className="flex md:flex-col items-center justify-center shrink-0 self-center py-0.5 md:py-0 px-1">
+                  <div
+                    className="w-7 h-7 rounded-full bg-card border border-border shadow-2xs flex items-center justify-center text-muted-foreground hover:border-primary/40 transition-colors select-none"
+                    title="Trừ đi các khoản khấu trừ"
+                  >
+                    <Minus className="w-3.5 h-3.5" />
+                  </div>
+                </div>
 
-            {/* 3. Net Payable Output Card */}
-            <div className="formula-net-card p-4 flex items-center justify-between gap-4">
-              <div className="space-y-1">
-                <strong className="text-sm font-bold text-foreground block flex items-center gap-2">
-                  Tổng Thực Lãnh (Net Payable)
-                  <Badge tone="neutral">Kết quả cuối</Badge>
-                </strong>
-                <div className="text-xs font-mono font-bold text-primary block mt-0.5">
-                  Thực Lãnh = Tổng Thu Nhập − Tổng Khấu Trừ
+                {/* Right Box: Deductions (Khấu Trừ) */}
+                <div
+                  onDragOver={(e) => e.preventDefault()}
+                  onDrop={() => {
+                    if (draggedItem && draggedItem.category === "deduction") {
+                      addComponentToStructure(draggedItem);
+                    }
+                  }}
+                  className="flex-1 rounded-xl border border-rose-500/25 bg-rose-500/5 dark:bg-rose-500/10 p-3.5 flex flex-col space-y-2.5 transition-all hover:border-rose-500/40"
+                >
+                  <div className="flex items-center justify-between">
+                    <strong className="text-xs font-bold text-foreground uppercase tracking-wide">
+                      Các khoản Khấu trừ
+                    </strong>
+                    <span className="text-[11px] font-bold text-rose-600 dark:text-rose-400">
+                      {deductionComponents.length} khoản
+                    </span>
+                  </div>
+
+                  <div className="border border-dashed border-rose-500/30 rounded-lg p-2.5 min-h-[76px] bg-card/60 flex flex-wrap items-center content-start gap-2 flex-1">
+                    {deductionComponents.length === 0 ? (
+                      <div className="w-full text-center py-3 text-xs text-muted-foreground italic flex flex-col items-center gap-1">
+                        <Plus className="w-4 h-4 text-rose-500/60" />
+                        <span>Kéo thả hoặc bấm (+) từ thư viện</span>
+                      </div>
+                    ) : (
+                      deductionComponents.map((item) => (
+                        <div
+                          key={item.id}
+                          className="px-2.5 py-1.5 rounded-lg border border-rose-500/30 bg-card text-foreground text-xs font-semibold inline-flex items-center gap-1.5 shadow-2xs hover:border-rose-500 transition-all max-w-full group"
+                        >
+                          <GripVertical className="w-3 h-3 text-rose-500/70 shrink-0 cursor-grab" />
+                          <span className="truncate">{item.name}</span>
+                          <button
+                            type="button"
+                            onClick={() => removeComponentFromStructure(item.id)}
+                            className="text-muted hover:text-destructive p-0.5 rounded hover:bg-destructive/10 transition-colors ml-0.5"
+                            title={`Gỡ bỏ ${item.name}`}
+                            aria-label={`Gỡ bỏ ${item.name}`}
+                          >
+                            <Trash2 className="w-3 h-3" />
+                          </button>
+                        </div>
+                      ))
+                    )}
+                  </div>
                 </div>
               </div>
 
-              <div className="w-10 h-10 rounded-lg bg-card border border-border flex items-center justify-center shrink-0">
-                <Landmark className="w-5 h-5 text-primary" />
-              </div>
             </div>
           </div>
 
@@ -1258,11 +1256,8 @@ export function FormulaTab({ projectId, embedded = false }: { projectId: string;
                 <h3 className="flex items-center gap-2">
                   <Wand2 className="w-4 h-4 text-primary" /> Cấu hình công thức chi tiết từng mục trong cấu trúc
                 </h3>
-                <p>Thiết lập hoặc tùy chỉnh chuỗi công thức tính toán dạng Excel cho từng thành phần lương đã kéo thả ở trên.</p>
+                <p>Thiết lập hoặc tùy chỉnh chuỗi công thức tính toán cho từng thành phần lương đã kéo thả ở trên.</p>
               </div>
-              <Button variant="secondary" size="sm" onClick={() => validateMutation.mutate()}>
-                <CheckCircle2 className="w-4 h-4 text-primary" /> Kiểm tra tất cả
-              </Button>
             </div>
 
             <div className="p-4 space-y-3.5 bg-secondary/30">
@@ -1279,15 +1274,12 @@ export function FormulaTab({ projectId, embedded = false }: { projectId: string;
                   return (
                     <div
                       key={formula.id}
-                      className={`rounded-xl border transition-all p-4 space-y-3.5 bg-card ${
-                        isModified && isEditing
-                          ? "border-primary shadow-sm"
-                          : isModified
-                          ? "border-amber-400 dark:border-amber-500/70 shadow-xs"
-                          : isEditing
+                      className={`rounded-xl border transition-all p-4 space-y-3.5 bg-card ${isModified
+                        ? "border-amber-500/80 dark:border-amber-400/80 shadow-xs ring-1 ring-amber-500/20"
+                        : isEditing
                           ? "border-primary/80 shadow-sm"
                           : "border-border shadow-2xs hover:shadow-md hover:border-primary/40 hover:-translate-y-0.5"
-                      }`}
+                        }`}
                     >
                       <div className="flex flex-wrap items-center justify-between gap-3">
                         <div className="flex items-center gap-3 min-w-0">
@@ -1302,7 +1294,7 @@ export function FormulaTab({ projectId, embedded = false }: { projectId: string;
                           </Badge>
                           {isModified && (
                             <Badge tone="warning">
-                              <AlertCircle className="w-3 h-3 inline mr-1" /> Chưa lưu
+                              Chưa lưu
                             </Badge>
                           )}
                         </div>

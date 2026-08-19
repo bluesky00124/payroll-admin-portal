@@ -38,8 +38,8 @@ export function ProjectDetail({ projectId }: { projectId: string }) {
 
   return (
     <AdminShell detailLabel={project.code}>
-      {/* Read-only Project Header */}
-      <header className="detail-header mb-6">
+      {/* Read-only Project Header (Compact) */}
+      <header className="detail-header mb-4">
         <div>
           <div className="detail-code-row">
             <span className="project-monogram">{project.code.slice(0, 2)}</span>
@@ -54,8 +54,8 @@ export function ProjectDetail({ projectId }: { projectId: string }) {
           </div>
         </div>
         <div className="detail-meta">
-          <div>
-            <span>Hiệu lực từ</span>
+          <div className="bg-secondary/60 px-3 py-1.5 rounded-lg border border-border/40">
+            <span>Hiệu lực từ:</span>
             <strong>{formatDate(project.effectiveFrom)}</strong>
           </div>
         </div>

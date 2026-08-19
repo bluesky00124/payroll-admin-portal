@@ -60,4 +60,11 @@ describe("formula engine", () => {
     expect(empty.expression).toBeNull();
     expect(empty.errors).toContain("Hãy nhập biểu thức tính.");
   });
+
+  it("tokenize và parse đúng các số nhiều chữ số như 52 và số thập phân", () => {
+    const parsed = parseExpressionTextResult("Lương cơ bản * 52 / 100 + 1.5");
+    expect(parsed.errors).toEqual([]);
+    expect(parsed.expression).not.toBeNull();
+    expect(expressionToText(parsed.expression!)).toBe("LUONG_CO_BAN * 52 / 100 + 1.5");
+  });
 });

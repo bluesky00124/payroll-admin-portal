@@ -254,7 +254,7 @@ export function tokenizeFriendlyText(text: string): VisualToken[] {
           type: "operator",
           text: raw === "*" ? "×" : raw === "/" ? "÷" : raw === "-" ? "−" : raw,
         });
-      } else if (/^\d+(\.\d+)?%?$/.test(raw)) {
+      } else if (/^(\d+(\.\d*)?|\.\d+)%?$/.test(raw)) {
         tokens.push({
           id: `tok-${idCounter++}`,
           type: "number",

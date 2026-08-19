@@ -2,7 +2,7 @@
 
 import * as Dialog from "@radix-ui/react-dialog";
 import * as DropdownMenu from "@radix-ui/react-dropdown-menu";
-import { AlertCircle, Calendar, Check, ChevronDown, ChevronLeft, ChevronRight, ChevronsLeft, ChevronsRight, Inbox, LoaderCircle, MoreVertical, Search, X } from "lucide-react";
+import { AlertCircle, Calendar, Check, ChevronDown, ChevronLeft, ChevronRight, ChevronsLeft, ChevronsRight, Inbox, LoaderCircle, MoreVertical, Save, Search, X } from "lucide-react";
 import { type ButtonHTMLAttributes, type ReactNode, useEffect, useMemo, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import { cn, formatMonthYear } from "@/lib/utils";
@@ -67,9 +67,44 @@ export function ErrorState({ message, retry }: { message: string; retry?: () => 
   return <div className="error-panel"><AlertCircle /><div><strong>Không thể tải dữ liệu</strong><p>{message}</p></div>{retry && <Button onClick={retry}>Thử lại</Button>}</div>;
 }
 
-export function SaveBar({ visible, saving, onSave, onCancel }: { visible: boolean; saving?: boolean; onSave: () => void; onCancel: () => void }) {
+export function SaveBar({
+  visible,
+  saving,
+  onSave,
+  onCancel,
+}: {
+  visible: boolean;
+  saving?: boolean;
+  onSave: () => void;
+  onCancel: () => void;
+}) {
   if (!visible) return null;
-  return <div className="save-bar"><span>Có thay đổi chưa lưu</span><div><Button onClick={onCancel}>Hủy thay đổi</Button><Button variant="primary" onClick={onSave} disabled={saving}>{saving && <LoaderCircle className="spin" />}Lưu cấu hình</Button></div></div>;
+  return (
+    <div className="save-bar">
+      <div className="flex items-center gap-3 min-w-0">
+        <div className="w-8 h-8 rounded-full bg-amber-500/15 text-amber-600 dark:text-amber-400 flex items-center justify-center shrink-0 border border-amber-500/25">
+          <AlertCircle className="w-4 h-4" />
+        </div>
+        <div className="flex flex-col min-w-0">
+          <strong className="text-xs font-bold text-foreground truncate block">
+            Có thay đổi chưa lưu
+          </strong>
+          <span className="text-[11px] text-muted-foreground truncate hidden sm:block">
+            Lưu lại để áp dụng các thiết lập mới vào hệ thống
+          </span>
+        </div>
+      </div>
+      <div className="flex items-center gap-2 shrink-0">
+        <Button variant="secondary" size="sm" onClick={onCancel} disabled={saving}>
+          Hủy bỏ
+        </Button>
+        <Button variant="primary" size="sm" onClick={onSave} disabled={saving} className="shadow-xs gap-1.5">
+          {saving ? <LoaderCircle className="w-3.5 h-3.5 spin" /> : <Save className="w-3.5 h-3.5" />}
+          {saving ? "Đang lưu..." : "Lưu thay đổi"}
+        </Button>
+      </div>
+    </div>
+  );
 }
 
 const AVATAR_PALETTES = [
