@@ -659,9 +659,7 @@ export function DependentsSubtab({
                     </th>
                   )}
                   <th style={{ width: "45px" }} className="text-center">STT</th>
-                  <th style={{ width: "105px" }}>MÃ NV</th>
-                  <th style={{ width: "95px" }}>MÃ DỰ ÁN</th>
-                  <th>HỌ TÊN NNT</th>
+                  <th style={{ minWidth: "160px" }}>NGƯỜI LAO ĐỘNG</th>
                   <th>CCCD NNT</th>
                   <th>MST NNT</th>
                   <th>HỌ TÊN NPT</th>
@@ -682,6 +680,7 @@ export function DependentsSubtab({
                   const isSelected = selectedIds.has(item.id);
                   const stt = (page - 1) * pageSize + idx + 1;
                   const emp = employeeMap.get(item.employeeId);
+                  const projectCode = item.projectCode || emp?.projectCode;
 
                   return (
                     <tr
@@ -708,14 +707,14 @@ export function DependentsSubtab({
                         </td>
                       )}
                       <td className="text-center text-muted font-medium">{stt}</td>
-                      <td className="font-mono font-semibold text-slate-700 dark:text-slate-200">
-                        {item.employeeCode || emp?.code || "—"}
-                      </td>
-                      <td className="font-mono text-xs text-muted">
-                        {item.projectCode || emp?.projectCode || "—"}
-                      </td>
                       <td>
-                        <strong className="text-foreground">{item.employeeName || emp?.name || "—"}</strong>
+                        <div className="employee-cell-info">
+                          <span className="employee-cell-name font-semibold">{item.employeeName || emp?.name || "—"}</span>
+                          <span className="employee-cell-sub">
+                            <span className="employee-code-badge">{item.employeeCode || emp?.code || "—"}</span>
+                            {projectCode && <span className="text-muted text-[11px] font-normal">· {projectCode}</span>}
+                          </span>
+                        </div>
                       </td>
                       <td className="font-mono text-xs">
                         {item.employeeIdCard || emp?.idCard || "—"}

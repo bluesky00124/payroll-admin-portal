@@ -1,4 +1,4 @@
-@import url('https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,600;700&family=Manrope:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600;700&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;600;700;800&display=swap');
 @import "tailwindcss";
 
 :root {
@@ -34,8 +34,8 @@
   --sidebar-muted: #8ca0ba;
   --sidebar-active: #163248;
   --font-sans: "Manrope", -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
-  --font-display: "Fraunces", "Times New Roman", serif;
-  --font-mono: "JetBrains Mono", "SFMono-Regular", Consolas, monospace;
+  --font-display: var(--font-sans);
+  --font-mono: var(--font-sans);
   --font-body: var(--font-sans);
   --font-heading: var(--font-sans);
   
@@ -155,7 +155,25 @@ svg { width: 18px; height: 18px; stroke-width: 1.8; flex: 0 0 auto; }
 h1, h2, h3, p { margin: 0; }
 h1, h2, h3, strong { font-family: var(--font-heading); }
 input:not([type="checkbox"]):not([type="radio"]), select, textarea { color: var(--foreground); background: var(--card); border: 1px solid var(--input); border-radius: var(--radius-sm); outline: 0; min-height: 40px; padding: 8px 11px; transition: border-color .15s, box-shadow .15s, background .15s; }
-input[type="checkbox"], input[type="radio"] { min-height: 0 !important; padding: 0 !important; background: transparent !important; border: none !important; box-shadow: none !important; outline: none !important; }
+input[type="checkbox"], input[type="radio"] {
+  min-height: 0 !important;
+  padding: 0 !important;
+  background: transparent !important;
+  border: none !important;
+  box-shadow: none !important;
+  outline: none !important;
+  accent-color: var(--primary) !important;
+  cursor: pointer;
+}
+input[type="checkbox"] {
+  width: 16px;
+  height: 16px;
+  min-width: 16px;
+  min-height: 16px;
+  accent-color: var(--primary) !important;
+  cursor: pointer;
+  border-radius: 4px;
+}
 input:not([type="checkbox"]):not([type="radio"]):focus, select:focus, textarea:focus { border-color: var(--primary); box-shadow: 0 0 0 3px var(--ring); }
 input::placeholder { color: var(--muted); }
 select {
@@ -487,11 +505,11 @@ button:disabled { cursor: not-allowed; opacity: .5; }
 .dialog-overlay { position: fixed; inset: 0; z-index: 90; background: rgba(6, 13, 27, .56); backdrop-filter: blur(3px); animation: fade-in .15s; }
 .dialog-content { position: fixed; z-index: 91; left: 50%; top: 50%; transform: translate(-50%, -50%); width: calc(100vw - 32px); max-height: calc(100vh - 40px); display: flex; flex-direction: column; border: 1px solid var(--border); border-radius: var(--radius-lg); background: var(--card-strong); box-shadow: var(--shadow-md); overflow: hidden; }
 .dialog-sm { max-width: 460px; } .dialog-md { max-width: 700px; } .dialog-lg { max-width: 940px; }
-.dialog-header { padding: 20px 22px; display: flex; align-items: flex-start; justify-content: space-between; gap: 16px; border-bottom: 1px solid var(--border); }
+.dialog-header { padding: 18px 22px; display: flex; align-items: flex-start; justify-content: space-between; gap: 16px; border-bottom: 1px solid var(--border); position: sticky; top: 0; z-index: 30; background: var(--card-strong); box-shadow: 0 4px 12px -2px rgba(0, 0, 0, 0.08); }
 .dialog-header h2 { font-size: 18px; }
 .dialog-header p { color: var(--muted); margin-top: 4px; font-size: 12px; }
 .dialog-body { overflow: auto; padding: 20px 22px; }
-.dialog-footer { padding: 14px 22px; display: flex; justify-content: flex-end; gap: 8px; border-top: 1px solid var(--border); background: color-mix(in srgb, var(--secondary) 55%, var(--card)); }
+.dialog-footer { padding: 14px 22px; display: flex; justify-content: flex-end; gap: 8px; border-top: 1px solid var(--border); background: color-mix(in srgb, var(--secondary) 55%, var(--card)); position: sticky; bottom: 0; z-index: 30; box-shadow: 0 -4px 12px -2px rgba(0, 0, 0, 0.05); }
 @keyframes fade-in { from { opacity: 0; } }
 .form-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 15px; }
 .form-field { min-width: 0; display: flex; flex-direction: column; gap: 6px; color: var(--muted-strong); font-size: 12px; font-weight: 650; }
@@ -889,28 +907,109 @@ button:disabled { cursor: not-allowed; opacity: .5; }
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  gap: 3px;
-  min-width: 26px;
-  height: 26px;
-  padding: 0 6px;
+  gap: 2px;
+  min-width: 28px;
+  height: 28px;
+  padding: 0 8px;
   border-radius: 999px;
-  background: #1e293b;
-  color: #ffffff;
-  font-size: 13px;
-  font-weight: 800;
-  box-shadow: var(--shadow-2xs);
+  background: #038b8c !important;
+  color: #ffffff !important;
+  font-size: 15px;
+  font-weight: 900;
+  font-family: var(--font-sans);
+  box-shadow: 0 2px 5px rgba(3, 139, 140, 0.35);
   cursor: pointer;
   transition: all 0.15s ease;
+  border: 1px solid rgba(255, 255, 255, 0.25);
+  user-select: none;
 }
 [data-theme="dark"] .smart-pill-operator {
-  background: #334155;
-  color: #f8fafc;
-  border: 1px solid #475569;
+  background: #038b8c !important;
+  color: #ffffff !important;
+  border: 1px solid rgba(255, 255, 255, 0.3);
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.4);
 }
 .smart-pill-operator:hover {
-  background: var(--primary);
-  color: #ffffff;
-  transform: scale(1.08);
+  background: var(--primary-hover) !important;
+  color: #ffffff !important;
+  transform: scale(1.12);
+  box-shadow: 0 4px 10px rgba(3, 139, 140, 0.45);
+}
+
+.formula-op-pill {
+  display: inline-flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  min-width: 26px !important;
+  height: 26px !important;
+  padding: 0 6px !important;
+  border-radius: 999px !important;
+  background-color: #038b8c !important;
+  color: #ffffff !important;
+  font-size: 14px !important;
+  font-weight: 900 !important;
+  font-family: var(--font-sans) !important;
+  line-height: 1 !important;
+  box-shadow: 0 1px 4px rgba(3, 139, 140, 0.4) !important;
+  border: 1px solid rgba(255, 255, 255, 0.4) !important;
+  user-select: none !important;
+  flex-shrink: 0 !important;
+}
+
+.formula-paren-pill {
+  display: inline-flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  min-width: 20px !important;
+  height: 26px !important;
+  padding: 0 4px !important;
+  border-radius: 6px !important;
+  background-color: rgba(3, 139, 140, 0.15) !important;
+  color: #038b8c !important;
+  font-size: 14px !important;
+  font-weight: 900 !important;
+  font-family: var(--font-sans) !important;
+  line-height: 1 !important;
+  border: 1px solid rgba(3, 139, 140, 0.3) !important;
+  user-select: none !important;
+  flex-shrink: 0 !important;
+}
+
+.formula-const-pill {
+  display: inline-flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  height: 26px !important;
+  padding: 0 8px !important;
+  border-radius: 6px !important;
+  background-color: rgba(245, 158, 11, 0.15) !important;
+  color: #b45309 !important;
+  border: 1px solid rgba(245, 158, 11, 0.35) !important;
+  font-family: var(--font-sans) !important;
+  font-size: 12px !important;
+  font-weight: 700 !important;
+  user-select: none !important;
+  flex-shrink: 0 !important;
+}
+:root.dark .formula-const-pill {
+  background-color: rgba(245, 158, 11, 0.25) !important;
+  color: #fbbf24 !important;
+}
+
+.formula-var-pill {
+  display: inline-flex !important;
+  align-items: center !important;
+  height: 26px !important;
+  padding: 0 10px !important;
+  border-radius: 8px !important;
+  background-color: var(--card) !important;
+  color: var(--foreground) !important;
+  border: 1px solid var(--border) !important;
+  font-size: 12px !important;
+  font-weight: 650 !important;
+  box-shadow: var(--shadow-2xs) !important;
+  user-select: none !important;
+  white-space: nowrap !important;
 }
 
 .smart-pill-number {
@@ -1505,13 +1604,19 @@ button:disabled { cursor: not-allowed; opacity: .5; }
   display: flex;
   flex-direction: column;
   gap: 3px;
-  max-width: 260px;
+  max-width: 240px;
+  white-space: normal;
 }
 .change-reason-text {
+  font-family: var(--font-sans) !important;
   font-size: 12.5px;
   color: var(--foreground);
   font-weight: 500;
   line-height: 1.35;
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
 }
 .doc-attachment-tag {
   display: inline-flex;
@@ -1521,11 +1626,12 @@ button:disabled { cursor: not-allowed; opacity: .5; }
   background: var(--secondary);
   border: 1px solid var(--border);
   border-radius: 4px;
+  font-family: var(--font-sans) !important;
   font-size: 11px;
   color: var(--muted-strong);
   font-weight: 500;
   width: fit-content;
-  max-width: 220px;
+  max-width: 200px;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
@@ -1541,6 +1647,7 @@ button:disabled { cursor: not-allowed; opacity: .5; }
   display: flex;
   align-items: center;
   gap: 6px;
+  font-family: var(--font-sans) !important;
   font-size: 12.5px;
   color: var(--muted-strong);
   max-width: 220px;
@@ -1557,14 +1664,17 @@ button:disabled { cursor: not-allowed; opacity: .5; }
   flex-direction: column;
   align-items: flex-end;
   gap: 1px;
-  font-family: var(--font-mono, monospace);
+  font-family: var(--font-mono) !important;
+  font-variant-numeric: tabular-nums;
 }
 .salary-diff-new {
-  font-size: 13.5px;
-  font-weight: 750;
+  font-family: var(--font-mono) !important;
+  font-size: 13px;
+  font-weight: 650;
   color: var(--primary);
 }
 .salary-diff-old {
+  font-family: var(--font-mono) !important;
   font-size: 11px;
   color: var(--muted);
   text-decoration: line-through;
@@ -1592,16 +1702,21 @@ button:disabled { cursor: not-allowed; opacity: .5; }
 }
 
 .agency-receipt-code {
-  font-family: var(--font-mono, monospace);
+  font-family: var(--font-mono) !important;
   font-size: 11px;
   font-weight: 650;
-  color: var(--primary);
-  background: var(--primary-soft);
-  padding: 2px 6px;
+  color: #038b8c;
+  background: rgba(3, 139, 140, 0.08);
+  padding: 2px 7px;
   border-radius: 4px;
-  border: 1px solid color-mix(in srgb, var(--primary) 20%, transparent);
+  border: 1px solid rgba(3, 139, 140, 0.22);
   display: inline-block;
-  margin-bottom: 2px;
+  white-space: nowrap;
+}
+:root.dark .agency-receipt-code {
+  color: #5eead4;
+  background: rgba(3, 139, 140, 0.16);
+  border-color: rgba(3, 139, 140, 0.3);
 }
 
 /* Reusable Vietnamese MonthPicker Component */
@@ -2073,10 +2188,11 @@ button:disabled { cursor: not-allowed; opacity: .5; }
   color: var(--muted);
 }
 .employee-preview-salary-val {
-  font-family: var(--font-mono, monospace);
-  font-size: 12.5px;
-  font-weight: 750;
+  font-family: var(--font-mono) !important;
+  font-size: 13px;
+  font-weight: 650;
   color: var(--primary);
+  font-variant-numeric: tabular-nums;
 }
 
 /* Simple Change Type Pills (SOP Standard) */
@@ -2282,9 +2398,10 @@ button:disabled { cursor: not-allowed; opacity: .5; }
   gap: 4px;
 }
 .statutory-calc-val {
-  font-family: var(--font-mono, monospace);
+  font-family: var(--font-mono) !important;
   font-size: 13.5px;
-  font-weight: 700;
+  font-weight: 650;
+  font-variant-numeric: tabular-nums;
 }
 
 .quick-reason-chips {
@@ -2580,6 +2697,17 @@ button:disabled { cursor: not-allowed; opacity: .5; }
   color: #f8fafc;
 }
 
+.data-table td.font-mono,
+.data-table th.font-mono,
+.data-table .font-mono,
+.data-table td.font-mono *,
+.data-table th.font-mono *,
+.data-table .font-mono *,
+.font-mono {
+  font-family: var(--font-mono) !important;
+  font-variant-numeric: tabular-nums;
+}
+
 .data-table tbody tr:hover td {
   background: rgba(3, 139, 140, 0.04) !important;
 }
@@ -2655,18 +2783,25 @@ button:disabled { cursor: not-allowed; opacity: .5; }
 }
 
 .employee-cell-sub {
-  display: flex;
+  display: inline-flex;
   align-items: center;
-  gap: 6px;
+  gap: 4px;
   font-size: 11.5px;
-  color: var(--muted);
+  color: #475569;
+  line-height: 1.25;
+}
+:root.dark .employee-cell-sub {
+  color: #94a3b8;
 }
 
 .employee-code-badge {
   font-size: 11.5px;
-  font-family: var(--font-mono, monospace);
-  color: var(--muted);
-  font-weight: 500;
+  color: #334155;
+  font-weight: 600;
+  font-family: var(--font-mono);
+}
+:root.dark .employee-code-badge {
+  color: #cbd5e1;
 }
 
 .relationship-tag {

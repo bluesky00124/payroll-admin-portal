@@ -133,6 +133,15 @@ export function LeaveSubtab({
     };
   }, [leaveRecords]);
 
+  const employeeMap = useMemo(() => {
+    const map = new Map<string, Employee>();
+    (employees || []).forEach((emp) => {
+      map.set(emp.id, emp);
+      if (emp.code) map.set(emp.code, emp);
+    });
+    return map;
+  }, [employees]);
+
   const [page, setPage] = useState(1);
   const [pageSize, setPageSize] = useState(10);
 
@@ -246,18 +255,18 @@ export function LeaveSubtab({
                 <thead>
                   <tr>
                     <th style={{ width: "45px" }} className="text-center">STT</th>
-                    <th style={{ width: "105px" }}>MÃ NV</th>
-                    <th style={{ width: "95px" }}>MÃ DỰ ÁN</th>
-                    <th>HỌ VÀ TÊN</th>
+                    <th style={{ minWidth: "160px" }}>NGƯỜI LAO ĐỘNG</th>
                     <th style={{ width: "115px" }}>LOẠI HĐ</th>
+                    <th style={{ width: "120px" }}>NGÀY VÀO LÀM</th>
+                    <th style={{ width: "125px" }}>NGÀY NGHỈ VIỆC</th>
                     <th style={{ width: "140px" }}>THỜI ĐIỂM HƯỞNG</th>
-                    <th className="text-center" style={{ width: "165px" }}>
+                    <th className="text-center" style={{ width: "160px" }}>
                       KHẢ DỤNG HIỆN TẠI
                     </th>
                     <th className="text-center" style={{ width: "135px" }}>TỔNG PHÉP NĂM</th>
                     <th className="text-center" style={{ width: "115px" }}>ĐÃ SỬ DỤNG</th>
                     <th className="text-center" style={{ width: "130px" }}>CÒN LẠI CẢ NĂM</th>
-                    <th style={{ width: "70px" }} className="text-center">THAO TÁC</th>
+                    <th style={{ width: "60px" }} className="text-center">THAO TÁC</th>
                   </tr>
                 </thead>
                 <tbody>
@@ -266,6 +275,11 @@ export function LeaveSubtab({
                     const isResigned = rec.employeeStatus === "resigned" || rec.eligibilityStatus === "resigned";
                     const isOfficial = !isProbation && !isResigned;
                     const stt = (page - 1) * pageSize + idx + 1;
+
+                    const emp = employeeMap.get(rec.employeeId) || employeeMap.get(rec.employeeCode);
+                    const joinDate = rec.joinDate || emp?.joinDate || rec.entitlementDate;
+                    const resignationDate = rec.resignationDate || (isResigned ? emp?.resignationDate || "2026-06-30" : undefined);
+                    const projectCode = rec.projectCode || emp?.projectCode;
 
                     const availDays = getAvailableDays(rec);
                     const accruedDays = getAccruedDays(rec);
@@ -277,15 +291,13 @@ export function LeaveSubtab({
                     return (
                       <tr key={rec.id}>
                         <td className="text-center text-muted font-medium">{stt}</td>
-                        <td className="font-mono text-xs font-semibold text-primary">
-                          {rec.employeeCode}
-                        </td>
-                        <td className="font-mono text-xs text-muted">
-                          {rec.projectCode || "JSS-ST"}
-                        </td>
                         <td>
                           <div className="employee-cell-info">
                             <span className="employee-cell-name font-semibold">{rec.employeeName}</span>
+                            <span className="employee-cell-sub">
+                              <span className="employee-code-badge">{rec.employeeCode}</span>
+                              {projectCode && <span className="text-muted text-[11px] font-normal">· {projectCode}</span>}
+                            </span>
                           </div>
                         </td>
                         <td>
@@ -295,6 +307,18 @@ export function LeaveSubtab({
                             <StatusBadge tone="warning">Thử việc</StatusBadge>
                           ) : (
                             <StatusBadge tone="success">Chính thức</StatusBadge>
+                          )}
+                        </td>
+                        <td className="font-mono text-xs">
+                          {joinDate ? formatDate(joinDate) : "—"}
+                        </td>
+                        <td>
+                          {resignationDate ? (
+                            <span className="font-mono text-xs text-rose-600 dark:text-rose-400 font-medium">
+                              {formatDate(resignationDate)}
+                            </span>
+                          ) : (
+                            <span className="text-muted text-xs">—</span>
                           )}
                         </td>
                         <td>

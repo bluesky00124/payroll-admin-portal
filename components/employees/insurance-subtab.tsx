@@ -111,6 +111,15 @@ export function InsuranceSubtab({
     reason: string;
   }>>([]);
 
+  const employeeMap = useMemo(() => {
+    const map = new Map<string, Employee>();
+    (employees || []).forEach((emp) => {
+      map.set(emp.id, emp);
+      if (emp.code) map.set(emp.code, emp);
+    });
+    return map;
+  }, [employees]);
+
   // Close dropdown on outside click
   useEffect(() => {
     function handleClickOutside(event: MouseEvent) {
@@ -319,15 +328,15 @@ export function InsuranceSubtab({
   const renderChangeTypeBadge = (type: InsuranceChangeType) => {
     switch (type) {
       case "increase":
-        return <span className="font-medium text-foreground">Báo tăng mới</span>;
+        return <StatusBadge tone="success">Báo tăng mới</StatusBadge>;
       case "decrease":
-        return <span className="font-medium text-foreground">Báo giảm hẳn</span>;
+        return <StatusBadge tone="danger">Báo giảm hẳn</StatusBadge>;
       case "salary_adjust":
-        return <span className="font-medium text-foreground">Điều chỉnh mức đóng</span>;
+        return <StatusBadge tone="warning">Điều chỉnh mức đóng</StatusBadge>;
       case "suspend":
-        return <span className="font-medium text-foreground">Tạm dừng đóng</span>;
+        return <StatusBadge tone="neutral">Tạm dừng đóng</StatusBadge>;
       case "resume":
-        return <span className="font-medium text-foreground">Đóng trở lại</span>;
+        return <StatusBadge tone="info">Đóng trở lại</StatusBadge>;
     }
   };
 
@@ -547,27 +556,30 @@ export function InsuranceSubtab({
                     const empAmount = Math.round(item.insuranceSalary * 0.105);
                     const compAmount = Math.round(item.insuranceSalary * 0.215);
                     const stt = (masterPage - 1) * masterPageSize + idx + 1;
+                    const emp = employeeMap.get(item.employeeId) || employeeMap.get(item.employeeCode);
+                    const projectCode = item.projectCode || emp?.projectCode;
 
                     return (
                       <tr key={item.id}>
                         <td className="text-center text-muted font-medium">{stt}</td>
                         <td>
                           <div className="employee-cell-info">
-                            <span className="employee-cell-name">{item.employeeName}</span>
+                            <span className="employee-cell-name font-semibold">{item.employeeName}</span>
                             <span className="employee-cell-sub">
                               <span className="employee-code-badge">{item.employeeCode}</span>
+                              {projectCode && <span className="text-muted text-[11px] font-normal">· {projectCode}</span>}
                             </span>
                           </div>
                         </td>
                         <td className="font-mono text-sm">{item.insuranceBookNumber}</td>
                         <td className="text-right font-mono">
-                          <strong className="text-primary text-[13.5px]">{formatCurrency(item.insuranceSalary)}</strong>
+                          <span className="font-semibold text-primary">{formatCurrency(item.insuranceSalary)}</span>
                         </td>
                         <td className="text-right font-mono">
-                          <span className="text-warning font-semibold">{formatCurrency(empAmount)}</span>
+                          <span className="font-semibold text-warning">{formatCurrency(empAmount)}</span>
                         </td>
                         <td className="text-right font-mono">
-                          <span className="text-info font-semibold">{formatCurrency(compAmount)}</span>
+                          <span className="font-semibold text-info">{formatCurrency(compAmount)}</span>
                         </td>
                         <td>
                           <Badge tone="neutral">{formatMonthYear(item.effectiveMonth)}</Badge>
@@ -666,7 +678,7 @@ export function InsuranceSubtab({
                     </Button>
                   </div>
                 ) : (
-                  <div className="action-buttons-compact">
+                  <>
                     <Button
                       variant="secondary"
                       onClick={() => setUploadModalOpen(true)}
@@ -688,7 +700,7 @@ export function InsuranceSubtab({
                     >
                       <Plus /> Khai báo biến động
                     </Button>
-                  </div>
+                  </>
                 )}
               </div>
             </div>
@@ -772,15 +784,15 @@ export function InsuranceSubtab({
                       </th>
                     )}
                     <th style={{ width: "45px" }} className="text-center">STT</th>
-                    <th>Người lao động</th>
-                    <th>Loại biến động</th>
-                    <th className="text-right">Mức lương đóng</th>
-                    <th className="text-right">NLĐ trích (10.5%)</th>
-                    <th className="text-right">DN đóng (21.5%)</th>
-                    <th>Lý do & Chứng từ</th>
-                    <th>Trạng thái đối chiếu</th>
-                    <th>Kết quả cơ quan BHXH</th>
-                    <th style={{ width: "80px" }} className="text-center">Thao tác</th>
+                    <th style={{ minWidth: "160px" }}>Người lao động</th>
+                    <th style={{ minWidth: "145px" }}>Loại biến động</th>
+                    <th style={{ minWidth: "135px" }} className="text-right">Mức lương đóng</th>
+                    <th style={{ minWidth: "125px" }} className="text-right">NLĐ trích (10.5%)</th>
+                    <th style={{ minWidth: "125px" }} className="text-right">DN đóng (21.5%)</th>
+                    <th style={{ minWidth: "200px" }}>Lý do & Chứng từ</th>
+                    <th style={{ minWidth: "135px" }}>Trạng thái đối chiếu</th>
+                    <th style={{ minWidth: "160px" }}>Kết quả cơ quan BHXH</th>
+                    <th style={{ width: "60px" }} className="text-center">Thao tác</th>
                   </tr>
                 </thead>
                 <tbody>
@@ -791,6 +803,8 @@ export function InsuranceSubtab({
                     const empAmount = Math.round(item.newSalary * 0.105);
                     const compAmount = Math.round(item.newSalary * 0.215);
                     const stt = (changesPage - 1) * changesPageSize + idx + 1;
+                    const emp = employeeMap.get(item.employeeId) || employeeMap.get(item.employeeCode);
+                    const projectCode = item.projectCode || emp?.projectCode;
 
                     return (
                       <tr
@@ -817,14 +831,15 @@ export function InsuranceSubtab({
                         <td className="text-center text-muted font-medium">{stt}</td>
                         <td>
                           <div className="employee-cell-info">
-                            <span className="employee-cell-name">{item.employeeName}</span>
+                            <span className="employee-cell-name font-semibold">{item.employeeName}</span>
                             <span className="employee-cell-sub">
                               <span className="employee-code-badge">{item.employeeCode}</span>
+                              {projectCode && <span className="text-muted text-[11px] font-normal">· {projectCode}</span>}
                             </span>
                           </div>
                         </td>
                         <td>{renderChangeTypeBadge(item.changeType)}</td>
-                        <td className="text-right">
+                        <td className="text-right font-mono">
                           <div className="salary-diff-cell">
                             <span className="salary-diff-new">{formatCurrency(item.newSalary)}</span>
                             {item.oldSalary !== undefined && item.oldSalary !== item.newSalary && (
@@ -840,7 +855,7 @@ export function InsuranceSubtab({
                         </td>
                         <td>
                           <div className="change-reason-cell">
-                            <span className="change-reason-text">{item.reason}</span>
+                            <span className="change-reason-text" title={item.reason}>{item.reason}</span>
                             {item.documentName && (
                               <span className="doc-attachment-tag" title={item.documentName}>
                                 <FileText />
@@ -855,11 +870,11 @@ export function InsuranceSubtab({
                           ) : isVerified ? (
                             <StatusBadge tone="success">Đã xác nhận</StatusBadge>
                           ) : (
-                            <div className="rejection-hint">
+                            <div className="flex flex-col gap-1 items-start">
                               <StatusBadge tone="danger">Từ chối</StatusBadge>
                               {item.rejectionReason && (
-                                <span className="rejection-note" title={item.rejectionReason}>
-                                  : {item.rejectionReason}
+                                <span className="text-[11px] text-destructive max-w-[170px] truncate" title={item.rejectionReason}>
+                                  {item.rejectionReason}
                                 </span>
                               )}
                             </div>
@@ -867,7 +882,7 @@ export function InsuranceSubtab({
                         </td>
                         <td>
                           {item.agencyReceiptCode ? (
-                            <div>
+                            <div className="flex flex-col gap-0.5 items-start">
                               <span className="agency-receipt-code">{item.agencyReceiptCode}</span>
                               <div className="text-[11px] text-muted">
                                 {item.verifiedBy?.split("(")[0]} • {formatDate(item.verifiedAt)}
@@ -1422,7 +1437,7 @@ export function InsuranceSubtab({
                 <>
                   Hồ sơ: <strong>{selectedChangeForAction.employeeName}</strong> ({selectedChangeForAction.employeeCode})
                   <br />
-                  Loại biến động: <strong>{selectedChangeForAction.changeType}</strong> - Lương mới: <strong>{formatCurrency(selectedChangeForAction.newSalary)}</strong>
+                  Loại biến động: <strong>{selectedChangeForAction.changeType}</strong> - Lương mới: <strong className="font-mono text-primary">{formatCurrency(selectedChangeForAction.newSalary)}</strong>
                 </>
               ) : (
                 <>Đang duyệt đồng loạt <strong>{selectedChangeIds.size}</strong> hồ sơ biến động BHXH kỳ {formatMonthYear(selectedPeriod)}.</>

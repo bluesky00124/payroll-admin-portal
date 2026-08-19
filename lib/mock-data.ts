@@ -3,6 +3,8 @@ import type {
   DataMapping,
   Dependent,
   Employee,
+  EmployeePolicyItem,
+  EmployeePolicyRecord,
   ExpressionNode,
   FormulaVariable,
   InsuranceChangeRecord,
@@ -16,6 +18,7 @@ import type {
   ProjectPolicy,
   SalaryFormula,
   StandardWorkdayRecord,
+  TargetRole,
   TaxConfigRecord,
   TestEmployee,
   UnionFeeRecord,
@@ -2196,19 +2199,37 @@ const leaveRecords: LeaveRecord[] = [
   },
 ];
 
-const unionFees: UnionFeeRecord[] = employees.map((emp) => ({
-  id: `union-${emp.id}`,
-  employeeId: emp.id,
-  employeeCode: emp.code,
-  employeeName: emp.name,
-  projectId: emp.projectId,
-  period: "2026-08",
-  feeType: "percentage",
-  amount: 23400, // 1% lương cơ sở hoặc mức khoán
-  isParticipating: true,
-  importedAt: "2026-08-01 08:30",
-  importedBy: "Trần Thu Trang (Kế toán)",
-}));
+const unionFees: UnionFeeRecord[] = employees.map((emp, index) => {
+  const isPart = index !== 4; // Vũ Hoàng Nam (thử việc) chưa tham gia
+  return {
+    id: `union-${emp.id}`,
+    employeeId: emp.id,
+    employeeCode: emp.code,
+    employeeName: emp.name,
+    projectId: emp.projectId,
+    projectCode: emp.projectCode,
+    joinDate: emp.joinDate,
+    resignationDate: emp.status === "resigned" ? "2026-06-30" : undefined,
+    joinedUnionDate: isPart ? emp.joinDate : undefined,
+    period: "2026-08",
+    feeType: "percentage",
+    amount: isPart ? 23400 : 0,
+    isParticipating: isPart,
+    importedAt: "2026-08-01 08:30",
+    importedBy: "Trần Thu Trang (Kế toán)",
+    history: [
+      {
+        id: `ufh-${emp.id}-1`,
+        actionDate: emp.joinDate || "2024-01-01",
+        actionType: "join",
+        actionLabel: isPart ? "Đăng ký tham gia Công đoàn" : "Chưa đăng ký tham gia",
+        amount: isPart ? 23400 : 0,
+        changedBy: "Trần Thu Trang (Kế toán)",
+        note: isPart ? "Gia nhập Công đoàn cơ sở khi ký HĐLĐ" : "Hồ sơ đang chờ phê duyệt",
+      },
+    ],
+  };
+});
 
 const standardWorkdays: StandardWorkdayRecord[] = employees.map((emp, index) => {
   const isOverridden = index === 2 || index === 8; // Lê Văn Cường, Phan Quốc Bảo
@@ -2342,8 +2363,137 @@ const taxConfigs: TaxConfigRecord[] = employees.map((emp) => {
   };
 });
 
+const employeePolicies: EmployeePolicyRecord[] = employees.map((emp, index) => {
+  const role: TargetRole = index === 0 || emp.id === "emp-1"
+    ? "shift_leader"
+    : emp.id === "emp-6"
+    ? "hoc_viec"
+    : "chinh_thuc";
+
+  const roleTitle =
+    role === "shift_leader"
+      ? "Trưởng ca / Tổ trưởng"
+      : role === "hoc_viec"
+      ? "Học việc / Thử việc"
+      : "Nhân viên chính thức";
+
+  const items: EmployeePolicyItem[] = policyDefinitions.slice(0, 16).map((pDef) => {
+    const roleVal = pDef.targetValues?.[role] || {};
+    const defaultVal = { ...roleVal };
+
+    let isEnabled = true;
+    let isCustom = false;
+    let customVal = { ...defaultVal };
+    let reason: string | undefined;
+
+    // Special customization logic for realism
+    if (pDef.id === "pol-responsibility" || pDef.code === "RESPONSIBILITY_ALLOWANCE") {
+      if (role === "shift_leader") {
+        isEnabled = true;
+        isCustom = true;
+        customVal = { amount: 1500000 };
+        reason = "Phụ cấp trách nhiệm Trưởng ca sản xuất (QĐ số 42/QĐ-BĐH)";
+      } else if (index % 4 === 1) {
+        isEnabled = true;
+        isCustom = true;
+        customVal = { amount: 800000 };
+        reason = "Phụ cấp kiêm nhiệm an toàn vệ sinh viên";
+      } else {
+        isEnabled = false;
+      }
+    } else if (pDef.id === "pol-travel" || pDef.code === "TRAVEL_ALLOWANCE") {
+      if (index % 3 === 0) {
+        isCustom = true;
+        customVal = { amount: 600000 };
+        reason = "Hỗ trợ xăng xe tuyến đường xa > 20km";
+      }
+    } else if (pDef.id === "pol-housing" || pDef.code === "HOUSING_ALLOWANCE") {
+      if (index % 4 === 0) {
+        isCustom = true;
+        customVal = { amount: 900000 };
+        reason = "Hỗ trợ tiền thuê nhà công nhân ngoại tỉnh";
+      }
+    } else if (pDef.id === "pol-child-care" || pDef.code === "CHILD_CARE_ALLOWANCE") {
+      if (index % 2 === 0) {
+        isEnabled = true;
+        isCustom = true;
+        customVal = { amount: 500000 };
+        reason = "Hỗ trợ nuôi con nhỏ dưới 6 tuổi";
+      } else {
+        isEnabled = false;
+      }
+    } else if (pDef.id === "pol-split-shift" || pDef.code === "SPLIT_SHIFT_ALLOWANCE") {
+      isEnabled = role === "shift_leader" || index % 2 === 1;
+    }
+
+    return {
+      policyId: pDef.id,
+      policyCode: pDef.code,
+      policyName: pDef.name,
+      category: pDef.category,
+      isEnabled,
+      isCustom,
+      defaultValue: defaultVal,
+      customValue: customVal,
+      effectiveFrom: "2026-01-01",
+      reason,
+      updatedAt: "2026-08-01 09:00",
+      updatedBy: "Kế toán C&B",
+    };
+  });
+
+  const baseSalItem = items.find((i) => i.policyId === "pol-base-salary");
+  const insSalItem = items.find((i) => i.policyId === "pol-insurance-salary");
+
+  const baseSalary = Number(
+    (baseSalItem?.isCustom ? baseSalItem.customValue?.amount : baseSalItem?.defaultValue?.amount) ||
+      (role === "shift_leader" ? 7000000 : 6300000)
+  );
+
+  const insuranceSalary = Number(
+    (insSalItem?.isCustom ? insSalItem.customValue?.amount : insSalItem?.defaultValue?.amount) ||
+      (role === "shift_leader" ? 8000000 : 6300000)
+  );
+
+  // Sum monthly allowances (category === allowance or bonus, excluding baseSalary/insuranceSalary)
+  const totalAllowance = items
+    .filter(
+      (i) =>
+        i.isEnabled &&
+        i.policyId !== "pol-base-salary" &&
+        i.policyId !== "pol-insurance-salary" &&
+        i.policyId !== "pol-hourly-rate" &&
+        !i.policyId.startsWith("pol-ot")
+    )
+    .reduce((sum, i) => {
+      const val = i.isCustom ? i.customValue?.amount : i.defaultValue?.amount;
+      return sum + (typeof val === "number" ? val : 0);
+    }, 0);
+
+  const customPolicyCount = items.filter((i) => i.isCustom).length;
+
+  return {
+    id: `emp-pol-${emp.id}`,
+    employeeId: emp.id,
+    employeeCode: emp.code,
+    employeeName: emp.name,
+    projectId: emp.projectId,
+    projectCode: emp.projectCode,
+    role,
+    roleTitle,
+    joinDate: emp.joinDate,
+    baseSalary,
+    insuranceSalary,
+    totalAllowance,
+    customPolicyCount,
+    policies: items,
+    updatedAt: "2026-08-01 09:00",
+    updatedBy: "Kế toán C&B",
+  };
+});
+
 export const seedDatabase: MockDatabase = {
-  schemaVersion: 10,
+  schemaVersion: 11,
   projects,
   policyDefinitions,
   projectPolicies,
@@ -2362,5 +2512,6 @@ export const seedDatabase: MockDatabase = {
   insuranceRecords,
   insuranceChanges,
   taxConfigs,
+  employeePolicies,
 };
 

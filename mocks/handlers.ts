@@ -7,6 +7,8 @@ import type {
   DataMapping,
   Dependent,
   Employee,
+  EmployeePolicyItem,
+  EmployeePolicyRecord,
   InsuranceChangeRecord,
   InsuranceRecord,
   LeaveHistoryItem,
@@ -626,6 +628,40 @@ export const handlers = [
     return ok(newRecords);
   }),
 
+  http.patch("/api/union-fees/:id", async ({ params, request }) => {
+    await delay(200);
+    const { id } = params;
+    const payload = (await request.json()) as Partial<UnionFeeRecord> & { note?: string };
+    let updated: UnionFeeRecord | null = null;
+    mutateMockDatabase((db) => {
+      const idx = (db.unionFees ?? []).findIndex((u) => u.id === id);
+      if (idx !== -1) {
+        const cur = db.unionFees[idx];
+        const newIsPart = payload.isParticipating !== undefined ? payload.isParticipating : cur.isParticipating;
+        const nowStr = new Date().toISOString().replace("T", " ").slice(0, 16);
+        const actionLabel = newIsPart ? "Đăng ký tham gia Công đoàn" : "Hủy tham gia Công đoàn";
+        const historyItem = {
+          id: `ufh-${Date.now()}`,
+          actionDate: nowStr,
+          actionType: newIsPart ? ("join" as const) : ("leave" as const),
+          actionLabel,
+          amount: newIsPart ? cur.amount : 0,
+          changedBy: "Trần Minh Anh (Kế toán C&B)",
+          note: payload.note || (newIsPart ? "Kích hoạt tham gia lại Công đoàn" : "Hủy tham gia trích nộp Công đoàn"),
+        };
+        db.unionFees[idx] = {
+          ...cur,
+          ...payload,
+          isParticipating: newIsPart,
+          joinedUnionDate: newIsPart ? (cur.joinedUnionDate || nowStr.slice(0, 10)) : undefined,
+          history: [historyItem, ...(cur.history ?? [])],
+        };
+        updated = db.unionFees[idx];
+      }
+    });
+    return updated ? ok(updated) : fail(404, "NOT_FOUND", "Không tìm thấy bản ghi Công đoàn phí");
+  }),
+
   http.get("/api/standard-workdays", async ({ request }) => {
     await delay(200);
     const url = new URL(request.url);
@@ -658,6 +694,53 @@ export const handlers = [
       }
     });
     return updated ? ok(updated) : fail(404, "RECORD_NOT_FOUND", "Không tìm thấy bản ghi");
+  }),
+
+  http.post("/api/standard-workdays/batch-import", async ({ request }) => {
+    await delay(400);
+    const payload = (await request.json()) as {
+      projectId: string;
+      items: Array<{ employeeCode: string; overrideDays: number; reason?: string }>;
+    };
+    const database = readMockDatabase();
+    const updatedList: StandardWorkdayRecord[] = [];
+    mutateMockDatabase((db) => {
+      payload.items.forEach((item) => {
+        const emp = database.employees.find((e) => e.code === item.employeeCode);
+        if (emp) {
+          const idx = (db.standardWorkdays ?? []).findIndex((w) => w.employeeId === emp.id || w.employeeCode === emp.code);
+          const nowStr = new Date().toISOString().replace("T", " ").slice(0, 16);
+          if (idx >= 0) {
+            db.standardWorkdays[idx] = {
+              ...db.standardWorkdays[idx],
+              overrideDays: item.overrideDays,
+              isOverridden: true,
+              reason: item.reason || "Cập nhật ngày công chuẩn từ tệp Excel",
+              updatedAt: nowStr,
+              updatedBy: "Kế toán C&B",
+            };
+            updatedList.push(db.standardWorkdays[idx]);
+          } else {
+            const newRec: StandardWorkdayRecord = {
+              id: `workday-${emp.id}`,
+              employeeId: emp.id,
+              employeeCode: emp.code,
+              employeeName: emp.name,
+              projectId: payload.projectId,
+              projectStandardDays: 26,
+              overrideDays: item.overrideDays,
+              isOverridden: true,
+              reason: item.reason || "Cập nhật ngày công chuẩn từ tệp Excel",
+              updatedAt: nowStr,
+              updatedBy: "Kế toán C&B",
+            };
+            db.standardWorkdays = [...(db.standardWorkdays ?? []), newRec];
+            updatedList.push(newRec);
+          }
+        }
+      });
+    });
+    return ok(updatedList);
   }),
 
   http.get("/api/insurance-records", async ({ request }) => {
@@ -985,5 +1068,200 @@ export const handlers = [
       }
     });
     return updated ? ok(updated) : fail(404, "RECORD_NOT_FOUND", "Không tìm thấy cấu hình thuế");
+  }),
+
+  http.get("/api/employee-policies", async ({ request }) => {
+    await delay(200);
+    const url = new URL(request.url);
+    const projId = url.searchParams.get("projectId");
+    const database = readMockDatabase();
+    let list = database.employeePolicies ?? [];
+    if (projId && projId !== "all") {
+      list = list.filter((p) => p.projectId === projId);
+    }
+    return ok(list);
+  }),
+
+  http.get("/api/employee-policies/:employeeId", async ({ params }) => {
+    await delay(150);
+    const empId = String(params.employeeId);
+    const database = readMockDatabase();
+    const item = (database.employeePolicies ?? []).find(
+      (p) => p.employeeId === empId || p.id === empId || p.employeeCode === empId
+    );
+    return item ? ok(item) : fail(404, "RECORD_NOT_FOUND", "Không tìm thấy chế độ nhân sự");
+  }),
+
+  http.put("/api/employee-policies/:employeeId", async ({ params, request }) => {
+    await delay(300);
+    const empId = String(params.employeeId);
+    const payload = (await request.json()) as {
+      policies: EmployeePolicyItem[];
+      baseSalary?: number;
+      insuranceSalary?: number;
+    };
+    let updated: EmployeePolicyRecord | undefined;
+    mutateMockDatabase((db) => {
+      const idx = (db.employeePolicies ?? []).findIndex(
+        (p) => p.employeeId === empId || p.id === empId || p.employeeCode === empId
+      );
+      if (idx >= 0) {
+        const cur = db.employeePolicies[idx];
+        const newPolicies = payload.policies ?? cur.policies;
+
+        const baseSalItem = newPolicies.find((i) => i.policyId === "pol-base-salary");
+        const insSalItem = newPolicies.find((i) => i.policyId === "pol-insurance-salary");
+
+        const baseSalary =
+          payload.baseSalary ??
+          Number(
+            (baseSalItem?.isCustom ? baseSalItem.customValue?.amount : baseSalItem?.defaultValue?.amount) ||
+              cur.baseSalary
+          );
+
+        const insuranceSalary =
+          payload.insuranceSalary ??
+          Number(
+            (insSalItem?.isCustom ? insSalItem.customValue?.amount : insSalItem?.defaultValue?.amount) ||
+              cur.insuranceSalary
+          );
+
+        const totalAllowance = newPolicies
+          .filter(
+            (i) =>
+              i.isEnabled &&
+              i.policyId !== "pol-base-salary" &&
+              i.policyId !== "pol-insurance-salary" &&
+              i.policyId !== "pol-hourly-rate" &&
+              !i.policyId.startsWith("pol-ot")
+          )
+          .reduce((sum, i) => {
+            const val = i.isCustom ? i.customValue?.amount : i.defaultValue?.amount;
+            return sum + (typeof val === "number" ? val : 0);
+          }, 0);
+
+        const customPolicyCount = newPolicies.filter((i) => i.isCustom).length;
+        const nowStr = new Date().toISOString().replace("T", " ").slice(0, 16);
+
+        db.employeePolicies[idx] = {
+          ...cur,
+          baseSalary,
+          insuranceSalary,
+          totalAllowance,
+          customPolicyCount,
+          policies: newPolicies,
+          updatedAt: nowStr,
+          updatedBy: "Kế toán tiền lương",
+        };
+        updated = db.employeePolicies[idx];
+      }
+    });
+    return updated ? ok(updated) : fail(404, "RECORD_NOT_FOUND", "Không tìm thấy chế độ nhân sự");
+  }),
+
+  http.post("/api/employee-policies/batch-import", async ({ request }) => {
+    await delay(400);
+    const payload = (await request.json()) as {
+      projectId: string;
+      items: Array<{ employeeCode: string; policyCode: string; amount: number; isEnabled?: boolean; reason?: string }>;
+    };
+    const updatedList: EmployeePolicyRecord[] = [];
+    mutateMockDatabase((db) => {
+      payload.items.forEach((item) => {
+        const idx = (db.employeePolicies ?? []).findIndex((p) => p.employeeCode === item.employeeCode);
+        if (idx >= 0) {
+          const cur = db.employeePolicies[idx];
+          const newPolicies = cur.policies.map((p) => {
+            if (p.policyCode === item.policyCode || p.policyId === item.policyCode) {
+              return {
+                ...p,
+                isEnabled: item.isEnabled !== undefined ? item.isEnabled : true,
+                isCustom: true,
+                customValue: { ...p.customValue, amount: item.amount },
+                reason: item.reason || "Cập nhật phụ cấp từ tệp Excel",
+                updatedAt: new Date().toISOString().replace("T", " ").slice(0, 16),
+                updatedBy: "Kế toán C&B",
+              };
+            }
+            return p;
+          });
+
+          const totalAllowance = newPolicies
+            .filter(
+              (i) =>
+                i.isEnabled &&
+                i.policyId !== "pol-base-salary" &&
+                i.policyId !== "pol-insurance-salary" &&
+                i.policyId !== "pol-hourly-rate" &&
+                !i.policyId.startsWith("pol-ot")
+            )
+            .reduce((sum, i) => {
+              const val = i.isCustom ? i.customValue?.amount : i.defaultValue?.amount;
+              return sum + (typeof val === "number" ? val : 0);
+            }, 0);
+
+          db.employeePolicies[idx] = {
+            ...cur,
+            policies: newPolicies,
+            totalAllowance,
+            customPolicyCount: newPolicies.filter((i) => i.isCustom).length,
+            updatedAt: new Date().toISOString().replace("T", " ").slice(0, 16),
+            updatedBy: "Kế toán C&B",
+          };
+          updatedList.push(db.employeePolicies[idx]);
+        }
+      });
+    });
+    return ok(updatedList);
+  }),
+
+  http.post("/api/employee-policies/:employeeId/reset", async ({ params }) => {
+    await delay(300);
+    const empId = String(params.employeeId);
+    let updated: EmployeePolicyRecord | undefined;
+    mutateMockDatabase((db) => {
+      const idx = (db.employeePolicies ?? []).findIndex(
+        (p) => p.employeeId === empId || p.id === empId || p.employeeCode === empId
+      );
+      if (idx >= 0) {
+        const cur = db.employeePolicies[idx];
+        const resetPolicies = cur.policies.map((p) => ({
+          ...p,
+          isCustom: false,
+          customValue: { ...p.defaultValue },
+          isEnabled: (p.policyId !== "pol-responsibility" && p.policyCode !== "RESPONSIBILITY_ALLOWANCE") || cur.role === "shift_leader",
+          reason: undefined,
+          updatedAt: new Date().toISOString().replace("T", " ").slice(0, 16),
+          updatedBy: "Hệ thống (Mặc định dự án)",
+        }));
+
+        const totalAllowance = resetPolicies
+          .filter(
+            (i) =>
+              i.isEnabled &&
+              i.policyId !== "pol-base-salary" &&
+              i.policyId !== "pol-insurance-salary" &&
+              i.policyId !== "pol-hourly-rate" &&
+              !i.policyId.startsWith("pol-ot")
+          )
+          .reduce((sum, i) => {
+            const val = i.defaultValue?.amount;
+            return sum + (typeof val === "number" ? val : 0);
+          }, 0);
+
+        db.employeePolicies[idx] = {
+          ...cur,
+          baseSalary: cur.role === "shift_leader" ? 7000000 : 6300000,
+          insuranceSalary: cur.role === "shift_leader" ? 8000000 : 6300000,
+          totalAllowance,
+          customPolicyCount: 0,
+          policies: resetPolicies,
+          updatedAt: new Date().toISOString().replace("T", " ").slice(0, 16),
+          updatedBy: "Hệ thống (Mặc định dự án)",
+        };
+        updated = db.employeePolicies[idx];
+      }
+    });
+    return updated ? ok(updated) : fail(404, "RECORD_NOT_FOUND", "Không tìm thấy chế độ nhân sự");
   }),
 ];

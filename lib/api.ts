@@ -21,6 +21,8 @@ import type {
   TestEmployee,
   TestRunResult,
   UnionFeeRecord,
+  EmployeePolicyItem,
+  EmployeePolicyRecord,
 } from "@/lib/types";
 
 export class ApiRequestError extends Error {
@@ -106,12 +108,16 @@ export const api = {
     const query = new URLSearchParams(Object.entries(params ?? {}).filter(([, v]) => v !== undefined).map(([k, v]) => [k, String(v)]));
     return request<UnionFeeRecord[]>(`/api/union-fees?${query}`).then((item) => item.data);
   },
+  updateUnionFee: (id: string, payload: Partial<UnionFeeRecord> & { note?: string }) =>
+    request<UnionFeeRecord>(`/api/union-fees/${id}`, { method: "PATCH", body: JSON.stringify(payload) }).then((item) => item.data),
   importUnionFees: (payload: { projectId: string; period: string; items: Partial<UnionFeeRecord>[] }) =>
     request<UnionFeeRecord[]>("/api/union-fees/import", { method: "POST", body: JSON.stringify(payload) }).then((item) => item.data),
   getStandardWorkdays: (params?: { projectId?: string }) => {
     const query = new URLSearchParams(Object.entries(params ?? {}).filter(([, v]) => v !== undefined).map(([k, v]) => [k, String(v)]));
     return request<StandardWorkdayRecord[]>(`/api/standard-workdays?${query}`).then((item) => item.data);
   },
+  batchImportStandardWorkdays: (payload: { projectId: string; items: Array<{ employeeCode: string; overrideDays: number; reason?: string }> }) =>
+    request<StandardWorkdayRecord[]>("/api/standard-workdays/batch-import", { method: "POST", body: JSON.stringify(payload) }).then((item) => item.data),
   saveStandardWorkdayOverride: (id: string, payload: { overrideDays?: number; isOverridden: boolean; reason?: string }) =>
     request<StandardWorkdayRecord>(`/api/standard-workdays/${id}`, { method: "PATCH", body: JSON.stringify(payload) }).then((item) => item.data),
   getInsuranceRecords: (params?: { projectId?: string; fromDate?: string; toDate?: string }) => {
@@ -144,6 +150,18 @@ export const api = {
     const query = new URLSearchParams(Object.entries(params ?? {}).filter(([, v]) => v !== undefined).map(([k, v]) => [k, String(v)]));
     return request<TaxConfigRecord[]>(`/api/tax-configs?${query}`).then((item) => item.data);
   },
-  saveTaxConfig: (id: string, payload: Partial<TaxConfigRecord>) =>
+  updateTaxConfig: (id: string, payload: Partial<TaxConfigRecord>) =>
     request<TaxConfigRecord>(`/api/tax-configs/${id}`, { method: "PATCH", body: JSON.stringify(payload) }).then((item) => item.data),
+  getEmployeePolicies: (params?: { projectId?: string }) => {
+    const query = new URLSearchParams(Object.entries(params ?? {}).filter(([, v]) => v !== undefined).map(([k, v]) => [k, String(v)]));
+    return request<EmployeePolicyRecord[]>(`/api/employee-policies?${query}`).then((item) => item.data);
+  },
+  getEmployeePolicyDetail: (employeeId: string) =>
+    request<EmployeePolicyRecord>(`/api/employee-policies/${employeeId}`).then((item) => item.data),
+  updateEmployeePolicies: (employeeId: string, payload: { policies: EmployeePolicyItem[]; baseSalary?: number; insuranceSalary?: number }) =>
+    request<EmployeePolicyRecord>(`/api/employee-policies/${employeeId}`, { method: "PUT", body: JSON.stringify(payload) }).then((item) => item.data),
+  batchImportEmployeePolicies: (payload: { projectId: string; items: Array<{ employeeCode: string; policyCode: string; amount: number; isEnabled?: boolean; reason?: string }> }) =>
+    request<EmployeePolicyRecord[]>("/api/employee-policies/batch-import", { method: "POST", body: JSON.stringify(payload) }).then((item) => item.data),
+  resetEmployeePoliciesToDefault: (employeeId: string) =>
+    request<EmployeePolicyRecord>(`/api/employee-policies/${employeeId}/reset`, { method: "POST" }).then((item) => item.data),
 };

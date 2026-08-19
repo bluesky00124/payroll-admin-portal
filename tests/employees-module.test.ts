@@ -63,6 +63,28 @@ describe("Employees Module & HR Workflows", () => {
     expect(updated.reason).toBe("Hợp đồng thử việc 22 ngày công");
   });
 
+  it("tải lên danh sách Excel cập nhật ngày công chuẩn đồng loạt", async () => {
+    resetMockDatabase();
+    const workdays = await api.getStandardWorkdays({ projectId: "prj-jss" });
+    const target = workdays[1];
+
+    const imported = await api.batchImportStandardWorkdays({
+      projectId: "prj-jss",
+      items: [
+        {
+          employeeCode: target.employeeCode,
+          overrideDays: 24,
+          reason: "Chế độ ca kíp xoay vòng 24 công",
+        },
+      ],
+    });
+
+    expect(imported.length).toBeGreaterThan(0);
+    const updatedTarget = imported.find((r) => r.employeeCode === target.employeeCode);
+    expect(updatedTarget?.overrideDays).toBe(24);
+    expect(updatedTarget?.isOverridden).toBe(true);
+  });
+
   it("quản lý phép năm và tính trừ số ngày phép còn lại", async () => {
     resetMockDatabase();
     const leaveRecords = await api.getLeaveRecords({ projectId: "prj-jss" });
@@ -122,5 +144,87 @@ describe("Employees Module & HR Workflows", () => {
     const updatedMasterEmp = updatedMasterList.find((m) => m.employeeId === targetEmp.employeeId);
     expect(updatedMasterEmp?.insuranceSalary).toBe(8500000);
     expect(updatedMasterEmp?.status).toBe("active");
+  });
+
+  it("quản lý Công đoàn phí: cập nhật trạng thái tham gia và tự động ghi log lịch sử", async () => {
+    resetMockDatabase();
+    const list = await api.getUnionFees({ projectId: "prj-jss" });
+    expect(list.length).toBeGreaterThan(0);
+    const target = list[0];
+    expect(target.isParticipating).toBe(true);
+
+    // Bỏ tham gia Công đoàn
+    const updated = await api.updateUnionFee(target.id, {
+      isParticipating: false,
+      note: "Người lao động làm đơn xin rút khỏi Công đoàn",
+    });
+
+    expect(updated.isParticipating).toBe(false);
+    expect(updated.history).toBeDefined();
+    expect(updated.history![0].actionType).toBe("leave");
+    expect(updated.history![0].actionLabel).toBe("Hủy tham gia Công đoàn");
+    expect(updated.history![0].note).toBe("Người lao động làm đơn xin rút khỏi Công đoàn");
+  });
+
+  it("quản lý Chế độ & Phụ cấp: tùy biến phụ cấp riêng và khôi phục về chuẩn dự án", async () => {
+    resetMockDatabase();
+    const list = await api.getEmployeePolicies({ projectId: "prj-jss" });
+    expect(list.length).toBeGreaterThan(0);
+    const target = list[0];
+
+    // Cập nhật phụ cấp trách nhiệm riêng 2,000,000đ
+    const updatedPolicies = target.policies.map((p) => {
+      if (p.policyCode === "RESPONSIBILITY_ALLOWANCE" || p.policyId === "pol-responsibility") {
+        return {
+          ...p,
+          isEnabled: true,
+          isCustom: true,
+          customValue: { amount: 2000000 },
+          reason: "Quyết định bổ nhiệm Trưởng chuyền mở rộng",
+        };
+      }
+      return p;
+    });
+
+    const updated = await api.updateEmployeePolicies(target.employeeId, {
+      policies: updatedPolicies,
+      baseSalary: 7500000,
+    });
+
+    expect(updated.baseSalary).toBe(7500000);
+    expect(updated.customPolicyCount).toBeGreaterThan(0);
+    const respAllowance = updated.policies.find((p) => p.policyCode === "RESPONSIBILITY_ALLOWANCE" || p.policyId === "pol-responsibility");
+    expect(respAllowance?.customValue?.amount).toBe(2000000);
+    expect(respAllowance?.isCustom).toBe(true);
+
+    // Khôi phục về mặc định dự án
+    const resetResult = await api.resetEmployeePoliciesToDefault(target.employeeId);
+    expect(resetResult.customPolicyCount).toBe(0);
+    const resetResp = resetResult.policies.find((p) => p.policyCode === "RESPONSIBILITY_ALLOWANCE" || p.policyId === "pol-responsibility");
+    expect(resetResp?.isCustom).toBe(false);
+  });
+
+  it("tải lên danh sách Excel cập nhật phụ cấp nhân sự hàng loạt", async () => {
+    resetMockDatabase();
+    const list = await api.getEmployeePolicies({ projectId: "prj-jss" });
+    const target = list[1];
+
+    const imported = await api.batchImportEmployeePolicies({
+      projectId: "prj-jss",
+      items: [
+        {
+          employeeCode: target.employeeCode,
+          policyCode: "TRAVEL_ALLOWANCE",
+          amount: 800000,
+          reason: "Hỗ trợ công tác xa 30km",
+        },
+      ],
+    });
+
+    expect(imported.length).toBeGreaterThan(0);
+    const updatedEmp = imported.find((r) => r.employeeCode === target.employeeCode);
+    const travelAllowance = updatedEmp?.policies.find((p) => p.policyCode === "TRAVEL_ALLOWANCE");
+    expect(travelAllowance?.isCustom).toBe(true);
+    expect(travelAllowance?.customValue?.amount).toBe(800000);
   });
 });

@@ -222,6 +222,7 @@ export interface Employee {
   department: string;
   position: string;
   joinDate: string;
+  resignationDate?: string;
   status: "active" | "resigned" | "probation";
 }
 
@@ -272,6 +273,9 @@ export interface LeaveRecord {
   contractType: "official" | "probation" | "seasonal"; // Loại hợp đồng lao động
   employeeStatus: "active" | "resigned" | "probation";  // Trạng thái nhân sự
   eligibilityStatus: "eligible" | "probation_ineligible" | "resigned"; // Tình trạng hưởng phép năm
+  joinDate?: string;        // YYYY-MM-DD (Ngày vào làm)
+  contractEndDate?: string; // YYYY-MM-DD (Ngày hết hạn HĐ)
+  endDate?: string;         // YYYY-MM-DD (Ngày kết thúc)
   entitlementDate?: string; // YYYY-MM-DD (Thời điểm bắt đầu được hưởng phép năm)
   resignationDate?: string; // YYYY-MM-DD (Thời điểm nghỉ việc nếu đã thôi việc)
   accruedDays: number;     // Số ngày phép đã tích lũy lũy kế đến kỳ hiện tại (VD: 8 tháng = 8 ngày)
@@ -283,18 +287,33 @@ export interface LeaveRecord {
   history: LeaveHistoryItem[];
 }
 
+export interface UnionFeeHistoryItem {
+  id: string;
+  actionDate: string; // YYYY-MM-DD
+  actionType: "join" | "leave" | "import" | "adjust";
+  actionLabel: string;
+  amount?: number;
+  changedBy: string;
+  note?: string;
+}
+
 export interface UnionFeeRecord {
   id: string;
   employeeId: string;
   employeeCode: string;
   employeeName: string;
   projectId: string;
-  period: string; // YYYY-MM
+  projectCode?: string;
+  joinDate?: string;          // Ngày vào làm công ty
+  resignationDate?: string;   // Ngày nghỉ việc
+  joinedUnionDate?: string;   // Ngày tham gia công đoàn
+  period?: string; // YYYY-MM
   feeType: "percentage" | "fixed";
   amount: number;
   isParticipating: boolean;
   importedAt?: string;
   importedBy?: string;
+  history?: UnionFeeHistoryItem[];
 }
 
 export interface StandardWorkdayRecord {
@@ -303,6 +322,7 @@ export interface StandardWorkdayRecord {
   employeeCode: string;
   employeeName: string;
   projectId: string;
+  projectCode?: string;
   projectStandardDays: number;
   overrideDays?: number;
   isOverridden: boolean;
@@ -317,6 +337,7 @@ export interface InsuranceRecord {
   employeeCode: string;
   employeeName: string;
   projectId: string;
+  projectCode?: string;
   insuranceBookNumber: string; // Mã số BHXH 10 chữ số
   insuranceSalary: number;
   employeeRate: number; // 10.5
@@ -343,6 +364,7 @@ export interface InsuranceChangeRecord {
   employeeCode: string;
   employeeName: string;
   projectId: string;
+  projectCode?: string;
   period: string; // YYYY-MM (Kỳ biến động, vd "2026-08")
   changeType: InsuranceChangeType;
   oldSalary?: number;
@@ -364,12 +386,48 @@ export interface TaxConfigRecord {
   employeeCode: string;
   employeeName: string;
   projectId: string;
+  projectCode?: string;
   taxCode: string;
   taxType: "progressive" | "flat_10" | "non_resident_20" | "commitment_08";
   hasCommitment08: boolean;
   approvedDependentsCount: number;
   personalDeduction: number;
   dependentDeduction: number;
+}
+
+export interface EmployeePolicyItem {
+  policyId: string;
+  policyCode: string;
+  policyName: string;
+  category: PolicyCategory;
+  isEnabled: boolean;
+  isCustom: boolean;
+  defaultValue: Record<string, any>;
+  customValue: Record<string, any>;
+  effectiveFrom?: string;
+  effectiveTo?: string;
+  reason?: string;
+  updatedAt?: string;
+  updatedBy?: string;
+}
+
+export interface EmployeePolicyRecord {
+  id: string;
+  employeeId: string;
+  employeeCode: string;
+  employeeName: string;
+  projectId: string;
+  projectCode?: string;
+  role: TargetRole;
+  roleTitle?: string;
+  joinDate?: string;
+  baseSalary: number;
+  insuranceSalary: number;
+  totalAllowance: number;
+  customPolicyCount: number;
+  policies: EmployeePolicyItem[];
+  updatedAt?: string;
+  updatedBy?: string;
 }
 
 export interface MockDatabase {
@@ -392,4 +450,5 @@ export interface MockDatabase {
   insuranceRecords: InsuranceRecord[];
   insuranceChanges: InsuranceChangeRecord[];
   taxConfigs: TaxConfigRecord[];
+  employeePolicies: EmployeePolicyRecord[];
 }

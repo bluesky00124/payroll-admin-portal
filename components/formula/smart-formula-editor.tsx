@@ -20,6 +20,7 @@ import {
   type VisualToken,
 } from "@/lib/formula-engine";
 import type { FormulaVariable, SalaryFormula } from "@/lib/types";
+import { OperatorSymbol } from "@/components/tabs/formula-tab";
 
 interface SmartFormulaEditorProps {
   formula: SalaryFormula;
@@ -133,11 +134,12 @@ export function SmartFormulaEditor({
       >
         {tokens.length === 0 ? (
           <div className="smart-canvas-empty">
-            <Sparkles className="w-4 h-4 text-primary/60" />
-            <span>Chưa có phần tử nào. Bấm chọn biến từ danh sách hoặc bàn phím máy tính bên dưới để ghép công thức.</span>
+            <span className="text-muted-foreground text-xs italic">
+              Chưa có phần tử nào. Bấm chọn biến từ danh sách hoặc bàn phím máy tính bên dưới để ghép công thức.
+            </span>
           </div>
         ) : (
-          <div className="flex flex-wrap items-center gap-1.5 py-1 flex-1 pr-2">
+          <div className="flex flex-wrap items-center gap-1.5 flex-1 pr-10">
             {tokens.map((tok, idx) => {
               const isSelected = cursorIndex === idx;
 
@@ -151,9 +153,9 @@ export function SmartFormulaEditor({
                         setCursorIndex(idx);
                       }}
                       className="smart-pill-operator cursor-pointer"
-                      title="Toán tử"
+                      title={`Toán tử ${tok.text}`}
                     >
-                      <span className="font-mono font-extrabold">{tok.text}</span>
+                      <OperatorSymbol op={tok.text} className="w-3.5 h-3.5" />
                     </span>
                   </div>
                 );
@@ -171,13 +173,12 @@ export function SmartFormulaEditor({
                       className="smart-pill-number cursor-pointer"
                       title="Hằng số"
                     >
-                      <span className="font-mono font-bold">{tok.text}</span>
+                      <span>{tok.text}</span>
                     </span>
                   </div>
                 );
               }
 
-              // Variable token (Clean neutral badge without icon or color)
               return (
                 <div key={tok.id} className="inline-flex items-center gap-1">
                   {isSelected && <span className="smart-token-caret" />}
@@ -186,10 +187,10 @@ export function SmartFormulaEditor({
                       e.stopPropagation();
                       setCursorIndex(idx);
                     }}
-                    className="smart-pill smart-pill-neutral cursor-pointer"
+                    className="smart-pill smart-pill-neutral"
                     title={tok.text}
                   >
-                    <span className="font-semibold text-xs truncate max-w-[240px]">{tok.text}</span>
+                    <span>{tok.text}</span>
                   </span>
                 </div>
               );
@@ -199,24 +200,21 @@ export function SmartFormulaEditor({
           </div>
         )}
 
-        {/* Backspace Icon Button inside Input */}
+        {/* Quick Clear Button at top right of canvas */}
         {tokens.length > 0 && (
           <button
             type="button"
-            onClick={(e) => {
-              e.stopPropagation();
-              handleBackspace();
-            }}
-            className="w-7 h-7 rounded-lg text-muted hover:text-destructive hover:bg-destructive/10 transition-colors shrink-0 flex items-center justify-center border border-transparent hover:border-destructive/20 active:scale-95 ml-auto"
-            title="Xóa ký tự (Backspace)"
-            aria-label="Xóa ký tự"
+            onClick={handleClearAll}
+            className="absolute right-2.5 top-2.5 p-1 rounded-md text-muted hover:text-destructive hover:bg-destructive/10 transition-colors"
+            title="Xóa nhanh toàn bộ biểu thức"
+            aria-label="Xóa nhanh toàn bộ biểu thức"
           >
             <Delete className="w-4 h-4" />
           </button>
         )}
       </div>
 
-      {/* Validation Errors detail if any */}
+      {/* Live Validation Alert under canvas */}
       {!isValid && validationResult.errors.length > 0 && (
         <div className="p-2.5 rounded-lg bg-destructive/10 border border-destructive/20 text-xs text-destructive flex items-start gap-2">
           <AlertCircle className="w-4 h-4 shrink-0 mt-0.5" />
@@ -233,75 +231,78 @@ export function SmartFormulaEditor({
 
       {/* 3. Grid Workspace: Available Variables Board (Left) & Basic Calculator (Right) */}
       <div className="grid grid-cols-1 md:grid-cols-12 gap-3.5 items-stretch">
-        {/* Left Column (7 cols): Available Variables Board (Matches Calculator Height) */}
         <div className="md:col-span-7 p-3.5 rounded-xl bg-secondary/30 border border-border flex flex-col space-y-2.5">
           <div className="flex items-center justify-between gap-2 pb-0.5 shrink-0">
             <strong className="text-xs font-bold text-foreground flex items-center gap-1.5">
               <Variable className="w-3.5 h-3.5 text-primary" />
               Danh mục biến số sẵn có ({availableVariables.length})
             </strong>
-            <span className="text-[11px] text-muted">Bấm thẻ để chèn</span>
           </div>
-
-          {/* Grid of all available variable cards */}
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-1.5 flex-1 min-h-0 overflow-y-auto pr-1 custom-scrollbar">
-            {availableVariables.map((v) => {
-              return (
-                <button
-                  key={v.code}
-                  type="button"
-                  onMouseDown={(e) => e.preventDefault()}
-                  onClick={() => insertToken(v.name)}
-                  className="p-2.5 rounded-lg bg-card hover:bg-secondary/70 hover:border-primary/50 border border-border text-left transition-all flex items-center justify-between text-xs group shadow-2xs hover:shadow-xs active:scale-[0.98]"
-                  title={`Chèn biến: ${v.name} (${v.code})`}
-                >
-                  <div className="min-w-0 flex-1">
-                    <span className="font-semibold text-foreground block truncate group-hover:text-primary text-xs">
-                      {v.name}
-                    </span>
-                    <span className="font-mono text-[10px] text-muted block truncate">
-                      {v.code}
-                    </span>
-                  </div>
-                  <span className="text-[10px] font-bold text-primary opacity-0 group-hover:opacity-100 transition-opacity shrink-0 ml-1">
-                    + Chèn
-                  </span>
-                </button>
-              );
-            })}
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-1.5 flex-1 min-h-0 overflow-y-auto pr-1">
+            {availableVariables.map((v) => (
+              <button
+                key={v.code}
+                type="button"
+                onMouseDown={(e) => e.preventDefault()}
+                onClick={() => insertToken(v.name)}
+                className="p-2.5 rounded-lg bg-card hover:bg-secondary/70 border border-border text-left transition-all text-xs"
+              >
+                <span className="font-semibold block truncate">{v.name}</span>
+                <span className="font-mono text-[10px] text-muted block truncate">{v.code}</span>
+              </button>
+            ))}
           </div>
         </div>
 
-        {/* Right Column (5 cols): Basic Calculator Keypad */}
         <div className="md:col-span-5 p-3.5 rounded-xl bg-secondary/30 border border-border flex flex-col space-y-2.5">
           <div className="flex items-center justify-between pb-0.5 shrink-0">
             <strong className="text-xs font-bold text-foreground flex items-center gap-1.5">
               <Calculator className="w-3.5 h-3.5 text-primary" />
               Bàn phím máy tính (Calculator)
             </strong>
+            <span className="text-[11px] text-muted">Toán tử & Số</span>
           </div>
 
-          {/* Calculator Keypad Grid */}
-          <div className="space-y-1.5">
-            {/* Row 1: Parentheses & High level operators */}
+          <div className="space-y-1.5 flex-1 flex flex-col justify-between">
+            {/* Row 1: (, ), %, ÷ */}
             <div className="grid grid-cols-4 gap-1.5">
-              {[
-                { label: "(", token: "(", cls: "bg-secondary text-foreground font-extrabold" },
-                { label: ")", token: ")", cls: "bg-secondary text-foreground font-extrabold" },
-                { label: "%", token: "/ 100", cls: "bg-secondary text-foreground font-extrabold" },
-                { label: "÷", token: "/", cls: "bg-slate-800 text-white dark:bg-slate-200 dark:text-slate-900 font-extrabold" },
-              ].map((btn) => (
-                <button
-                  key={btn.label}
-                  type="button"
-                  onMouseDown={(e) => e.preventDefault()}
-                  onClick={() => insertToken(btn.token)}
-                  className={`h-9 rounded-lg hover:bg-primary hover:text-primary-foreground font-mono text-sm border border-border shadow-2xs transition-all active:scale-95 flex items-center justify-center ${btn.cls}`}
-                  title={`Toán tử ${btn.label}`}
-                >
-                  {btn.label}
-                </button>
-              ))}
+              <button
+                type="button"
+                onMouseDown={(e) => e.preventDefault()}
+                onClick={() => insertToken("(")}
+                className="h-9 rounded-lg font-mono border shadow-2xs transition-all active:scale-95 flex items-center justify-center bg-primary/15 text-primary border-primary/30 hover:bg-primary hover:text-primary-foreground font-black text-sm"
+                title="Mở ngoặc"
+              >
+                (
+              </button>
+              <button
+                type="button"
+                onMouseDown={(e) => e.preventDefault()}
+                onClick={() => insertToken(")")}
+                className="h-9 rounded-lg font-mono border shadow-2xs transition-all active:scale-95 flex items-center justify-center bg-primary/15 text-primary border-primary/30 hover:bg-primary hover:text-primary-foreground font-black text-sm"
+                title="Đóng ngoặc"
+              >
+                )
+              </button>
+              <button
+                type="button"
+                onMouseDown={(e) => e.preventDefault()}
+                onClick={() => insertToken("/ 100")}
+                className="h-9 rounded-lg font-mono border shadow-2xs transition-all active:scale-95 flex items-center justify-center bg-primary/15 text-primary border-primary/30 hover:bg-primary hover:text-primary-foreground font-black text-sm"
+                title="Phần trăm (%)"
+              >
+                %
+              </button>
+              <button
+                type="button"
+                onMouseDown={(e) => e.preventDefault()}
+                onClick={() => insertToken("/")}
+                className="h-9 rounded-lg border shadow-xs transition-all active:scale-95 flex items-center justify-center bg-primary text-white hover:bg-primary-hover border-primary/40"
+                style={{ backgroundColor: "#038b8c", color: "#ffffff" }}
+                title="Toán tử chia"
+              >
+                <OperatorSymbol op="/" className="w-4 h-4 text-white" />
+              </button>
             </div>
 
             {/* Row 2: 7, 8, 9, * */}
@@ -321,10 +322,11 @@ export function SmartFormulaEditor({
                 type="button"
                 onMouseDown={(e) => e.preventDefault()}
                 onClick={() => insertToken("*")}
-                className="h-9 rounded-lg bg-slate-800 text-white dark:bg-slate-200 dark:text-slate-900 hover:bg-primary hover:text-primary-foreground font-mono font-extrabold text-sm border border-border shadow-2xs transition-all active:scale-95 flex items-center justify-center"
+                className="h-9 rounded-lg border shadow-xs transition-all active:scale-95 flex items-center justify-center bg-primary text-white hover:bg-primary-hover border-primary/40"
+                style={{ backgroundColor: "#038b8c", color: "#ffffff" }}
                 title="Toán tử nhân"
               >
-                ×
+                <OperatorSymbol op="*" className="w-4 h-4 text-white" />
               </button>
             </div>
 
@@ -345,10 +347,11 @@ export function SmartFormulaEditor({
                 type="button"
                 onMouseDown={(e) => e.preventDefault()}
                 onClick={() => insertToken("-")}
-                className="h-9 rounded-lg bg-slate-800 text-white dark:bg-slate-200 dark:text-slate-900 hover:bg-primary hover:text-primary-foreground font-mono font-extrabold text-sm border border-border shadow-2xs transition-all active:scale-95 flex items-center justify-center"
+                className="h-9 rounded-lg border shadow-xs transition-all active:scale-95 flex items-center justify-center bg-primary text-white hover:bg-primary-hover border-primary/40"
+                style={{ backgroundColor: "#038b8c", color: "#ffffff" }}
                 title="Toán tử trừ"
               >
-                −
+                <OperatorSymbol op="-" className="w-4 h-4 text-white" />
               </button>
             </div>
 
@@ -369,10 +372,11 @@ export function SmartFormulaEditor({
                 type="button"
                 onMouseDown={(e) => e.preventDefault()}
                 onClick={() => insertToken("+")}
-                className="h-9 rounded-lg bg-slate-800 text-white dark:bg-slate-200 dark:text-slate-900 hover:bg-primary hover:text-primary-foreground font-mono font-extrabold text-sm border border-border shadow-2xs transition-all active:scale-95 flex items-center justify-center"
+                className="h-9 rounded-lg border shadow-xs transition-all active:scale-95 flex items-center justify-center bg-primary text-white hover:bg-primary-hover border-primary/40"
+                style={{ backgroundColor: "#038b8c", color: "#ffffff" }}
                 title="Toán tử cộng"
               >
-                +
+                <OperatorSymbol op="+" className="w-4 h-4 text-white" />
               </button>
             </div>
 
@@ -392,21 +396,21 @@ export function SmartFormulaEditor({
             </div>
 
             {/* Action buttons: Backspace & Clear */}
-            <div className="grid grid-cols-2 gap-1.5 pt-1 border-t border-border/60">
+            <div className="grid grid-cols-2 gap-1.5 pt-1.5 border-t border-border/80">
               <button
                 type="button"
                 onMouseDown={(e) => e.preventDefault()}
                 onClick={handleBackspace}
-                className="h-8 rounded-lg bg-amber-500/10 text-amber-600 dark:text-amber-400 hover:bg-amber-500/20 font-bold text-xs border border-amber-500/20 transition-all flex items-center justify-center gap-1 active:scale-95"
+                className="h-8 rounded-lg bg-secondary hover:bg-secondary-hover text-foreground font-semibold text-xs border border-border transition-all flex items-center justify-center gap-1 active:scale-95 shadow-2xs"
                 title="Xóa phần tử trước vị trí con trỏ"
               >
-                <RotateCcw className="w-3.5 h-3.5" /> Xóa ký tự
+                <RotateCcw className="w-3.5 h-3.5 text-muted-foreground" /> Xóa ký tự
               </button>
               <button
                 type="button"
                 onMouseDown={(e) => e.preventDefault()}
                 onClick={handleClearAll}
-                className="h-8 rounded-lg bg-destructive/10 text-destructive hover:bg-destructive/20 font-bold text-xs border border-destructive/20 transition-all flex items-center justify-center gap-1 active:scale-95"
+                className="h-8 rounded-lg bg-destructive/10 text-destructive hover:bg-destructive/20 font-semibold text-xs border border-destructive/20 transition-all flex items-center justify-center gap-1 active:scale-95 shadow-2xs"
                 title="Xóa toàn bộ biểu thức"
               >
                 <Trash2 className="w-3.5 h-3.5" /> Xóa hết

@@ -29,8 +29,16 @@ import { useToast } from "@/components/providers";
 import { Badge, Button, ErrorState, LoadingBlock, SaveBar } from "@/components/ui";
 import { api } from "@/lib/api";
 import { SmartFormulaEditor } from "@/components/formula/smart-formula-editor";
-import { evaluateExpression, expressionToFriendlyText, expressionToText, findVariableRanges, parseExpressionText } from "@/lib/formula-engine";
-import type { SalaryFormula } from "@/lib/types";
+import {
+  evaluateExpression,
+  expressionToFriendlyText,
+  expressionToText,
+  findVariableRanges,
+  parseExpressionText,
+  tokenizeFriendlyText,
+  variableCodeToName,
+} from "@/lib/formula-engine";
+import type { ExpressionNode, SalaryFormula } from "@/lib/types";
 import { uid } from "@/lib/utils";
 
 interface LibraryComponentItem {
@@ -341,40 +349,248 @@ function getVietnameseLabel(code: string, variableNameMap?: Map<string, string>)
   return knownDict[code] ?? code;
 }
 
-function FormulaCodeBadge({ text, variableNameMap }: { text: string; variableNameMap?: Map<string, string> }) {
-  if (!text) return null;
-  const tokens = text.split(/(\s+)/);
+export function OperatorSymbol({
+  op,
+  className = "w-3.5 h-3.5",
+}: {
+  op: string;
+  className?: string;
+}) {
+  if (op === "/" || op === "÷") {
+    return (
+      <svg
+        viewBox="0 0 24 24"
+        fill="none"
+        stroke="currentColor"
+        strokeWidth="2.5"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+        className={className}
+        aria-label="Dấu chia"
+      >
+        <circle cx="12" cy="5.5" r="1.8" fill="currentColor" />
+        <line x1="4.5" y1="12" x2="19.5" y2="12" strokeWidth="2.8" />
+        <circle cx="12" cy="18.5" r="1.8" fill="currentColor" />
+      </svg>
+    );
+  }
 
-  return (
-    <div className="px-3.5 py-2 rounded-xl bg-slate-950 border border-slate-800 text-slate-100 font-sans text-xs font-semibold shadow-inner inline-flex items-center gap-1.5 flex-wrap">
-      {tokens.map((tok, idx) => {
-        if (/^\s+$/.test(tok)) return null;
-        if (["+", "-", "*", "/", "(", ")"].includes(tok)) {
-          return (
-            <span key={idx} className="text-emerald-400 font-bold text-sm">
-              {tok === "*" ? "×" : tok === "/" ? "÷" : tok}
-            </span>
-          );
-        }
-        if (/^\d+(\.\d+)?$/.test(tok)) {
-          return (
-            <span key={idx} className="text-amber-400 font-bold">
-              {tok}
-            </span>
-          );
-        }
-        const label = getVietnameseLabel(tok, variableNameMap);
+  if (op === "*" || op === "×") {
+    return (
+      <svg
+        viewBox="0 0 24 24"
+        fill="none"
+        stroke="currentColor"
+        strokeWidth="2.8"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+        className={className}
+        aria-label="Dấu nhân"
+      >
+        <line x1="18" y1="6" x2="6" y2="18" />
+        <line x1="6" y1="6" x2="18" y2="18" />
+      </svg>
+    );
+  }
+
+  if (op === "+") {
+    return (
+      <svg
+        viewBox="0 0 24 24"
+        fill="none"
+        stroke="currentColor"
+        strokeWidth="2.8"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+        className={className}
+        aria-label="Dấu cộng"
+      >
+        <line x1="12" y1="5" x2="12" y2="19" />
+        <line x1="5" y1="12" x2="19" y2="12" />
+      </svg>
+    );
+  }
+
+  if (op === "-" || op === "−") {
+    return (
+      <svg
+        viewBox="0 0 24 24"
+        fill="none"
+        stroke="currentColor"
+        strokeWidth="2.8"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+        className={className}
+        aria-label="Dấu trừ"
+      >
+        <line x1="5" y1="12" x2="19" y2="12" />
+      </svg>
+    );
+  }
+
+  return <span className="font-bold text-sm leading-none">{op}</span>;
+}
+
+function renderVisualExpressionNode(
+  node: ExpressionNode,
+  variableNameMap?: Map<string, string>,
+  parentOperator?: string,
+  isRightChild = false
+): React.ReactNode[] {
+  if (node.type === "constant") {
+    return [
+      <span
+        key={`const-${node.value}-${Math.random()}`}
+        className="formula-const-pill"
+        title="Hằng số"
+      >
+        {node.value}
+      </span>,
+    ];
+  }
+
+  if (node.type === "variable") {
+    const label =
+      variableNameMap?.get(node.variableCode) ??
+      variableCodeToName[node.variableCode] ??
+      node.variableCode;
+    return [
+      <span
+        key={`var-${node.variableCode}-${Math.random()}`}
+        className="formula-var-pill"
+        title={`${label} (${node.variableCode})`}
+      >
+        {label}
+      </span>,
+    ];
+  }
+
+  if (node.type === "binary") {
+    const currentPrecedence = node.operator === "+" || node.operator === "-" ? 1 : 2;
+    const parentPrecedence =
+      parentOperator === "+" || parentOperator === "-" ? 1 : parentOperator ? 2 : 0;
+
+    const needsParentheses =
+      Boolean(parentOperator) &&
+      (currentPrecedence < parentPrecedence ||
+        (isRightChild &&
+          currentPrecedence === parentPrecedence &&
+          (parentOperator === "-" || parentOperator === "/" || parentOperator !== node.operator)));
+
+    const leftElements = renderVisualExpressionNode(
+      node.left,
+      variableNameMap,
+      node.operator,
+      false
+    );
+    const rightElements = renderVisualExpressionNode(
+      node.right,
+      variableNameMap,
+      node.operator,
+      true
+    );
+
+    const opElement = (
+      <span
+        key={`op-${node.operator}-${Math.random()}`}
+        className="formula-op-pill"
+        style={{ backgroundColor: "#038b8c", color: "#ffffff" }}
+        title={`Toán tử ${node.operator === "*" ? "nhân (×)" : node.operator === "/" ? "chia (÷)" : node.operator === "+" ? "cộng (+)" : "trừ (−)"}`}
+      >
+        <OperatorSymbol op={node.operator} />
+      </span>
+    );
+
+    if (needsParentheses) {
+      return [
+        <span
+          key={`open-${Math.random()}`}
+          className="formula-paren-pill"
+        >
+          (
+        </span>,
+        ...leftElements,
+        opElement,
+        ...rightElements,
+        <span
+          key={`close-${Math.random()}`}
+          className="formula-paren-pill"
+        >
+          )
+        </span>,
+      ];
+    }
+
+    return [...leftElements, opElement, ...rightElements];
+  }
+
+  return [];
+}
+
+export function FormulaVisualExpression({
+  formula,
+  rawText,
+  variableNameMap,
+}: {
+  formula?: SalaryFormula;
+  rawText?: string;
+  variableNameMap?: Map<string, string>;
+}) {
+  const elements = useMemo(() => {
+    if (formula?.expression) {
+      return renderVisualExpressionNode(formula.expression, variableNameMap);
+    }
+    const text = rawText || "";
+    if (!text.trim()) return null;
+    const tokens = tokenizeFriendlyText(text);
+    return tokens.map((tok, idx) => {
+      if (tok.type === "operator") {
         return (
           <span
-            key={idx}
-            className="text-sky-300 bg-sky-950/80 px-2 py-0.5 rounded-md border border-sky-800/60 text-[11.5px]"
+            key={`op-${idx}`}
+            className="formula-op-pill"
+            style={{ backgroundColor: "#038b8c", color: "#ffffff" }}
+            title={`Toán tử ${tok.text}`}
           >
-            {label}
+            <OperatorSymbol op={tok.text} />
           </span>
         );
-      })}
-    </div>
-  );
+      }
+
+      if (tok.type === "number") {
+        return (
+          <span
+            key={`num-${idx}`}
+            className="formula-const-pill"
+            title="Hằng số"
+          >
+            {tok.text}
+          </span>
+        );
+      }
+
+      const label =
+        variableNameMap?.get(tok.text) ??
+        variableCodeToName[tok.text] ??
+        tok.text;
+
+      return (
+        <span
+          key={`var-${idx}`}
+          className="formula-var-pill"
+          title={label}
+        >
+          {label}
+        </span>
+      );
+    });
+  }, [formula?.expression, rawText, variableNameMap]);
+
+  if (!elements || elements.length === 0) {
+    return <span className="text-muted text-xs italic">Chưa thiết lập công thức</span>;
+  }
+
+  return <div className="flex flex-wrap items-center gap-1.5 inline-flex">{elements}</div>;
 }
 
 function getSuggestedVariables(formula: SalaryFormula, variablesCatalog: { code: string; name: string }[]) {
@@ -1049,7 +1265,7 @@ export function FormulaTab({ projectId, embedded = false }: { projectId: string;
               </Button>
             </div>
 
-            <div className="p-4 space-y-3.5 bg-secondary/15">
+            <div className="p-4 space-y-3.5 bg-secondary/30">
               {formulas.length === 0 ? (
                 <div className="p-8 text-center text-xs text-muted bg-card border border-border rounded-xl">
                   Chưa có mục nào trong cấu trúc lương. Hãy chọn/kéo thả các mục từ Thư viện Thành phần Lương ở bên trái.
@@ -1063,12 +1279,14 @@ export function FormulaTab({ projectId, embedded = false }: { projectId: string;
                   return (
                     <div
                       key={formula.id}
-                      className={`rounded-xl border transition-all p-4 space-y-3.5 ${
-                        isModified
-                          ? "bg-amber-500/5 dark:bg-amber-950/20 border-border/40 border-l-4 border-l-amber-500 shadow-xs"
+                      className={`rounded-xl border transition-all p-4 space-y-3.5 bg-card ${
+                        isModified && isEditing
+                          ? "border-primary shadow-sm"
+                          : isModified
+                          ? "border-amber-400 dark:border-amber-500/70 shadow-xs"
                           : isEditing
-                          ? "bg-card border-primary/70 ring-1 ring-primary/20 shadow-sm"
-                          : "bg-card border-border/30 shadow-2xs hover:shadow-md hover:border-primary/40 hover:-translate-y-0.5"
+                          ? "border-primary/80 shadow-sm"
+                          : "border-border shadow-2xs hover:shadow-md hover:border-primary/40 hover:-translate-y-0.5"
                       }`}
                     >
                       <div className="flex flex-wrap items-center justify-between gap-3">
@@ -1110,13 +1328,17 @@ export function FormulaTab({ projectId, embedded = false }: { projectId: string;
                         </div>
                       </div>
 
-                      {/* VIEW MODE SUMMARY */}
+                      {/* VIEW MODE SUMMARY WITH GUARANTEED HIGH CONTRAST OPERATOR BADGES */}
                       {!isEditing && (
-                        <div className="p-2.5 rounded-lg bg-secondary/40 border border-border/30 flex items-center gap-2 text-xs">
-                          <span className="text-muted font-bold shrink-0">Biểu thức:</span>
-                          <code className="font-mono text-xs font-bold text-primary truncate">
-                            {getFormulaRawText(formula)}
-                          </code>
+                        <div className="p-3 rounded-xl bg-secondary/40 border border-border/60 flex flex-wrap items-center gap-2 text-xs">
+                          <span className="text-xs font-bold text-muted-foreground shrink-0 mr-1">
+                            Biểu thức tính toán:
+                          </span>
+                          <FormulaVisualExpression
+                            formula={formula}
+                            rawText={getFormulaRawText(formula)}
+                            variableNameMap={variableNameMap}
+                          />
                         </div>
                       )}
 

@@ -245,20 +245,26 @@ export function tokenizeFriendlyText(text: string): VisualToken[] {
   let idCounter = 1;
 
   const pushNonVarText = (segment: string) => {
-    const rawTokens = segment.split(/(\s+)/);
+    const rawTokens = segment.split(/([+\-*/×÷()]|\s+)/);
     for (const raw of rawTokens) {
       if (!raw || /^\s+$/.test(raw)) continue;
       if (["+", "-", "*", "/", "×", "÷", "(", ")"].includes(raw)) {
         tokens.push({
           id: `tok-${idCounter++}`,
           type: "operator",
-          text: raw === "*" ? "×" : raw === "/" ? "÷" : raw,
+          text: raw === "*" ? "×" : raw === "/" ? "÷" : raw === "-" ? "−" : raw,
         });
       } else if (/^\d+(\.\d+)?%?$/.test(raw)) {
         tokens.push({
           id: `tok-${idCounter++}`,
           type: "number",
           text: raw,
+        });
+      } else if (variableCodeToName[raw]) {
+        tokens.push({
+          id: `tok-${idCounter++}`,
+          type: "variable",
+          text: variableCodeToName[raw],
         });
       } else {
         tokens.push({

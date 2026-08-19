@@ -4,25 +4,23 @@ import { useQuery } from "@tanstack/react-query";
 import {
   CalendarDays,
   Coins,
-  FileSpreadsheet,
   Filter,
   Palmtree,
-  Percent,
+  ScrollText,
   ShieldCheck,
-  UserCheck,
   Users,
 } from "lucide-react";
 import { useState } from "react";
 import { DependentsSubtab } from "@/components/employees/dependents-subtab";
+import { EmployeePoliciesSubtab } from "@/components/employees/policies-subtab";
 import { InsuranceSubtab } from "@/components/employees/insurance-subtab";
 import { LeaveSubtab } from "@/components/employees/leave-subtab";
 import { StandardWorkdaysSubtab } from "@/components/employees/standard-workdays-subtab";
-import { TaxSubtab } from "@/components/employees/tax-subtab";
 import { UnionFeesSubtab } from "@/components/employees/union-fees-subtab";
-import { Badge, EmptyState, ErrorState, LoadingBlock, SearchableSelect } from "@/components/ui";
+import { EmptyState, ErrorState, LoadingBlock, SearchableSelect } from "@/components/ui";
 import { api } from "@/lib/api";
 
-type EmployeeSubtab = "dependents" | "leave" | "union" | "workdays" | "insurance" | "tax";
+type EmployeeSubtab = "dependents" | "leave" | "union" | "workdays" | "insurance" | "policies";
 
 export function EmployeesTab({
   projectId,
@@ -129,11 +127,11 @@ export function EmployeesTab({
 
         <button
           type="button"
-          className={`subnav-item ${activeSubtab === "tax" ? "active" : ""}`}
-          onClick={() => setActiveSubtab("tax")}
+          className={`subnav-item ${activeSubtab === "policies" ? "active" : ""}`}
+          onClick={() => setActiveSubtab("policies")}
         >
-          <Percent />
-          <span>Thuế TNCN</span>
+          <ScrollText />
+          <span>Chế độ &amp; Phụ cấp</span>
         </button>
       </nav>
 
@@ -163,12 +161,8 @@ export function EmployeesTab({
             {activeSubtab === "insurance" && (
               <InsuranceSubtab projectId={effectiveProjectId} employees={employees} />
             )}
-            {activeSubtab === "tax" && (
-              <TaxSubtab
-                projectId={effectiveProjectId}
-                employees={employees}
-                onNavigateToDependents={() => setActiveSubtab("dependents")}
-              />
+            {activeSubtab === "policies" && (
+              <EmployeePoliciesSubtab projectId={effectiveProjectId} employees={employees} />
             )}
           </>
         )}
