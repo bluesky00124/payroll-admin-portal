@@ -21,61 +21,13 @@ import { useToast } from "@/components/providers";
 import { Badge, Button, LoadingBlock, Modal } from "@/components/ui";
 import { api } from "@/lib/api";
 import { resetMockDatabase } from "@/lib/mock-db";
-import type { Employee, GroupColorTone, ProjectEmployeeGroup } from "@/lib/types";
+import type { Employee, ProjectEmployeeGroup } from "@/lib/types";
 
 interface ManageEmployeeGroupsModalProps {
   projectId: string;
   isOpen: boolean;
   onClose: () => void;
 }
-
-const COLOR_CONFIG: Record<
-  GroupColorTone,
-  { label: string; dotClass: string; bgClass: string; textClass: string; badgeTone: "info" | "success" | "warning" | "neutral" }
-> = {
-  primary: {
-    label: "Xanh lục",
-    dotClass: "bg-emerald-500",
-    bgClass: "bg-emerald-50 text-emerald-700 dark:bg-emerald-950/40 dark:text-emerald-300",
-    textClass: "text-emerald-600 dark:text-emerald-400",
-    badgeTone: "success",
-  },
-  info: {
-    label: "Xanh dương",
-    dotClass: "bg-sky-500",
-    bgClass: "bg-sky-50 text-sky-700 dark:bg-sky-950/40 dark:text-sky-300",
-    textClass: "text-sky-600 dark:text-sky-400",
-    badgeTone: "info",
-  },
-  success: {
-    label: "Xanh lá",
-    dotClass: "bg-green-500",
-    bgClass: "bg-green-50 text-green-700 dark:bg-green-950/40 dark:text-green-300",
-    textClass: "text-green-600 dark:text-green-400",
-    badgeTone: "success",
-  },
-  warning: {
-    label: "Cam hổ phách",
-    dotClass: "bg-amber-500",
-    bgClass: "bg-amber-50 text-amber-700 dark:bg-amber-950/40 dark:text-amber-300",
-    textClass: "text-amber-600 dark:text-amber-400",
-    badgeTone: "warning",
-  },
-  purple: {
-    label: "Tím thạch anh",
-    dotClass: "bg-purple-500",
-    bgClass: "bg-purple-50 text-purple-700 dark:bg-purple-950/40 dark:text-purple-300",
-    textClass: "text-purple-600 dark:text-purple-400",
-    badgeTone: "info",
-  },
-  neutral: {
-    label: "Xám trung tính",
-    dotClass: "bg-slate-500",
-    bgClass: "bg-slate-100 text-slate-700 dark:bg-slate-800/40 dark:text-slate-300",
-    textClass: "text-slate-600 dark:text-slate-400",
-    badgeTone: "neutral",
-  },
-};
 
 export function ManageEmployeeGroupsModal({
   projectId,
@@ -94,7 +46,6 @@ export function ManageEmployeeGroupsModal({
   const [formName, setFormName] = useState("");
   const [formCode, setFormCode] = useState("");
   const [formDescription, setFormDescription] = useState("");
-  const [formColorTone, setFormColorTone] = useState<GroupColorTone>("primary");
   const [formIsDefault, setFormIsDefault] = useState(false);
 
   // Add Member Popover / Drawer state
@@ -246,7 +197,6 @@ export function ManageEmployeeGroupsModal({
     setFormName("");
     setFormCode("");
     setFormDescription("");
-    setFormColorTone("primary");
     setFormIsDefault(false);
   };
 
@@ -261,7 +211,6 @@ export function ManageEmployeeGroupsModal({
     setFormName(group.name);
     setFormCode(group.code);
     setFormDescription(group.description ?? "");
-    setFormColorTone(group.colorTone);
     setFormIsDefault(Boolean(group.isDefault));
   };
 
@@ -276,7 +225,6 @@ export function ManageEmployeeGroupsModal({
       name: formName.trim(),
       code: formCode.trim() || formName.trim().toLowerCase().replace(/\s+/g, "_"),
       description: formDescription.trim(),
-      colorTone: formColorTone,
       isDefault: formIsDefault,
     };
 
@@ -346,38 +294,40 @@ export function ManageEmployeeGroupsModal({
     <Modal
       open={isOpen}
       onOpenChange={(open) => !open && onClose()}
-      title="Quản lý Nhóm người lao động & Phân bổ Chế độ"
-      description="Tổ chức các nhóm lao động theo đặc thù dự án (Quản lý, Chính thức, Học việc, Thời vụ...) để thiết lập chính sách lương và chế độ tương ứng."
+      title="Quản lý Nhóm người lao động"
+      description="Tổ chức các nhóm lao động theo đặc thù dự án"
       size="xl"
     >
       <div className="space-y-4">
         {groupsQuery.isLoading || employeesQuery.isLoading ? (
           <LoadingBlock rows={7} />
         ) : (
-          /* SEAMLESS MASTER-DETAIL WORKSPACE (CLEAN & BORDERLESS) */
-          <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 min-h-[460px]">
+          /* MODERN MASTER-DETAIL WORKSPACE */
+          <div className="grid grid-cols-1 lg:grid-cols-12 gap-5 min-h-[480px]">
             {/* LEFT COLUMN: Groups Navigation Sidebar (4 Cols) */}
-            <aside className="lg:col-span-4 flex flex-col justify-between p-2 rounded-xl bg-secondary/30 space-y-3">
+            <aside className="lg:col-span-4 flex flex-col justify-between p-3 rounded-2xl bg-secondary/40 border border-border/70 space-y-3.5">
               <div className="space-y-2.5">
-                <div className="flex items-center justify-between px-2 pt-1">
-                  <div className="flex items-center gap-1.5">
-                    <Layers className="w-3.5 h-3.5 text-primary" />
-                    <span className="font-semibold text-xs text-foreground uppercase tracking-wider">
+                <div className="flex items-center justify-between px-1 pt-0.5">
+                  <div className="flex items-center gap-2">
+                    <div className="w-6 h-6 rounded-lg bg-primary/10 text-primary flex items-center justify-center">
+                      <Layers className="w-3.5 h-3.5" />
+                    </div>
+                    <span className="font-bold text-xs text-foreground uppercase tracking-wider">
                       Nhóm lao động ({groups.length})
                     </span>
                   </div>
                   <Button
                     size="sm"
                     variant="primary"
-                    className="h-7 text-xs px-2.5"
+                    className="h-7 text-xs px-2.5 shadow-2xs"
                     onClick={handleOpenCreateForm}
                   >
                     <Plus className="w-3.5 h-3.5" /> Tạo nhóm
                   </Button>
                 </div>
 
-                {/* Groups List: Clean Apple-style rows without heavy card borders */}
-                <div className="space-y-1 max-h-[340px] overflow-y-auto pr-1">
+                {/* Groups List: Clean cards with active indicator */}
+                <div className="space-y-1.5 max-h-[350px] overflow-y-auto p-1 -m-1 custom-scrollbar">
                   {groups.length === 0 ? (
                     <div className="py-8 text-center text-xs text-muted">
                       Chưa có nhóm nào. Bấm &quot;Tạo nhóm&quot; để bắt đầu.
@@ -386,7 +336,6 @@ export function ManageEmployeeGroupsModal({
                     groups.map((group) => {
                       const isSelected = activeGroup?.id === group.id;
                       const count = group.employeeCount ?? 0;
-                      const config = COLOR_CONFIG[group.colorTone] ?? COLOR_CONFIG.primary;
 
                       return (
                         <div
@@ -396,40 +345,33 @@ export function ManageEmployeeGroupsModal({
                             setIsFormOpen(false);
                             setIsAddMemberDrawerOpen(false);
                           }}
-                          className={`group/card relative px-3 py-2 rounded-xl transition-all cursor-pointer flex items-center justify-between ${
+                          className={`group/card relative px-3 py-2.5 rounded-xl transition-all duration-150 cursor-pointer flex items-center justify-between border ${
                             isSelected
-                              ? "bg-card text-foreground shadow-xs ring-1 ring-border/80"
-                              : "text-muted hover:text-foreground hover:bg-card/50"
+                              ? "bg-card border-primary/40 shadow-xs text-foreground"
+                              : "bg-transparent border-transparent hover:bg-card/70 hover:border-border/60 text-muted hover:text-foreground"
                           }`}
                         >
-                          <div className="flex items-center gap-2.5 min-w-0">
-                            {/* Flat Pastel Monogram (No border) */}
-                            <div
-                              className={`w-7 h-7 rounded-lg flex items-center justify-center font-bold text-[11px] flex-shrink-0 ${config.bgClass}`}
-                            >
-                              {getMonogram(group.name)}
-                            </div>
+                          {/* Active edge highlight */}
+                          {isSelected && (
+                            <span className="absolute left-0 top-2.5 bottom-2.5 w-1 bg-primary rounded-r-full" />
+                          )}
 
-                            {/* Name & Code */}
-                            <div className="min-w-0">
-                              <div className="flex items-center gap-1.5">
-                                <span className={`font-semibold text-xs truncate block ${isSelected ? "text-primary" : "text-foreground"}`}>
-                                  {group.name}
+                          <div className="min-w-0 flex-1 pr-2">
+                            <span className={`font-semibold text-xs truncate block ${isSelected ? "text-primary font-bold" : "text-foreground"}`}>
+                              {group.name}
+                            </span>
+                            <div className="flex items-center gap-1.5 text-[11px] text-muted mt-0.5">
+                              <span className="font-mono truncate">Mã: {group.code}</span>
+                              {group.isDefault && (
+                                <span className="text-[9.5px] font-semibold px-1.5 py-0.2 rounded bg-primary/10 text-primary border border-primary/20 shrink-0">
+                                  Mặc định
                                 </span>
-                                {group.isDefault && (
-                                  <span className="text-[10px] px-1 py-0.2 rounded bg-secondary/80 text-muted font-medium flex-shrink-0">
-                                    Mặc định
-                                  </span>
-                                )}
-                              </div>
-                              <span className="text-[11px] font-mono text-muted/80 block truncate">
-                                Mã: {group.code}
-                              </span>
+                              )}
                             </div>
                           </div>
 
-                          <div className="flex items-center gap-1.5 flex-shrink-0 ml-2">
-                            <span className="text-[11px] font-mono text-muted px-2 py-0.5 rounded-full bg-secondary/60">
+                          <div className="flex items-center gap-1.5 shrink-0">
+                            <span className="text-[11px] font-mono font-medium text-muted px-2 py-0.5 rounded-full bg-secondary/80 border border-border/50">
                               {count} NV
                             </span>
 
@@ -454,23 +396,18 @@ export function ManageEmployeeGroupsModal({
               </div>
 
               {/* Sidebar Footer Stats */}
-              <div className="pt-2 px-2 border-t border-border/40 space-y-1.5 text-xs">
+              <div className="pt-3 px-1 border-t border-border/60 space-y-2 text-xs">
                 <div className="flex items-center justify-between text-muted">
                   <span>Tổng nhân sự dự án:</span>
                   <strong className="text-foreground font-mono">{employees.length} người</strong>
                 </div>
-                <div className="w-full bg-secondary/80 rounded-full h-1.5 overflow-hidden flex">
-                  {groups.map((g) => {
-                    const pct = employees.length > 0 ? ((g.employeeCount ?? 0) / employees.length) * 100 : 0;
-                    return (
-                      <div
-                        key={g.id}
-                        style={{ width: `${pct}%` }}
-                        className={`${COLOR_CONFIG[g.colorTone]?.dotClass || "bg-primary"} h-full`}
-                        title={`${g.name}: ${g.employeeCount ?? 0} nhân sự (${Math.round(pct)}%)`}
-                      />
-                    );
-                  })}
+                <div className="w-full bg-secondary rounded-full h-1.5 overflow-hidden">
+                  <div
+                    style={{
+                      width: `${employees.length > 0 ? (groups.reduce((acc, g) => acc + (g.employeeCount ?? 0), 0) / employees.length) * 100 : 0}%`,
+                    }}
+                    className="bg-primary h-full transition-all duration-300 rounded-full"
+                  />
                 </div>
               </div>
             </aside>
@@ -479,11 +416,13 @@ export function ManageEmployeeGroupsModal({
             <main className="lg:col-span-8 flex flex-col justify-between space-y-4">
               {isFormOpen ? (
                 /* INLINE FORM: CREATE / EDIT GROUP */
-                <form onSubmit={handleSaveGroupForm} className="p-4 rounded-xl bg-secondary/20 space-y-4 animate-in fade-in duration-150">
-                  <div className="flex items-center justify-between border-b border-border/50 pb-2.5">
+                <form onSubmit={handleSaveGroupForm} className="p-4 rounded-2xl bg-secondary/30 border border-border/70 space-y-4 animate-in fade-in duration-150">
+                  <div className="flex items-center justify-between border-b border-border/60 pb-3">
                     <div className="flex items-center gap-2">
-                      {editingGroupId ? <Pencil className="w-4 h-4 text-primary" /> : <FolderPlus className="w-4 h-4 text-primary" />}
-                      <h4 className="font-semibold text-sm text-foreground">
+                      <div className="w-7 h-7 rounded-lg bg-primary/10 text-primary flex items-center justify-center">
+                        {editingGroupId ? <Pencil className="w-4 h-4" /> : <FolderPlus className="w-4 h-4" />}
+                      </div>
+                      <h4 className="font-bold text-sm text-foreground">
                         {editingGroupId ? `Chỉnh sửa nhóm: ${formName || "Nhóm lao động"}` : "Tạo nhóm người lao động mới"}
                       </h4>
                     </div>
@@ -492,13 +431,13 @@ export function ManageEmployeeGroupsModal({
                     </Button>
                   </div>
 
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-3.5">
                     <div>
                       <label className="text-xs font-semibold text-foreground mb-1 block">
                         Tên nhóm lao động <span className="text-rose-500">*</span>
                       </label>
                       <input
-                        className="w-full h-9 px-3 text-xs rounded-lg border border-border bg-background focus:outline-none focus:ring-2 focus:ring-primary/20"
+                        className="w-full h-9 px-3 text-xs rounded-xl border border-border bg-card text-foreground focus:outline-none focus:border-primary focus:ring-2 focus:ring-primary/15 transition-all shadow-2xs"
                         placeholder="VD: Quản lý / Shift Leader, Lao động thời vụ..."
                         value={formName}
                         onChange={(e) => setFormName(e.target.value)}
@@ -511,7 +450,7 @@ export function ManageEmployeeGroupsModal({
                         Mã nhóm (Mã định danh hệ thống)
                       </label>
                       <input
-                        className="w-full h-9 px-3 text-xs font-mono rounded-lg border border-border bg-background focus:outline-none focus:ring-2 focus:ring-primary/20"
+                        className="w-full h-9 px-3 text-xs font-mono rounded-xl border border-border bg-card text-foreground focus:outline-none focus:border-primary focus:ring-2 focus:ring-primary/15 transition-all shadow-2xs"
                         placeholder="VD: shift_leader, chinh_thuc, thoi_vu..."
                         value={formCode}
                         onChange={(e) => setFormCode(e.target.value)}
@@ -523,51 +462,27 @@ export function ManageEmployeeGroupsModal({
                         Mô tả tiêu chuẩn &amp; đối tượng áp dụng
                       </label>
                       <input
-                        className="w-full h-9 px-3 text-xs rounded-lg border border-border bg-background focus:outline-none focus:ring-2 focus:ring-primary/20"
+                        className="w-full h-9 px-3 text-xs rounded-xl border border-border bg-card text-foreground focus:outline-none focus:border-primary focus:ring-2 focus:ring-primary/15 transition-all shadow-2xs"
                         placeholder="Mô tả tiêu chuẩn xếp loại của nhóm này trong chính sách lương..."
                         value={formDescription}
                         onChange={(e) => setFormDescription(e.target.value)}
                       />
                     </div>
 
-                    <div>
-                      <label className="text-xs font-semibold text-foreground mb-1.5 block">
-                        Tông màu nhận diện
-                      </label>
-                      <div className="flex items-center gap-2">
-                        {(Object.keys(COLOR_CONFIG) as GroupColorTone[]).map((tone) => {
-                          const conf = COLOR_CONFIG[tone];
-                          return (
-                            <button
-                              key={tone}
-                              type="button"
-                              onClick={() => setFormColorTone(tone)}
-                              className={`w-6 h-6 rounded-full flex items-center justify-center transition-transform ${conf.dotClass} ${
-                                formColorTone === tone ? "ring-2 ring-offset-2 ring-primary scale-110" : "opacity-70 hover:opacity-100"
-                              }`}
-                              title={conf.label}
-                            >
-                              {formColorTone === tone && <Check className="w-3.5 h-3.5 text-white" />}
-                            </button>
-                          );
-                        })}
-                      </div>
-                    </div>
-
-                    <div className="flex items-center gap-2 pt-4">
+                    <div className="md:col-span-2 flex items-center gap-2 pt-2">
                       <label className="inline-flex items-center gap-2 cursor-pointer text-xs font-medium text-foreground">
                         <input
                           type="checkbox"
                           checked={formIsDefault}
                           onChange={(e) => setFormIsDefault(e.target.checked)}
-                          className="rounded text-primary focus:ring-primary"
+                          className="w-4 h-4 rounded border-border text-primary focus:ring-primary/20 cursor-pointer"
                         />
                         Đặt làm nhóm mặc định cho nhân sự mới
                       </label>
                     </div>
                   </div>
 
-                  <div className="flex justify-end gap-2 pt-3 border-t border-border/50">
+                  <div className="flex justify-end gap-2 pt-3 border-t border-border/60">
                     <Button type="button" variant="secondary" size="sm" onClick={resetForm}>
                       Hủy bỏ
                     </Button>
@@ -576,6 +491,7 @@ export function ManageEmployeeGroupsModal({
                       variant="primary"
                       size="sm"
                       disabled={createGroupMutation.isPending || updateGroupMutation.isPending}
+                      className="shadow-2xs"
                     >
                       <CheckCircle2 className="w-3.5 h-3.5" /> Lưu nhóm
                     </Button>
@@ -583,10 +499,10 @@ export function ManageEmployeeGroupsModal({
                 </form>
               ) : isAddMemberDrawerOpen ? (
                 /* DRAWER: ADD MEMBERS FROM OTHER GROUPS */
-                <div className="space-y-4 animate-in fade-in duration-150">
-                  <div className="flex items-center justify-between pb-2 border-b border-border/50">
+                <div className="space-y-3.5 animate-in fade-in duration-150">
+                  <div className="flex items-center justify-between pb-3 border-b border-border/60">
                     <div>
-                      <h4 className="font-semibold text-sm text-foreground flex items-center gap-1.5">
+                      <h4 className="font-bold text-sm text-foreground flex items-center gap-1.5">
                         <UserPlus className="w-4 h-4 text-primary" />
                         Thêm nhân sự vào nhóm &quot;{activeGroup?.name}&quot;
                       </h4>
@@ -607,20 +523,31 @@ export function ManageEmployeeGroupsModal({
 
                   {/* Search & Actions */}
                   <div className="flex items-center justify-between gap-3">
-                    <label className="search-field !h-8 text-xs flex-1">
-                      <Search className="w-3.5 h-3.5" />
+                    <label className="search-field search-field-full flex-1">
+                      <Search />
                       <input
+                        type="text"
                         placeholder="Tìm theo tên, mã NV, phòng ban..."
                         value={addMemberSearch}
                         onChange={(e) => setAddMemberSearch(e.target.value)}
                       />
+                      {addMemberSearch && (
+                        <button
+                          type="button"
+                          onClick={() => setAddMemberSearch("")}
+                          className="text-muted hover:text-foreground p-0.5 rounded-full hover:bg-secondary shrink-0"
+                          title="Xóa tìm kiếm"
+                        >
+                          <X className="w-3.5 h-3.5" />
+                        </button>
+                      )}
                     </label>
 
                     {selectedEmpIdsToAdd.size > 0 && (
                       <Button
                         size="sm"
                         variant="primary"
-                        className="h-8 text-xs font-semibold"
+                        className="h-9 text-xs font-semibold shadow-xs"
                         onClick={handleBatchAssignFromDrawer}
                         disabled={assignMutation.isPending}
                       >
@@ -631,66 +558,68 @@ export function ManageEmployeeGroupsModal({
 
                   {/* Candidate List */}
                   {candidateEmployeesToAdd.length === 0 ? (
-                    <div className="py-12 text-center rounded-xl bg-secondary/15 space-y-1">
+                    <div className="py-12 text-center rounded-2xl bg-secondary/30 border border-border/70 space-y-1">
                       <Users className="w-7 h-7 text-muted mx-auto" />
                       <h5 className="text-xs font-semibold text-foreground">
                         {addMemberSearch ? "Không tìm thấy nhân sự phù hợp" : "Tất cả nhân sự trong dự án đã thuộc nhóm này"}
                       </h5>
                     </div>
                   ) : (
-                    <div className="divide-y divide-border/40 max-h-[280px] overflow-y-auto pr-1">
-                      {candidateEmployeesToAdd.map((emp) => {
-                        const isChecked = selectedEmpIdsToAdd.has(emp.id);
-                        return (
-                          <label
-                            key={emp.id}
-                            className={`flex items-center justify-between p-2.5 rounded-lg cursor-pointer transition-colors text-xs ${
-                              isChecked
-                                ? "bg-primary/5 dark:bg-primary/10"
-                                : "hover:bg-secondary/40"
-                            }`}
-                          >
-                            <div className="flex items-center gap-2.5">
-                              <input
-                                type="checkbox"
-                                checked={isChecked}
-                                onChange={() => toggleSelectEmpToAdd(emp.id)}
-                                className="rounded text-primary focus:ring-primary"
-                              />
-                              <div className="space-y-0.5">
-                                <span className="font-semibold text-foreground block">{emp.name}</span>
-                                <span className="text-[11px] font-mono text-muted block">
-                                  {emp.code} · {emp.position || "Công nhân"} ·{" "}
-                                  <span className="text-primary font-sans font-medium">
-                                    Đang ở: {getEmployeeCurrentGroupName(emp)}
-                                  </span>
-                                </span>
-                              </div>
-                            </div>
-
-                            <Button
-                              type="button"
-                              size="sm"
-                              variant="secondary"
-                              className="h-6 text-[11px] px-2"
-                              onClick={(e) => {
-                                e.preventDefault();
-                                if (!activeGroup) return;
-                                assignMutation.mutate({
-                                  groupId: activeGroup.id,
-                                  employeeIds: [emp.id],
-                                });
-                              }}
+                    <div className="rounded-2xl border border-border/80 bg-card overflow-hidden shadow-2xs">
+                      <div className="divide-y divide-border/50 max-h-[290px] overflow-y-auto custom-scrollbar p-1">
+                        {candidateEmployeesToAdd.map((emp) => {
+                          const isChecked = selectedEmpIdsToAdd.has(emp.id);
+                          return (
+                            <label
+                              key={emp.id}
+                              className={`flex items-center justify-between p-2.5 rounded-xl cursor-pointer transition-colors text-xs ${
+                                isChecked
+                                  ? "bg-primary/5"
+                                  : "hover:bg-secondary/40"
+                              }`}
                             >
-                              + Thêm ngay
-                            </Button>
-                          </label>
-                        );
-                      })}
+                              <div className="flex items-center gap-2.5 min-w-0">
+                                <input
+                                  type="checkbox"
+                                  checked={isChecked}
+                                  onChange={() => toggleSelectEmpToAdd(emp.id)}
+                                  className="w-4 h-4 rounded border-border text-primary focus:ring-primary/20 cursor-pointer"
+                                />
+                                <div className="space-y-0.5 min-w-0">
+                                  <span className="font-semibold text-foreground block truncate">{emp.name}</span>
+                                  <span className="text-[11px] font-mono text-muted block truncate">
+                                    {emp.code} · {emp.position || "Công nhân"} ·{" "}
+                                    <span className="text-primary font-sans font-medium">
+                                      Đang ở: {getEmployeeCurrentGroupName(emp)}
+                                    </span>
+                                  </span>
+                                </div>
+                              </div>
+
+                              <Button
+                                type="button"
+                                size="sm"
+                                variant="secondary"
+                                className="h-6.5 text-[11px] px-2 shrink-0 border-border"
+                                onClick={(e) => {
+                                  e.preventDefault();
+                                  if (!activeGroup) return;
+                                  assignMutation.mutate({
+                                    groupId: activeGroup.id,
+                                    employeeIds: [emp.id],
+                                  });
+                                }}
+                              >
+                                + Thêm ngay
+                              </Button>
+                            </label>
+                          );
+                        })}
+                      </div>
                     </div>
                   )}
 
-                  <div className="flex justify-end pt-2 border-t border-border/40">
+                  <div className="flex justify-end pt-2 border-t border-border/60">
                     <Button size="sm" variant="secondary" onClick={() => setIsAddMemberDrawerOpen(false)}>
                       Quay lại danh sách
                     </Button>
@@ -699,22 +628,22 @@ export function ManageEmployeeGroupsModal({
               ) : activeGroup ? (
                 /* VIEW ACTIVE GROUP & MEMBER ROSTER */
                 <div className="space-y-3.5">
-                  {/* Clean Typography Header (No bulky bordered hero box) */}
-                  <div className="flex flex-wrap items-start justify-between gap-3 pb-3 border-b border-border/40">
+                  {/* Clean Hero Header */}
+                  <div className="flex flex-wrap items-start justify-between gap-3 pb-3 border-b border-border/60">
                     <div className="space-y-1">
-                      <div className="flex items-center gap-2">
-                        <span className="font-bold text-base text-foreground">{activeGroup.name}</span>
-                        <Badge tone={COLOR_CONFIG[activeGroup.colorTone]?.badgeTone || "info"}>
+                      <div className="flex items-center gap-2 flex-wrap">
+                        <span className="font-bold text-base text-foreground tracking-tight">{activeGroup.name}</span>
+                        <Badge tone="neutral">
                           {activeGroupMembers.length} nhân sự
                         </Badge>
                         {activeGroup.isDefault && (
-                          <span className="text-[10px] px-1.5 py-0.2 rounded bg-secondary text-muted font-medium">
+                          <span className="text-[10px] font-semibold px-2 py-0.5 rounded-md bg-secondary text-muted border border-border/60">
                             Mặc định
                           </span>
                         )}
                       </div>
-                      <p className="text-xs text-muted max-w-lg">
-                        {activeGroup.description || "Chưa có mô tả chi tiết cho nhóm này."}
+                      <p className="text-xs text-muted max-w-lg leading-relaxed">
+                        {activeGroup.description || "Chưa có mô tả chi tiết cho nhóm người lao động này."}
                       </p>
                     </div>
 
@@ -722,7 +651,7 @@ export function ManageEmployeeGroupsModal({
                       <Button
                         size="sm"
                         variant="secondary"
-                        className="h-8 text-xs"
+                        className="h-8 text-xs font-medium border-border"
                         onClick={() => handleOpenEditForm(activeGroup)}
                       >
                         <Pencil className="w-3.5 h-3.5" /> Sửa nhóm
@@ -730,7 +659,7 @@ export function ManageEmployeeGroupsModal({
                       <Button
                         size="sm"
                         variant="primary"
-                        className="h-8 text-xs"
+                        className="h-8 text-xs font-semibold shadow-2xs"
                         onClick={() => {
                           setSelectedEmpIdsToAdd(new Set());
                           setIsAddMemberDrawerOpen(true);
@@ -743,22 +672,33 @@ export function ManageEmployeeGroupsModal({
 
                   {/* Member Roster Toolbar */}
                   <div className="flex flex-wrap items-center justify-between gap-3">
-                    <label className="search-field !h-8 text-xs flex-1 min-w-[200px]">
-                      <Search className="w-3.5 h-3.5" />
+                    <label className="search-field search-field-full flex-1 min-w-[220px]">
+                      <Search />
                       <input
+                        type="text"
                         placeholder={`Tìm trong nhóm ${activeGroup.name}...`}
                         value={memberSearch}
                         onChange={(e) => setMemberSearch(e.target.value)}
                       />
+                      {memberSearch && (
+                        <button
+                          type="button"
+                          onClick={() => setMemberSearch("")}
+                          className="text-muted hover:text-foreground p-0.5 rounded-full hover:bg-secondary shrink-0"
+                          title="Xóa tìm kiếm"
+                        >
+                          <X className="w-3.5 h-3.5" />
+                        </button>
+                      )}
                     </label>
 
                     {selectedRosterEmpIds.size > 0 && (
-                      <div className="flex items-center gap-2 bg-primary/10 px-3 py-1 rounded-lg animate-in fade-in duration-150">
+                      <div className="flex items-center gap-2 bg-primary/10 border border-primary/20 px-3 py-1 rounded-xl animate-in fade-in duration-150">
                         <span className="text-xs text-primary font-semibold">
                           Đã chọn {selectedRosterEmpIds.size} NV:
                         </span>
                         <select
-                          className="h-7 px-2 text-xs font-semibold rounded border border-border bg-background text-foreground focus:outline-none"
+                          className="h-7.5 pl-2.5 pr-7 text-xs font-semibold rounded-lg border border-border bg-card text-foreground focus:outline-none focus:border-primary cursor-pointer shadow-2xs"
                           value={batchTargetGroupId}
                           onChange={(e) => setBatchTargetGroupId(e.target.value)}
                         >
@@ -773,7 +713,7 @@ export function ManageEmployeeGroupsModal({
                         <Button
                           size="sm"
                           variant="primary"
-                          className="h-7 text-xs"
+                          className="h-7.5 text-xs shadow-2xs"
                           onClick={handleBatchTransferFromRoster}
                           disabled={assignMutation.isPending}
                         >
@@ -785,7 +725,7 @@ export function ManageEmployeeGroupsModal({
 
                   {/* Members Table */}
                   {filteredActiveMembers.length === 0 ? (
-                    <div className="py-12 text-center rounded-xl bg-secondary/15 space-y-2">
+                    <div className="py-12 text-center rounded-2xl bg-secondary/30 border border-border/70 space-y-2">
                       <Users className="w-7 h-7 text-muted mx-auto" />
                       <h5 className="text-xs font-semibold text-foreground">
                         {memberSearch
@@ -801,6 +741,7 @@ export function ManageEmployeeGroupsModal({
                             size="sm"
                             variant="primary"
                             onClick={() => setIsAddMemberDrawerOpen(true)}
+                            className="shadow-2xs"
                           >
                             <UserPlus className="w-3.5 h-3.5" /> Thêm nhân sự ngay
                           </Button>
@@ -808,61 +749,84 @@ export function ManageEmployeeGroupsModal({
                       )}
                     </div>
                   ) : (
-                    <div className="rounded-xl overflow-hidden bg-card border border-border/40">
-                      <div className="max-h-[280px] overflow-y-auto">
-                        <table className="data-table !m-0">
-                          <thead className="sticky top-0 bg-secondary/80 backdrop-blur z-10">
+                    <div className="rounded-2xl border border-border/80 bg-card shadow-2xs overflow-hidden">
+                      <div className="max-h-[300px] overflow-y-auto custom-scrollbar">
+                        <table className="w-full text-left border-collapse">
+                          <thead className="sticky top-0 bg-secondary/70 backdrop-blur-xs z-10 border-b border-border/80">
                             <tr>
-                              <th style={{ width: "36px" }} className="text-center">
+                              <th className="w-10 px-3 py-2.5 text-center">
                                 <input
                                   type="checkbox"
                                   checked={selectedRosterEmpIds.size === filteredActiveMembers.length && filteredActiveMembers.length > 0}
                                   onChange={toggleSelectAllRoster}
-                                  className="rounded text-primary focus:ring-primary"
+                                  className="w-3.5 h-3.5 rounded border-border text-primary focus:ring-primary/20 cursor-pointer"
                                   title="Chọn tất cả"
                                 />
                               </th>
-                              <th style={{ width: "40px" }} className="text-center">STT</th>
-                              <th>Nhân viên</th>
-                              <th>Vị trí &amp; Phòng ban</th>
-                              <th style={{ width: "190px" }} className="text-center">Chuyển sang nhóm</th>
+                              <th className="w-12 px-2 py-2.5 text-center text-[11px] font-bold text-muted uppercase tracking-wider">
+                                STT
+                              </th>
+                              <th className="px-3 py-2.5 text-[11px] font-bold text-muted uppercase tracking-wider">
+                                Nhân viên
+                              </th>
+                              <th className="px-3 py-2.5 text-[11px] font-bold text-muted uppercase tracking-wider">
+                                Vị trí &amp; Phòng ban
+                              </th>
+                              <th className="w-[190px] px-3 py-2.5 text-center text-[11px] font-bold text-muted uppercase tracking-wider">
+                                Chuyển sang nhóm
+                              </th>
                             </tr>
                           </thead>
-                          <tbody>
+                          <tbody className="divide-y divide-border/40">
                             {filteredActiveMembers.map((emp, index) => {
                               const isChecked = selectedRosterEmpIds.has(emp.id);
 
                               return (
                                 <tr
                                   key={emp.id}
-                                  className={`transition-colors ${isChecked ? "bg-primary/5 dark:bg-primary/10" : ""}`}
+                                  className={`transition-colors group hover:bg-secondary/30 ${
+                                    isChecked ? "bg-primary/5" : ""
+                                  }`}
                                 >
-                                  <td className="text-center">
+                                  <td className="px-3 py-2.5 text-center">
                                     <input
                                       type="checkbox"
                                       checked={isChecked}
                                       onChange={() => toggleSelectRosterEmp(emp.id)}
-                                      className="rounded text-primary focus:ring-primary"
+                                      className="w-3.5 h-3.5 rounded border-border text-primary focus:ring-primary/20 cursor-pointer"
                                     />
                                   </td>
-                                  <td className="text-center text-muted text-xs font-medium">{index + 1}</td>
-                                  <td>
+                                  <td className="px-2 py-2.5 text-center text-xs font-mono text-muted">
+                                    {index + 1}
+                                  </td>
+                                  <td className="px-3 py-2.5">
+                                    <div className="flex items-center gap-2.5">
+                                      <div className="w-7 h-7 rounded-lg bg-secondary/80 text-foreground flex items-center justify-center font-bold text-[10px] shrink-0 border border-border/60">
+                                        {getMonogram(emp.name)}
+                                      </div>
+                                      <div className="min-w-0">
+                                        <span className="font-semibold text-xs text-foreground block truncate">
+                                          {emp.name}
+                                        </span>
+                                        <span className="text-[11px] font-mono text-muted block truncate">
+                                          {emp.code} {emp.phone ? `· ${emp.phone}` : ""}
+                                        </span>
+                                      </div>
+                                    </div>
+                                  </td>
+                                  <td className="px-3 py-2.5">
                                     <div className="space-y-0.5">
-                                      <span className="font-semibold text-xs text-foreground block">{emp.name}</span>
-                                      <span className="text-[11px] font-mono text-muted block">
-                                        {emp.code} · {emp.phone}
+                                      <span className="text-xs text-foreground font-medium block truncate">
+                                        {emp.position || "Công nhân"}
+                                      </span>
+                                      <span className="text-[11px] text-muted block truncate">
+                                        {emp.department || "Xưởng sản xuất"}
                                       </span>
                                     </div>
                                   </td>
-                                  <td>
-                                    <div className="space-y-0.5">
-                                      <span className="text-xs text-foreground block">{emp.position || "Công nhân"}</span>
-                                      <span className="text-[11px] text-muted block">{emp.department || "Xưởng sản xuất"}</span>
-                                    </div>
-                                  </td>
-                                  <td className="text-center">
+                                  <td className="px-3 py-2.5 text-center">
                                     <select
-                                      className="h-7 px-2 text-[11px] font-semibold rounded border border-border/80 bg-secondary/50 hover:bg-secondary text-foreground focus:outline-none focus:ring-1 focus:ring-primary"
+                                      className="w-full max-w-[170px] h-7.5 pl-2.5 pr-7 text-xs font-semibold rounded-lg border border-border bg-card hover:bg-secondary/40 text-foreground focus:outline-none focus:border-primary focus:ring-2 focus:ring-primary/15 transition-all cursor-pointer shadow-2xs"
                                       value={activeGroup.id}
                                       onChange={(e) => {
                                         const targetGId = e.target.value;
@@ -901,7 +865,7 @@ export function ManageEmployeeGroupsModal({
         )}
 
         {/* MODAL FOOTER */}
-        <div className="flex items-center justify-between pt-3 border-t border-border/40">
+        <div className="flex items-center justify-between pt-3 border-t border-border/60">
           <Button
             type="button"
             variant="ghost"

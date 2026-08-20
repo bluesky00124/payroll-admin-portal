@@ -813,8 +813,6 @@ export function InsuranceSubtab({
                         className={
                           isChecked
                             ? "highlight-selected-row"
-                            : isPending
-                            ? "highlight-pending-row"
                             : undefined
                         }
                       >

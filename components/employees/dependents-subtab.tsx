@@ -659,8 +659,9 @@ export function DependentsSubtab({
                     </th>
                   )}
                   <th style={{ width: "45px" }} className="text-center">STT</th>
-                  <th style={{ minWidth: "200px" }}>NGƯỜI LAO ĐỘNG (NNT)</th>
-                  <th style={{ minWidth: "220px" }}>NGƯỜI PHỤ THUỘC (NPT)</th>
+                  <th style={{ minWidth: "190px" }}>NGƯỜI LAO ĐỘNG (NNT)</th>
+                  <th style={{ minWidth: "200px" }}>NGƯỜI PHỤ THUỘC (NPT)</th>
+                  <th style={{ width: "160px" }}>QUAN HỆ</th>
                   <th style={{ width: "160px" }}>HIỆU LỰC ÁP DỤNG</th>
                   <th style={{ width: "120px" }}>TRẠNG THÁI</th>
                   <th style={{ width: "60px" }} className="text-center">THAO TÁC</th>
@@ -683,8 +684,6 @@ export function DependentsSubtab({
                       className={
                         isSelected
                           ? "highlight-selected-row"
-                          : isPending
-                          ? "highlight-pending-row"
                           : undefined
                       }
                     >
@@ -723,12 +722,7 @@ export function DependentsSubtab({
                       </td>
                       <td>
                         <div className="flex flex-col space-y-0.5">
-                          <div className="flex items-center gap-1.5">
-                            <strong className="text-foreground font-semibold">{item.fullName}</strong>
-                            <Badge tone="neutral">
-                              {relationshipLabel(item.relationship)}
-                            </Badge>
-                          </div>
+                          <strong className="text-foreground font-semibold">{item.fullName}</strong>
                           {item.dob && (
                             <div className="text-[11px] text-muted">
                               <span>Ngày sinh: <span className="text-foreground font-medium font-mono">{formatDate(item.dob)}</span></span>
@@ -745,6 +739,11 @@ export function DependentsSubtab({
                             </div>
                           )}
                         </div>
+                      </td>
+                      <td>
+                        <Badge tone="neutral">
+                          {relationshipLabel(item.relationship)}
+                        </Badge>
                       </td>
                       <td>
                         <div className="font-mono text-xs flex items-center gap-1">
