@@ -383,7 +383,10 @@ export function PayrollWorkspacePage() {
           <div className="create-payroll-form">
             <div className="form-grid">
               <label className="form-field"><span>1. Chọn dự án</span><select value={createProjectId} onChange={(event) => setCreateProjectId(event.target.value)}>{workspace.projects.filter((item) => item.status === "active").map((project) => <option value={project.id} key={project.id}>{project.code} — {project.name}</option>)}</select></label>
-              <MonthPicker value={createPeriod} onChange={setCreatePeriod} label="2. Chọn tháng cần xuất" variant="form" />
+              <div className="form-field">
+                <span>2. Chọn tháng cần xuất</span>
+                <MonthPicker value={createPeriod} onChange={setCreatePeriod} variant="form" placeholder="Chọn tháng..." />
+              </div>
             </div>
             <div className="attendance-picker-heading"><div><span>3. Chọn bảng công đã chốt</span><small>{createSheets.length} bảng công trong kỳ</small></div><Badge tone="info"><ShieldCheck />Điều kiện tạo lương</Badge></div>
             <div className="attendance-picker">
@@ -399,7 +402,6 @@ export function PayrollWorkspacePage() {
                 );
               })}
             </div>
-            <div className="create-payroll-note"><ShieldCheck /><div><strong>Kiểm soát theo quy trình</strong><p>Hệ thống sẽ đối chiếu mã NV, CCCD, MST, HĐLĐ, ATM, bảo hiểm, ứng lương, vi phạm, phụ cấp và các quyết định đã duyệt trước khi tính.</p></div></div>
           </div>
         )}
       </Modal>
