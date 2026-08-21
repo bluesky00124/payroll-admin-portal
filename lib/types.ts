@@ -514,9 +514,84 @@ export interface PayrollLine {
   allowances: number;
   deductions: number;
   netPay: number;
+  detail?: PayrollLineDetail;
   note?: string;
   updatedAt?: string;
   updatedBy?: string;
+}
+
+export interface PayrollLineAttendanceDetail {
+  regularHours: number;
+  nightHours: number;
+  overtimeWeekdayHours: number;
+  overtimeNightWeekdayHours: number;
+  overtimeWeekendHours: number;
+  overtimeNightWeekendHours: number;
+  overtimeHolidayHours: number;
+  totalHours: number;
+  workDaysForAllowance: number;
+  holidayLeaveDays: number;
+  regimeLeaveDays: number;
+  annualLeaveDays: number;
+  rosterLeaveDays: number;
+  approvedLeaveDays: number;
+  unapprovedLeaveDays: number;
+  totalPaidDays: number;
+}
+
+export interface PayrollLineIncomeDetail {
+  contractualSalary: number;
+  regularPay: number;
+  attendanceBonus: number;
+  performanceBonus: number;
+  phoneAllowance: number;
+  insuranceAllowance: number;
+  otherAllowance: number;
+  mealAllowance: number;
+  annualLeavePay: number;
+  overtimeWeekdayPay: number;
+  overtimeNightWeekdayPay: number;
+  overtimeWeekendPay: number;
+  overtimeNightWeekendPay: number;
+  overtimeHolidayPay: number;
+  nightAllowance: number;
+  annualLeaveSettlement: number;
+  productivityBonus: number;
+  salaryAdjustment: number;
+  benefitPay: number;
+  projectBonus: number;
+  projectSupport: number;
+  grossPay: number;
+}
+
+export interface PayrollLineDeductionDetail {
+  socialInsurance: number;
+  healthInsurance: number;
+  unemploymentInsurance: number;
+  insuranceTotal: number;
+  insuranceAdjustment: number;
+  healthCardArrears: number;
+  unionFee: number;
+  personalIncomeTax: number;
+  uniformDepreciation: number;
+  violation: number;
+  retention: number;
+  ekkoAdvance: number;
+  salaryAdvance: number;
+  total: number;
+}
+
+export interface PayrollLinePaymentDetail {
+  method: "transfer" | "cash";
+  transferAmount: number;
+  cashAmount: number;
+}
+
+export interface PayrollLineDetail {
+  attendance: PayrollLineAttendanceDetail;
+  income: PayrollLineIncomeDetail;
+  deductions: PayrollLineDeductionDetail;
+  payment: PayrollLinePaymentDetail;
 }
 
 export type PayrollFeedbackStatus =

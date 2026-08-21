@@ -1,4 +1,5 @@
 import { mutateMockDatabase, readMockDatabase } from "@/lib/mock-db";
+import { createPayrollLineDetail } from "@/lib/payroll-line-detail";
 import type {
   MockDatabase,
   PayrollAuditEvent,
@@ -89,7 +90,7 @@ export function createPayrollRun(input: CreatePayrollInput): PayrollRun {
       const overtimePay = Math.round((baseSalary / 208) * overtimeHours * 1.5);
       const allowances = policy?.totalAllowance ?? 950_000 + (index % 3) * 100_000;
       const deductions = Math.round((policy?.insuranceSalary ?? baseSalary) * 0.105) + 50_000;
-      return {
+      const line: PayrollLine = {
         id: uid("pay-line"),
         payrollId: runId,
         employeeId: employee.id,
@@ -104,6 +105,8 @@ export function createPayrollRun(input: CreatePayrollInput): PayrollRun {
         deductions,
         netPay: basePay + overtimePay + allowances - deductions,
       };
+      line.detail = createPayrollLineDetail(line);
+      return line;
     });
 
     created = {
@@ -169,6 +172,7 @@ export function updatePayrollLine(
       updatedAt: now(),
       updatedBy: actor,
     });
+    line.detail = createPayrollLineDetail(line);
     updateTotals(database, line.payrollId);
     addAudit(database, line.payrollId, {
       type: "edit",

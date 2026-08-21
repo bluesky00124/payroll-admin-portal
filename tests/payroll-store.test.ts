@@ -25,7 +25,11 @@ describe("payroll workflow store", () => {
     const workspace = getPayrollWorkspace();
     expect(created.status).toBe("admin_review");
     expect(created.code).toBe("BL-LGT-BD-202608-V1");
-    expect(workspace.payrollLines.filter((line) => line.payrollId === created.id)).toHaveLength(3);
+    const createdLines = workspace.payrollLines.filter((line) => line.payrollId === created.id);
+    expect(createdLines).toHaveLength(3);
+    expect(createdLines[0].detail?.income.grossPay).toBe(createdLines[0].basePay + createdLines[0].overtimePay + createdLines[0].allowances);
+    expect(createdLines[0].detail?.deductions.total).toBe(createdLines[0].deductions);
+    expect(createdLines[0].detail?.payment.transferAmount || createdLines[0].detail?.payment.cashAmount).toBe(createdLines[0].netPay);
     expect(workspace.attendanceSheets.find((sheet) => sheet.id === "att-lgt-2026-08-final")?.usedByPayrollId).toBe(created.id);
 
     expect(() => createPayrollRun({
@@ -51,7 +55,9 @@ describe("payroll workflow store", () => {
     }, accountant, "Bổ sung 2 giờ OT theo xác nhận khách hàng");
 
     const updated = getPayrollWorkspace();
-    expect(updated.payrollLines.find((item) => item.id === line!.id)?.netPay).toBe(line!.netPay + 200_000);
+    const updatedLine = updated.payrollLines.find((item) => item.id === line!.id);
+    expect(updatedLine?.netPay).toBe(line!.netPay + 200_000);
+    expect(updatedLine?.detail?.income.grossPay).toBe(updatedLine!.basePay + updatedLine!.overtimePay + updatedLine!.allowances);
     expect(updated.auditEvents.some((event) => event.payrollId === "pay-jss-2026-08" && event.type === "edit")).toBe(true);
 
     const lockedLine = updated.payrollLines.find((item) => item.payrollId === "pay-jss-2026-07");

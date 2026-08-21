@@ -5,6 +5,12 @@ import type {
   PayrollLine,
   PayrollRun,
 } from "@/lib/types";
+import { createPayrollLineDetail } from "@/lib/payroll-line-detail";
+
+const withPayrollDetail = (line: PayrollLine): PayrollLine => ({
+  ...line,
+  detail: createPayrollLineDetail(line),
+});
 
 const payrollRuns: PayrollRun[] = [
   {
@@ -90,21 +96,21 @@ const jssLines: PayrollLine[] = [
   const numericOvertimePay = Number(overtimePay);
   const numericAllowances = Number(allowances);
   const numericDeductions = Number(deductions);
-  return {
+  return withPayrollDetail({
     id: `line-jss-2026-08-${index + 1}`,
     payrollId: "pay-jss-2026-08",
     employeeId: String(employeeId), employeeCode: String(employeeCode), employeeName: String(employeeName), position: String(position),
     workDays: Number(workDays), overtimeHours: Number(overtimeHours), basePay: numericBasePay, overtimePay: numericOvertimePay,
     allowances: numericAllowances, deductions: numericDeductions,
     netPay: numericBasePay + numericOvertimePay + numericAllowances - numericDeductions,
-  };
+  });
 });
 
 const swmLines: PayrollLine[] = [
   { id: "line-swm-1", payrollId: "pay-swm-2026-08", employeeId: "emp-swm-001", employeeCode: "NV-SWM-001", employeeName: "Đỗ Minh Khang", position: "Tổ trưởng", workDays: 25, overtimeHours: 20, basePay: 8200000, overtimePay: 1185000, allowances: 1250000, deductions: 1010000, netPay: 9625000 },
   { id: "line-swm-2", payrollId: "pay-swm-2026-08", employeeId: "emp-swm-002", employeeCode: "NV-SWM-002", employeeName: "Nguyễn Thùy Linh", position: "Công nhân", workDays: 24, overtimeHours: 12, basePay: 6300000, overtimePay: 545000, allowances: 950000, deductions: 720000, netPay: 7075000 },
   { id: "line-swm-3", payrollId: "pay-swm-2026-08", employeeId: "emp-swm-003", employeeCode: "NV-SWM-003", employeeName: "Trần Quốc Toàn", position: "Công nhân", workDays: 26, overtimeHours: 17, basePay: 6800000, overtimePay: 805000, allowances: 1100000, deductions: 790000, netPay: 7915000 },
-];
+].map(withPayrollDetail);
 
 const payrollFeedbacks: PayrollFeedback[] = [
   { id: "fb-swm-001", payrollId: "pay-swm-2026-08", employeeId: "emp-swm-002", employeeCode: "NV-SWM-002", employeeName: "Nguyễn Thùy Linh", category: "overtime", message: "Phiếu lương đang ghi 12 giờ OT, em đã làm 16 giờ theo bảng xác nhận ca ngày 12/08.", status: "pending_owner", submittedAt: "2026-08-20T10:05:00.000Z" },
