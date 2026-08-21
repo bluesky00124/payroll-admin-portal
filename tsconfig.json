@@ -12,7 +12,12 @@
     "types": ["@cloudflare/workers-types"],
     "resolveJsonModule": true,
     "isolatedModules": true,
-    "jsx": "react-jsx",
+    "jsx": "preserve",
+    "plugins": [
+      {
+        "name": "next"
+      }
+    ],
     "incremental": true,
     "paths": {
       "@/*": ["./*"]
