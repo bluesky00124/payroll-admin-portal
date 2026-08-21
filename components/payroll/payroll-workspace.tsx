@@ -29,7 +29,7 @@ import {
 } from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
 import { useToast, useUserRole, type UserRole } from "@/components/providers";
-import { Badge, Button, Modal, MonthPicker, StatusBadge, UserAvatar } from "@/components/ui";
+import { Badge, Button, Modal, MonthPicker, StatusBadge, TablePaginationFooter, UserAvatar } from "@/components/ui";
 import {
   createPayrollRun,
   getPayrollWorkspace,
@@ -140,6 +140,8 @@ export function PayrollWorkspacePage() {
   const [monthFilter, setMonthFilter] = useState("2026-08");
   const [statusFilter, setStatusFilter] = useState("all");
   const [query, setQuery] = useState("");
+  const [page, setPage] = useState(1);
+  const [pageSize, setPageSize] = useState(10);
   const [createOpen, setCreateOpen] = useState(false);
   const [createProjectId, setCreateProjectId] = useState("prj-jss");
   const [createPeriod, setCreatePeriod] = useState("2026-08");
@@ -195,6 +197,15 @@ export function PayrollWorkspacePage() {
       })
       .sort((a, b) => b.updatedAt.localeCompare(a.updatedAt));
   }, [workspace, projectFilter, monthFilter, statusFilter, query]);
+
+  useEffect(() => {
+    setPage(1);
+  }, [projectFilter, monthFilter, statusFilter, query]);
+
+  const paginatedRuns = useMemo(() => {
+    const start = (page - 1) * pageSize;
+    return filteredRuns.slice(start, start + pageSize);
+  }, [filteredRuns, page, pageSize]);
 
   if (!workspace) return <div className="payroll-loading"><RefreshCw className="spin" /> Đang tải dữ liệu bảng lương…</div>;
 
@@ -320,7 +331,7 @@ export function PayrollWorkspacePage() {
         <div>
           <div className="eyebrow"><Banknote /> VẬN HÀNH KỲ LƯƠNG</div>
           <h1>Bảng lương</h1>
-          <p>Tạo từ bảng công đã chốt, kiểm soát phê duyệt, xử lý phản hồi và khóa dữ liệu theo PKT.QT06.V05.</p>
+          <p>Tạo từ bảng công đã chốt</p>
         </div>
         <Button variant="primary" onClick={() => setCreateOpen(true)}><Plus />Tạo bảng lương</Button>
       </div>
@@ -346,27 +357,39 @@ export function PayrollWorkspacePage() {
           {filteredRuns.length === 0 ? (
             <div className="payroll-empty"><Inbox /><h3>Chưa có bảng lương phù hợp</h3><p>Thay đổi bộ lọc hoặc tạo bảng lương từ một bảng công đã được duyệt.</p><Button variant="primary" onClick={() => setCreateOpen(true)}><Plus />Tạo bảng lương</Button></div>
           ) : (
-            <div className="payroll-table-wrap">
-              <table className="payroll-table">
-                <thead><tr><th>Bảng lương</th><th>Kỳ lương</th><th>Thực nhận</th><th>Tiến độ</th><th>Phản hồi</th><th>Cập nhật</th><th /></tr></thead>
-                <tbody>{filteredRuns.map((run) => {
-                  const project = getProject(workspace, run.projectId);
-                  const stage = stageForStatus[run.status];
-                  const hasUnresolvedFeedback = workspace.feedbacks.some((item) => item.payrollId === run.id && !["adjusted", "rejected"].includes(item.status));
-                  return (
-                    <tr key={run.id} onClick={() => { setSelectedPayrollId(run.id); setDetailTab("overview"); }}>
-                      <td><div className="payroll-code-cell"><span className={run.status === "locked" ? "locked" : ""}>{run.status === "locked" ? <LockKeyhole /> : <FileSpreadsheet />}</span><div><strong>{run.code}</strong><small>{project?.code} · {project?.name}</small></div></div></td>
-                      <td><strong>{formatMonthYear(run.period, true)}</strong><small>{run.employeeCount} NLĐ</small></td>
-                      <td><strong className="money-value">{formatCurrency(run.netPayroll)}</strong><small>Khấu trừ {formatCurrency(run.totalDeductions)}</small></td>
-                      <td><div className="payroll-progress-cell"><div><span style={{ width: `${Math.min(100, ((stage - 1) / 8) * 100)}%` }} /></div><StatusBadge tone={statusConfig[run.status].tone}>{statusConfig[run.status].short}</StatusBadge></div></td>
-                      <td>{run.feedbackCount > 0 ? <button type="button" className={`payroll-feedback-trigger ${hasUnresolvedFeedback ? "warning" : "success"}`} aria-label={`Mở ${run.feedbackCount} phản hồi của ${run.code}`} onClick={(event) => { event.stopPropagation(); setSelectedPayrollId(run.id); setDetailTab("feedback"); }}><MessageSquareText /><span>{run.feedbackCount}</span></button> : <span className="muted-dash">—</span>}</td>
-                      <td><span>{formatDate(run.updatedAt)}</span><small>{run.createdBy.split(" (")[0]}</small></td>
-                      <td><button className="row-chevron" type="button" aria-label={`Mở ${run.code}`}><ChevronRight /></button></td>
-                    </tr>
-                  );
-                })}</tbody>
-              </table>
-            </div>
+            <>
+              <div className="payroll-table-wrap">
+                <table className="payroll-table">
+                  <thead><tr><th>Bảng lương</th><th>Kỳ lương</th><th>Thực nhận</th><th>Tiến độ</th><th>Phản hồi</th><th>Cập nhật</th><th /></tr></thead>
+                  <tbody>{paginatedRuns.map((run) => {
+                    const project = getProject(workspace, run.projectId);
+                    const stage = stageForStatus[run.status];
+                    const hasUnresolvedFeedback = workspace.feedbacks.some((item) => item.payrollId === run.id && !["adjusted", "rejected"].includes(item.status));
+                    return (
+                      <tr key={run.id} onClick={() => { setSelectedPayrollId(run.id); setDetailTab("overview"); }}>
+                        <td><div className="payroll-code-cell"><span className={run.status === "locked" ? "locked" : ""}>{run.status === "locked" ? <LockKeyhole /> : <FileSpreadsheet />}</span><div><strong>{run.code}</strong><small>{project?.code} · {project?.name}</small></div></div></td>
+                        <td><strong>{formatMonthYear(run.period, true)}</strong><small>{run.employeeCount} NLĐ</small></td>
+                        <td><strong className="money-value">{formatCurrency(run.netPayroll)}</strong><small>Khấu trừ {formatCurrency(run.totalDeductions)}</small></td>
+                        <td><div className="payroll-progress-cell"><div><span style={{ width: `${Math.min(100, ((stage - 1) / 8) * 100)}%` }} /></div><StatusBadge tone={statusConfig[run.status].tone}>{statusConfig[run.status].short}</StatusBadge></div></td>
+                        <td>{run.feedbackCount > 0 ? <button type="button" className={`payroll-feedback-trigger ${hasUnresolvedFeedback ? "warning" : "success"}`} aria-label={`Mở ${run.feedbackCount} phản hồi của ${run.code}`} onClick={(event) => { event.stopPropagation(); setSelectedPayrollId(run.id); setDetailTab("feedback"); }}><MessageSquareText /><span>{run.feedbackCount}</span></button> : <span className="muted-dash">—</span>}</td>
+                        <td><span>{formatDate(run.updatedAt)}</span><small>{run.createdBy.split(" (")[0]}</small></td>
+                        <td><button className="row-chevron" type="button" aria-label={`Mở ${run.code}`}><ChevronRight /></button></td>
+                      </tr>
+                    );
+                  })}</tbody>
+                </table>
+              </div>
+              <TablePaginationFooter
+                totalItems={filteredRuns.length}
+                currentPage={page}
+                pageSize={pageSize}
+                onPageChange={setPage}
+                onPageSizeChange={(newSize) => {
+                  setPageSize(newSize);
+                  setPage(1);
+                }}
+              />
+            </>
           )}
       </section>
 
