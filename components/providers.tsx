@@ -34,7 +34,7 @@ export function useToast() {
   return context;
 }
 
-export type UserRole = "accountant" | "bcsx";
+export type UserRole = "accountant" | "bcsx" | "project_owner" | "payment_accountant";
 
 interface UserRoleContextValue {
   role: UserRole;
@@ -87,12 +87,20 @@ function AppRuntime({ children }: { children: React.ReactNode }) {
     toggleMode: () => setMode((value) => value === "light" ? "dark" : "light"),
   }), [preset, mode]);
 
-  const roleValue = useMemo(() => ({
-    role,
-    setRole: (val: UserRole) => setRoleState(val),
-    roleLabel: role === "accountant" ? "Kế toán (C&B)" : "Ban Chăm Sóc (BCSX)",
-    roleSubtitle: role === "accountant" ? "Kiểm tra & Duyệt hồ sơ" : "Thu thập & Khai báo",
-  }), [role]);
+  const roleValue = useMemo(() => {
+    const roleMeta: Record<UserRole, { label: string; subtitle: string }> = {
+      accountant: { label: "Kế toán (C&B)", subtitle: "Tính lương & điều chỉnh" },
+      bcsx: { label: "Ban Chăm Sóc (BCSX)", subtitle: "Kiểm tra dữ liệu dự án" },
+      project_owner: { label: "Chủ dự án (CDA)", subtitle: "Phê duyệt & giải trình" },
+      payment_accountant: { label: "Kế toán Thanh toán", subtitle: "Doanh thu & đối chiếu" },
+    };
+    return {
+      role,
+      setRole: (val: UserRole) => setRoleState(val),
+      roleLabel: roleMeta[role].label,
+      roleSubtitle: roleMeta[role].subtitle,
+    };
+  }, [role]);
 
   return (
     <UserRoleContext.Provider value={roleValue}>

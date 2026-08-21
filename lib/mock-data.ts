@@ -25,6 +25,7 @@ import type {
   TestEmployee,
   UnionFeeRecord,
 } from "@/lib/types";
+import { payrollSeed } from "@/lib/payroll-seed";
 
 const projects: Project[] = [
   {
@@ -3206,7 +3207,7 @@ export const activityLogs: ActivityLogItem[] = [
 ];
 
 export const seedDatabase: MockDatabase = {
-  schemaVersion: 14,
+  schemaVersion: 15,
   projects,
   policyDefinitions,
   projectPolicies,
@@ -3228,5 +3229,5 @@ export const seedDatabase: MockDatabase = {
   employeePolicies,
   projectEmployeeGroups,
   activityLogs,
+  ...payrollSeed,
 };
-

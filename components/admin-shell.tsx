@@ -1,7 +1,7 @@
 "use client";
 
 import * as DropdownMenu from "@radix-ui/react-dropdown-menu";
-import { BriefcaseBusiness, ChevronLeft, ChevronRight, Moon, Palette, RotateCcw, Sun, UserRound, Users } from "lucide-react";
+import { Banknote, BriefcaseBusiness, ChevronLeft, ChevronRight, Moon, Palette, RotateCcw, Sun, UserRound, Users } from "lucide-react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useState } from "react";
@@ -26,6 +26,7 @@ export function AdminShell({ children, detailLabel }: { children: React.ReactNod
   };
 
   const isEmployeesPage = pathname.startsWith("/employees");
+  const isPayrollPage = pathname.startsWith("/payroll");
 
   return (
     <div className={`admin-layout ${collapsed ? "sidebar-collapsed" : ""}`}>
@@ -34,13 +35,16 @@ export function AdminShell({ children, detailLabel }: { children: React.ReactNod
         <nav aria-label="Menu chính">
           <Link className={pathname.startsWith("/projects") ? "active" : ""} href="/projects"><BriefcaseBusiness /><span>Dự án</span></Link>
           <Link className={isEmployeesPage ? "active" : ""} href="/employees"><Users /><span>Người lao động</span></Link>
+          <Link className={isPayrollPage ? "active" : ""} href="/payroll"><Banknote /><span>Bảng lương</span></Link>
         </nav>
         <button type="button" className="collapse-button" onClick={() => setCollapsed((value) => !value)} aria-label={collapsed ? "Mở rộng sidebar" : "Thu gọn sidebar"}>{collapsed ? <ChevronRight /> : <><ChevronLeft /><span>Thu gọn</span></>}</button>
       </aside>
       <section className="main-shell">
         <header className="topbar">
           <div className="breadcrumbs">
-            {isEmployeesPage ? (
+            {isPayrollPage ? (
+              <><Link href="/payroll">Bảng lương</Link>{detailLabel && <><ChevronRight /><span>{detailLabel}</span></>}</>
+            ) : isEmployeesPage ? (
               <><Link href="/employees">Người lao động</Link>{detailLabel && <><ChevronRight /><span>{detailLabel}</span></>}</>
             ) : (
               <><Link href="/projects">Dự án</Link>{detailLabel && <><ChevronRight /><span>{detailLabel}</span></>}</>
@@ -85,6 +89,30 @@ export function AdminShell({ children, detailLabel }: { children: React.ReactNod
                     <div>
                       <strong>Kế toán (C&B Admin)</strong>
                       <div className="text-xs text-muted">Import Excel, kiểm tra &amp; Xác nhận hợp lệ</div>
+                    </div>
+                  </DropdownMenu.Item>
+                  <DropdownMenu.Item
+                    className={role === "project_owner" ? "selected" : ""}
+                    onSelect={() => {
+                      setRole("project_owner");
+                      notify("Đã đăng nhập: Chủ dự án (Phê duyệt bảng lương & phản hồi)");
+                    }}
+                  >
+                    <div>
+                      <strong>Chủ dự án (CDA/GSDA)</strong>
+                      <div className="text-xs text-muted">Xác nhận, duyệt phản hồi &amp; giải trình chênh lệch</div>
+                    </div>
+                  </DropdownMenu.Item>
+                  <DropdownMenu.Item
+                    className={role === "payment_accountant" ? "selected" : ""}
+                    onSelect={() => {
+                      setRole("payment_accountant");
+                      notify("Đã đăng nhập: Kế toán Thanh toán (Cập nhật doanh thu)");
+                    }}
+                  >
+                    <div>
+                      <strong>Kế toán Thanh toán</strong>
+                      <div className="text-xs text-muted">Cập nhật doanh thu &amp; kiểm tra chênh lệch</div>
                     </div>
                   </DropdownMenu.Item>
                   <DropdownMenu.Item

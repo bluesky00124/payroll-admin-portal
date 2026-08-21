@@ -448,6 +448,110 @@ export interface EmployeePolicyRecord {
   updatedBy?: string;
 }
 
+export type AttendanceSheetStatus = "approved" | "pending";
+
+export interface PayrollAttendanceSheet {
+  id: string;
+  projectId: string;
+  period: string;
+  code: string;
+  name: string;
+  source: "system" | "excel" | "customer";
+  status: AttendanceSheetStatus;
+  employeeCount: number;
+  approvedAt?: string;
+  approvedBy?: string;
+  usedByPayrollId?: string;
+}
+
+export type PayrollStatus =
+  | "admin_review"
+  | "project_approval"
+  | "payslip_confirmation"
+  | "revenue_check"
+  | "explanation_required"
+  | "ready_to_finalize"
+  | "locked";
+
+export interface PayrollRun {
+  id: string;
+  code: string;
+  projectId: string;
+  period: string;
+  attendanceSheetId: string;
+  status: PayrollStatus;
+  employeeCount: number;
+  confirmedPayslipCount: number;
+  grossPayroll: number;
+  totalDeductions: number;
+  netPayroll: number;
+  feedbackCount: number;
+  previousPayrollCost?: number;
+  previousRevenue?: number;
+  currentRevenue?: number;
+  varianceRate?: number;
+  varianceAmount?: number;
+  explanation?: string;
+  createdBy: string;
+  createdAt: string;
+  updatedAt: string;
+  publishedAt?: string;
+  lockedAt?: string;
+  lockedBy?: string;
+}
+
+export interface PayrollLine {
+  id: string;
+  payrollId: string;
+  employeeId: string;
+  employeeCode: string;
+  employeeName: string;
+  position: string;
+  workDays: number;
+  overtimeHours: number;
+  basePay: number;
+  overtimePay: number;
+  allowances: number;
+  deductions: number;
+  netPay: number;
+  note?: string;
+  updatedAt?: string;
+  updatedBy?: string;
+}
+
+export type PayrollFeedbackStatus =
+  | "pending_owner"
+  | "pending_accounting"
+  | "adjusted"
+  | "rejected";
+
+export interface PayrollFeedback {
+  id: string;
+  payrollId: string;
+  employeeId: string;
+  employeeCode: string;
+  employeeName: string;
+  category: "attendance" | "overtime" | "allowance" | "deduction" | "personal" | "other";
+  message: string;
+  status: PayrollFeedbackStatus;
+  submittedAt: string;
+  ownerReviewedAt?: string;
+  ownerReviewedBy?: string;
+  accountingNote?: string;
+  rejectionReason?: string;
+  resolvedAt?: string;
+}
+
+export interface PayrollAuditEvent {
+  id: string;
+  payrollId: string;
+  type: "create" | "approve" | "publish" | "revenue" | "explain" | "edit" | "feedback" | "lock";
+  title: string;
+  description: string;
+  actor: string;
+  createdAt: string;
+}
+
 export type ActivityLogModule = "policies" | "workdays" | "union" | "insurance" | "dependents";
 
 export interface ActivityLogItem {
@@ -490,4 +594,9 @@ export interface MockDatabase {
   employeePolicies: EmployeePolicyRecord[];
   projectEmployeeGroups: ProjectEmployeeGroup[];
   activityLogs: ActivityLogItem[];
+  payrollAttendanceSheets: PayrollAttendanceSheet[];
+  payrollRuns: PayrollRun[];
+  payrollLines: PayrollLine[];
+  payrollFeedbacks: PayrollFeedback[];
+  payrollAuditEvents: PayrollAuditEvent[];
 }
