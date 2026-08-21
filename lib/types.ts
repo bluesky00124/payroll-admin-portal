@@ -448,6 +448,25 @@ export interface EmployeePolicyRecord {
   updatedBy?: string;
 }
 
+export type ActivityLogModule = "policies" | "workdays" | "union" | "insurance" | "dependents";
+
+export interface ActivityLogItem {
+  id: string;
+  projectId: string;
+  module: ActivityLogModule;
+  employeeId?: string;
+  employeeCode?: string;
+  employeeName?: string;
+  actionType: "create" | "update" | "delete" | "approve" | "reject" | "import" | "override" | "restore" | "join" | "leave";
+  actionLabel: string;
+  details: string;
+  oldValue?: string | number;
+  newValue?: string | number;
+  changedBy: string;
+  reason?: string;
+  createdAt: string;
+}
+
 export interface MockDatabase {
   schemaVersion: number;
   projects: Project[];
@@ -470,4 +489,5 @@ export interface MockDatabase {
   taxConfigs: TaxConfigRecord[];
   employeePolicies: EmployeePolicyRecord[];
   projectEmployeeGroups: ProjectEmployeeGroup[];
+  activityLogs: ActivityLogItem[];
 }

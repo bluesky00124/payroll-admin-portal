@@ -23,6 +23,7 @@ import {
 } from "lucide-react";
 import { useMemo, useRef, useState } from "react";
 import { AttachmentPreviewModal } from "@/components/employees/attachment-preview-modal";
+import { SubtabActivityLog } from "@/components/employees/subtab-activity-log";
 import { useToast, useUserRole } from "@/components/providers";
 import { Badge, Button, EmptyState, ErrorState, LoadingBlock, Modal, MonthPicker, SearchableSelect, StatusBadge, TablePaginationFooter, TableRowActions } from "@/components/ui";
 import { api } from "@/lib/api";
@@ -331,6 +332,7 @@ export function DependentsSubtab({
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["dependents"] });
       queryClient.invalidateQueries({ queryKey: ["tax-configs"] });
+      queryClient.invalidateQueries({ queryKey: ["activity-logs"] });
       setDeclareModalOpen(false);
       resetForm();
       notify("Đã gửi phiếu khai báo người phụ thuộc thành công (Đang chờ Kế toán kiểm tra & duyệt)");
@@ -353,6 +355,7 @@ export function DependentsSubtab({
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["dependents"] });
+      queryClient.invalidateQueries({ queryKey: ["activity-logs"] });
       setUploadAttachmentModalOpen(false);
       handleRemoveUploadDocFile();
       setSelectedDependentForUpload(null);
@@ -391,6 +394,7 @@ export function DependentsSubtab({
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["dependents"] });
       queryClient.invalidateQueries({ queryKey: ["tax-configs"] });
+      queryClient.invalidateQueries({ queryKey: ["activity-logs"] });
       setEditModalOpen(false);
       setEditingDependent(null);
       notify("Đã cập nhật thông tin người phụ thuộc thành công!");
@@ -403,6 +407,7 @@ export function DependentsSubtab({
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["dependents"] });
       queryClient.invalidateQueries({ queryKey: ["tax-configs"] });
+      queryClient.invalidateQueries({ queryKey: ["activity-logs"] });
       setSelectedIds(new Set());
       setPreviewModalOpen(false);
       setConfirmModalOpen(false);
@@ -417,6 +422,7 @@ export function DependentsSubtab({
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["dependents"] });
       queryClient.invalidateQueries({ queryKey: ["tax-configs"] });
+      queryClient.invalidateQueries({ queryKey: ["activity-logs"] });
       setRejectModalOpen(false);
       setRejectionReason("");
       setSelectedDependent(null);
@@ -464,6 +470,7 @@ export function DependentsSubtab({
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["dependents"] });
       queryClient.invalidateQueries({ queryKey: ["tax-configs"] });
+      queryClient.invalidateQueries({ queryKey: ["activity-logs"] });
       setImportModalOpen(false);
       handleRemoveFile();
       notify("Đã import và xác nhận thông tin chính xác thành công!");
@@ -845,6 +852,14 @@ export function DependentsSubtab({
           />
         </div>
       )}
+
+      {/* BOTTOM AUDIT / ACTIVITY LOG */}
+      <SubtabActivityLog
+        projectId={projectId}
+        module="dependents"
+        title="Nhật ký khai báo & phê duyệt Người phụ thuộc"
+        description="Lịch sử khai báo hồ sơ NPT, kết quả thẩm định đối chiếu và import danh sách giảm trừ gia cảnh"
+      />
     </div>
 
       {/* Modal 1: BCSX Khai báo NPT */}

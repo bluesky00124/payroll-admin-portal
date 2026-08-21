@@ -687,7 +687,64 @@ export function FormulaTab({ projectId, embedded = false }: { projectId: string;
   // Dragged component state
   const [draggedItem, setDraggedItem] = useState<LibraryComponentItem | null>(null);
 
+  // Auto-scroll the page smoothly when dragging near top or bottom edges
+  useEffect(() => {
+    if (!draggedItem) return;
 
+    let animFrameId: number | null = null;
+    let currentSpeed = 0;
+
+    const onDragOver = (e: DragEvent) => {
+      e.preventDefault();
+      const threshold = 140; // Pixels from viewport top/bottom edge
+      const maxSpeed = 26;
+      const clientY = e.clientY;
+      const innerHeight = window.innerHeight;
+
+      if (clientY < threshold) {
+        // Dragging near top: scroll UP
+        const ratio = (threshold - Math.max(0, clientY)) / threshold;
+        currentSpeed = -Math.round(ratio * maxSpeed);
+      } else if (clientY > innerHeight - threshold) {
+        // Dragging near bottom: scroll DOWN
+        const ratio = (clientY - (innerHeight - threshold)) / threshold;
+        currentSpeed = Math.round(ratio * maxSpeed);
+      } else {
+        currentSpeed = 0;
+      }
+
+      if (currentSpeed !== 0 && animFrameId === null) {
+        const scrollStep = () => {
+          if (currentSpeed !== 0) {
+            window.scrollBy({ top: currentSpeed, behavior: "instant" as ScrollBehavior });
+            animFrameId = requestAnimationFrame(scrollStep);
+          } else {
+            animFrameId = null;
+          }
+        };
+        animFrameId = requestAnimationFrame(scrollStep);
+      }
+    };
+
+    const stopAutoScroll = () => {
+      currentSpeed = 0;
+      if (animFrameId !== null) {
+        cancelAnimationFrame(animFrameId);
+        animFrameId = null;
+      }
+    };
+
+    window.addEventListener("dragover", onDragOver, { passive: false });
+    window.addEventListener("dragend", stopAutoScroll);
+    window.addEventListener("drop", stopAutoScroll);
+
+    return () => {
+      stopAutoScroll();
+      window.removeEventListener("dragover", onDragOver);
+      window.removeEventListener("dragend", stopAutoScroll);
+      window.removeEventListener("drop", stopAutoScroll);
+    };
+  }, [draggedItem]);
 
   const variables = useMemo(() => variablesQuery.data ?? [], [variablesQuery.data]);
   const variableNameMap = useMemo(() => new Map(variables.map((item) => [item.code, item.name])), [variables]);
@@ -842,7 +899,6 @@ export function FormulaTab({ projectId, embedded = false }: { projectId: string;
       {/* Header Banner - Standard Project Tab Heading */}
       <div className="tab-heading">
         <div>
-          <span className="section-kicker">CẤU HÌNH CÔNG THỨC & CẤU TRÚC LƯƠNG</span>
           <h2>Cấu hình Công thức & Cấu trúc Lương</h2>
           <p className="text-xs text-muted mt-1">
             Thiết lập các thành phần lương trên sơ đồ trực quan, sau đó tùy chỉnh biểu thức công thức tính toán chi tiết phía dưới.
@@ -890,8 +946,8 @@ export function FormulaTab({ projectId, embedded = false }: { projectId: string;
 
       {/* Main Workspace Layout Grid */}
       <div className="grid grid-cols-1 lg:grid-cols-12 gap-5 items-start">
-        {/* Left Column: Components Library Sidebar (Compact Width & Matching Chip Size) */}
-        <aside className="lg:col-span-4 xl:col-span-3 content-card p-3.5 space-y-3.5">
+        {/* Left Column: Components Library Sidebar (Compact Width, Sticky & Matching Chip Size) */}
+        <aside className="lg:col-span-4 xl:col-span-3 content-card p-3.5 space-y-3.5 lg:sticky lg:top-4 lg:max-h-[calc(100vh-32px)] lg:overflow-y-auto">
           <div className="flex items-center justify-between pb-2.5 border-b border-border">
             <strong className="text-xs font-bold text-foreground flex items-center gap-1.5">
               <Layers className="w-4 h-4 text-primary" /> Thư viện Thành phần Lương
@@ -1036,16 +1092,6 @@ export function FormulaTab({ projectId, embedded = false }: { projectId: string;
                     Kéo thả các thành phần từ thư viện bên trái vào từng nhóm tương ứng
                   </span>
                 </div>
-              </div>
-
-              <div className="flex items-center gap-2">
-                <span className="text-[11px] font-semibold text-emerald-600 dark:text-emerald-400 bg-emerald-500/10 px-2 py-0.5 rounded-full border border-emerald-500/20">
-                  {grossComponents.length} Thu nhập
-                </span>
-                <span className="text-xs text-muted-foreground font-bold">−</span>
-                <span className="text-[11px] font-semibold text-rose-600 dark:text-rose-400 bg-rose-500/10 px-2 py-0.5 rounded-full border border-rose-500/20">
-                  {deductionComponents.length} Khấu trừ
-                </span>
               </div>
             </div>
 

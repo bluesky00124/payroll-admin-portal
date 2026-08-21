@@ -2,6 +2,7 @@ import { delay, http, HttpResponse } from "msw";
 import { applyRounding, evaluateExpression, validateFormulas } from "@/lib/formula-engine";
 import { mutateMockDatabase, readMockDatabase } from "@/lib/mock-db";
 import type {
+  ActivityLogItem,
   ApiResponse,
   AttendanceConfig,
   DataMapping,
@@ -473,6 +474,21 @@ export const handlers = [
     };
     mutateMockDatabase((db) => {
       db.dependents = [newDep, ...(db.dependents ?? [])];
+      const logItem: ActivityLogItem = {
+        id: uid("act"),
+        projectId: newDep.projectId || "prj-jss",
+        module: "dependents",
+        employeeId: newDep.employeeId,
+        employeeCode: newDep.employeeCode,
+        employeeName: newDep.employeeName,
+        actionType: "create",
+        actionLabel: "BCSX khai báo mới NPT",
+        details: `Khai báo NPT ${newDep.fullName} (Quan hệ: ${newDep.relationship === "child" ? "Con ruột / Con nuôi" : newDep.relationship === "spouse" ? "Vợ / Chồng" : newDep.relationship === "parent" ? "Cha / Mẹ" : "Người phụ thuộc khác"})`,
+        changedBy: "Nguyễn Văn Hùng (BCSX)",
+        reason: newDep.attachmentName || "Khai báo NPT mới",
+        createdAt: new Date().toISOString(),
+      };
+      db.activityLogs = [logItem, ...(db.activityLogs ?? [])];
     });
     return ok(newDep);
   }),
@@ -543,6 +559,24 @@ export const handlers = [
         }
         return tc;
       });
+
+      updatedList.forEach((d) => {
+        const logItem: ActivityLogItem = {
+          id: uid("act"),
+          projectId: d.projectId || "prj-jss",
+          module: "dependents",
+          employeeId: d.employeeId,
+          employeeCode: d.employeeCode,
+          employeeName: d.employeeName,
+          actionType: "approve",
+          actionLabel: "Kế toán xét duyệt NPT",
+          details: `Duyệt hồ sơ NPT ${d.fullName} hợp lệ (Giảm trừ 4.400.000đ/tháng)`,
+          changedBy: verifiedBy,
+          reason: "Hồ sơ CCCD/Khai sinh hợp lệ",
+          createdAt: new Date().toISOString(),
+        };
+        db.activityLogs = [logItem, ...(db.activityLogs ?? [])];
+      });
     });
     return ok(updatedList);
   }),
@@ -578,6 +612,22 @@ export const handlers = [
             dependentDeduction: approvedCount * 4400000,
           };
         }
+
+        const logItem: ActivityLogItem = {
+          id: uid("act"),
+          projectId: rejectedItem.projectId || "prj-jss",
+          module: "dependents",
+          employeeId: rejectedItem.employeeId,
+          employeeCode: rejectedItem.employeeCode,
+          employeeName: rejectedItem.employeeName,
+          actionType: "reject",
+          actionLabel: "Từ chối hồ sơ NPT",
+          details: `Từ chối hồ sơ NPT ${rejectedItem.fullName}`,
+          changedBy: verifiedBy,
+          reason: payload.reason,
+          createdAt: new Date().toISOString(),
+        };
+        db.activityLogs = [logItem, ...(db.activityLogs ?? [])];
       }
     });
     return rejectedItem ? ok(rejectedItem) : fail(404, "DEPENDENT_NOT_FOUND", "Không tìm thấy người phụ thuộc");
@@ -749,6 +799,26 @@ export const handlers = [
           history: [historyItem, ...(cur.history ?? [])],
         };
         updated = db.unionFees[idx];
+
+        const logItem: ActivityLogItem = {
+          id: uid("act"),
+          projectId: cur.projectId || "prj-jss",
+          module: "union",
+          employeeId: cur.employeeId,
+          employeeCode: cur.employeeCode,
+          employeeName: cur.employeeName,
+          actionType: newIsPart ? "join" : "leave",
+          actionLabel: newIsPart ? "Đăng ký tham gia" : "Ngừng tham gia",
+          details: newIsPart
+            ? `Gia nhập Công đoàn cơ sở, mức đóng ${cur.amount.toLocaleString("vi-VN")}đ/tháng`
+            : "Tạm ngưng trích nộp công đoàn phí",
+          oldValue: cur.isParticipating ? cur.amount : 0,
+          newValue: newIsPart ? cur.amount : 0,
+          changedBy: "Trần Minh Anh (Kế toán C&B)",
+          reason: payload.note || (newIsPart ? "Đăng ký gia nhập Công đoàn" : "Ngừng tham gia Công đoàn"),
+          createdAt: new Date().toISOString(),
+        };
+        db.activityLogs = [logItem, ...(db.activityLogs ?? [])];
       }
     });
     return updated ? ok(updated) : fail(404, "NOT_FOUND", "Không tìm thấy bản ghi Công đoàn phí");
@@ -783,6 +853,26 @@ export const handlers = [
           updatedBy: "Kế toán tiền lương",
         };
         updated = db.standardWorkdays[idx];
+
+        const logItem: ActivityLogItem = {
+          id: uid("act"),
+          projectId: updated.projectId || "prj-jss",
+          module: "workdays",
+          employeeId: updated.employeeId,
+          employeeCode: updated.employeeCode,
+          employeeName: updated.employeeName,
+          actionType: payload.isOverridden ? "override" : "restore",
+          actionLabel: payload.isOverridden ? "Ghi đè ngày công" : "Khôi phục chuẩn",
+          details: payload.isOverridden
+            ? `Ngày công chuẩn riêng: ${updated.projectStandardDays} ngày → ${payload.overrideDays} ngày`
+            : `Khôi phục về chuẩn dự án (${updated.projectStandardDays} ngày)`,
+          oldValue: updated.projectStandardDays,
+          newValue: payload.overrideDays ?? updated.projectStandardDays,
+          changedBy: "Kế toán tiền lương",
+          reason: payload.reason || (payload.isOverridden ? "Ghi đè ngày công chuẩn riêng" : "Hoàn tác về chuẩn dự án"),
+          createdAt: new Date().toISOString(),
+        };
+        db.activityLogs = [logItem, ...(db.activityLogs ?? [])];
       }
     });
     return updated ? ok(updated) : fail(404, "RECORD_NOT_FOUND", "Không tìm thấy bản ghi");
@@ -1246,6 +1336,23 @@ export const handlers = [
           updatedBy: "Kế toán tiền lương",
         };
         updated = db.employeePolicies[idx];
+
+        const logItem: ActivityLogItem = {
+          id: uid("act"),
+          projectId: cur.projectId || "prj-jss",
+          module: "policies",
+          employeeId: cur.employeeId,
+          employeeCode: cur.employeeCode,
+          employeeName: cur.employeeName,
+          actionType: "update",
+          actionLabel: "Cập nhật chế độ & phụ cấp",
+          details: `LCB: ${baseSalary.toLocaleString("vi-VN")}đ · Tổng phụ cấp: ${totalAllowance.toLocaleString("vi-VN")}đ (${customPolicyCount} khoản riêng)`,
+          newValue: totalAllowance,
+          changedBy: "Kế toán tiền lương",
+          reason: "Điều chỉnh chế độ đãi ngộ & phụ cấp cá nhân",
+          createdAt: new Date().toISOString(),
+        };
+        db.activityLogs = [logItem, ...(db.activityLogs ?? [])];
       }
     });
     return updated ? ok(updated) : fail(404, "RECORD_NOT_FOUND", "Không tìm thấy chế độ nhân sự");
@@ -1526,5 +1633,55 @@ export const handlers = [
     });
 
     return ok({ success: true, updatedCount });
+  }),
+
+  http.get("/api/activity-logs", async ({ request }) => {
+    await delay(150);
+    const url = new URL(request.url);
+    const prjId = url.searchParams.get("projectId");
+    const moduleName = url.searchParams.get("module");
+    const q = (url.searchParams.get("q") ?? "").toLocaleLowerCase("vi");
+    const database = readMockDatabase();
+    let logs = [...(database.activityLogs ?? [])];
+    if (prjId && prjId !== "all") {
+      logs = logs.filter((item) => !item.projectId || item.projectId === prjId);
+    }
+    if (moduleName) {
+      logs = logs.filter((item) => item.module === moduleName);
+    }
+    if (q) {
+      logs = logs.filter((item) =>
+        `${item.employeeName ?? ""} ${item.employeeCode ?? ""} ${item.actionLabel} ${item.details} ${item.changedBy} ${item.reason ?? ""}`
+          .toLocaleLowerCase("vi")
+          .includes(q)
+      );
+    }
+    logs.sort((a, b) => b.createdAt.localeCompare(a.createdAt));
+    return ok(logs);
+  }),
+
+  http.post("/api/activity-logs", async ({ request }) => {
+    await delay(100);
+    const payload = (await request.json()) as Partial<ActivityLogItem>;
+    const newLog: ActivityLogItem = {
+      id: uid("act"),
+      projectId: payload.projectId ?? "prj-jss",
+      module: payload.module ?? "policies",
+      employeeId: payload.employeeId,
+      employeeCode: payload.employeeCode,
+      employeeName: payload.employeeName,
+      actionType: payload.actionType ?? "update",
+      actionLabel: payload.actionLabel ?? "Cập nhật",
+      details: payload.details ?? "",
+      oldValue: payload.oldValue,
+      newValue: payload.newValue,
+      changedBy: payload.changedBy ?? "Trần Thu Trang (Kế toán)",
+      reason: payload.reason,
+      createdAt: new Date().toISOString(),
+    };
+    mutateMockDatabase((db) => {
+      db.activityLogs = [newLog, ...(db.activityLogs ?? [])];
+    });
+    return ok(newLog);
   }),
 ];

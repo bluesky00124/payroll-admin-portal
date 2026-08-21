@@ -27,6 +27,7 @@ import {
 } from "lucide-react";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { ExcelImportModal } from "@/components/employees/excel-import-modal";
+import { SubtabActivityLog } from "@/components/employees/subtab-activity-log";
 import { useToast } from "@/components/providers";
 import {
   Badge,
@@ -144,11 +145,10 @@ export function InsuranceSubtab({
   });
 
   const changesQuery = useQuery({
-    queryKey: ["insurance-changes", projectId, selectedPeriod],
+    queryKey: ["insurance-changes", projectId],
     queryFn: () =>
       api.getInsuranceChanges({
         projectId: projectId === "all" ? undefined : projectId,
-        period: selectedPeriod,
       }),
   });
 
@@ -191,20 +191,8 @@ export function InsuranceSubtab({
     });
   }, [masterRecords, searchTerm, masterStatusFilter]);
 
-  // Filtered Changes
-  const filteredChanges = useMemo(() => {
-    return changeRecords.filter((item) => {
-      const term = searchTerm.toLowerCase();
-      const matchSearch =
-        !searchTerm ||
-        item.employeeName.toLowerCase().includes(term) ||
-        item.employeeCode.toLowerCase().includes(term) ||
-        item.reason.toLowerCase().includes(term);
-
-      const matchStatus = changeStatusFilter === "all" || item.status === changeStatusFilter;
-      return matchSearch && matchStatus;
-    });
-  }, [changeRecords, searchTerm, changeStatusFilter]);
+  // Filtered Changes (No filters)
+  const filteredChanges = changeRecords;
 
   // Pagination for Master
   const [masterPage, setMasterPage] = useState(1);
@@ -223,20 +211,14 @@ export function InsuranceSubtab({
   }, [filteredChanges, changesPage, changesPageSize]);
 
   // Pending counts
-  const pendingChanges = useMemo(
-    () => changeRecords.filter((r) => r.status === "pending_agency_verification"),
-    [changeRecords]
-  );
-  const pendingCount = pendingChanges.length;
-
   const isAllPendingSelected =
-    pendingChanges.length > 0 && pendingChanges.every((item) => selectedChangeIds.has(item.id));
+    changeRecords.length > 0 && changeRecords.every((item) => selectedChangeIds.has(item.id));
 
   const toggleSelectAllChanges = () => {
     if (isAllPendingSelected) {
       setSelectedChangeIds(new Set());
     } else {
-      setSelectedChangeIds(new Set(pendingChanges.map((item) => item.id)));
+      setSelectedChangeIds(new Set(changeRecords.map((item) => item.id)));
     }
   };
 
@@ -264,6 +246,7 @@ export function InsuranceSubtab({
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["insurance-changes"] });
       queryClient.invalidateQueries({ queryKey: ["insurance-master"] });
+      queryClient.invalidateQueries({ queryKey: ["activity-logs"] });
       setDeclareModalOpen(false);
       setFormReason("");
       setFormDocName("");
@@ -278,6 +261,7 @@ export function InsuranceSubtab({
     onSuccess: (data) => {
       queryClient.invalidateQueries({ queryKey: ["insurance-changes"] });
       queryClient.invalidateQueries({ queryKey: ["insurance-master"] });
+      queryClient.invalidateQueries({ queryKey: ["activity-logs"] });
       setUploadModalOpen(false);
       setUploadPreviewRows([]);
       notify(`Đã nạp thành công ${data.length} bản ghi biến động vào ${formatMonthYear(selectedPeriod)}!`);
@@ -291,6 +275,7 @@ export function InsuranceSubtab({
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["insurance-changes"] });
       queryClient.invalidateQueries({ queryKey: ["insurance-master"] });
+      queryClient.invalidateQueries({ queryKey: ["activity-logs"] });
       setVerifyModalOpen(false);
       setSelectedChangeForAction(null);
       notify("Kế toán đã xác nhận đối chiếu BHXH thành công! Đã tự động cập nhật danh sách tham gia.");
@@ -304,6 +289,7 @@ export function InsuranceSubtab({
     onSuccess: (data) => {
       queryClient.invalidateQueries({ queryKey: ["insurance-changes"] });
       queryClient.invalidateQueries({ queryKey: ["insurance-master"] });
+      queryClient.invalidateQueries({ queryKey: ["activity-logs"] });
       setSelectedChangeIds(new Set());
       setVerifyModalOpen(false);
       notify(`Đã xác nhận đối chiếu thành công ${data.length} hồ sơ BHXH!`);
@@ -316,6 +302,7 @@ export function InsuranceSubtab({
       api.rejectInsuranceChange(id, { rejectionReason: reason }),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["insurance-changes"] });
+      queryClient.invalidateQueries({ queryKey: ["activity-logs"] });
       setRejectModalOpen(false);
       setSelectedChangeForAction(null);
       setRejectionReason("");
@@ -444,8 +431,8 @@ export function InsuranceSubtab({
             setChangesPage(1);
           }}
         >
-          <FileSpreadsheet />
-          <span>Biến động trong kỳ</span>
+          <FileCheck />
+          <span>Hồ sơ chờ xác nhận</span>
           {activeView === "changes" && <span className="tab-indicator" />}
         </button>
       </nav>
@@ -636,33 +623,14 @@ export function InsuranceSubtab({
           <div className="table-card-toolbar">
             <div className="filter-panel-top">
               <div className="filter-panel-inputs">
-                <label className="search-field">
-                  <Search />
-                  <input
-                    value={searchTerm}
-                    onChange={(e) => {
-                      setSearchTerm(e.target.value);
-                      setChangesPage(1);
-                    }}
-                    placeholder="Tìm theo tên NV, mã NV, lý do..."
-                  />
-                </label>
-
-                <MonthPicker
-                  label="Kỳ trích nộp:"
-                  value={selectedPeriod}
-                  onChange={(val) => {
-                    setSelectedPeriod(val);
-                    setChangesPage(1);
-                  }}
-                  variant="filter"
-                />
+                {selectedChangeIds.size > 0 && (
+                  <Badge tone="info">Đã chọn {selectedChangeIds.size} hồ sơ</Badge>
+                )}
               </div>
 
               <div className="filter-panel-actions">
                 {selectedChangeIds.size > 0 ? (
                   <div className="bulk-action-group">
-                    <Badge tone="info">Đã chọn {selectedChangeIds.size} hồ sơ</Badge>
                     {isAccountant && (
                       <Button
                         variant="primary"
@@ -683,7 +651,7 @@ export function InsuranceSubtab({
                     <Button
                       variant="secondary"
                       onClick={() => setUploadModalOpen(true)}
-                      title="Chủ dự án tải lên tệp danh sách biến động BHXH kỳ này"
+                      title="Chủ dự án tải lên tệp danh sách biến động BHXH"
                     >
                       <Upload /> Tải lên biến động
                     </Button>
@@ -694,7 +662,7 @@ export function InsuranceSubtab({
                         setFormEmployeeId(employees[0]?.id ?? "");
                         const firstMaster = masterRecords.find((m) => m.employeeId === (employees[0]?.id ?? ""));
                         setFormNewSalary(firstMaster?.insuranceSalary ?? 6300000);
-                        setFormEffectiveMonth(selectedPeriod);
+                        setFormEffectiveMonth(new Date().toISOString().slice(0, 7));
                         setDeclareModalOpen(true);
                       }}
                       title="Khai báo tăng mới, giảm hẳn hoặc điều chỉnh mức đóng cho nhân sự"
@@ -705,62 +673,12 @@ export function InsuranceSubtab({
                 )}
               </div>
             </div>
-
-            <div className="filter-panel-bottom">
-              <div className="filter-status-pills">
-                <button
-                  type="button"
-                  className={`pill-btn ${changeStatusFilter === "all" ? "active" : ""}`}
-                  onClick={() => {
-                    setChangeStatusFilter("all");
-                    setChangesPage(1);
-                  }}
-                >
-                  Tất cả ({changeRecords.length})
-                </button>
-                <button
-                  type="button"
-                  className={`pill-btn warning ${changeStatusFilter === "pending_agency_verification" ? "active" : ""}`}
-                  onClick={() => {
-                    setChangeStatusFilter("pending_agency_verification");
-                    setChangesPage(1);
-                  }}
-                >
-                  Chờ đối chiếu BHXH ({pendingCount})
-                </button>
-                <button
-                  type="button"
-                  className={`pill-btn success ${changeStatusFilter === "verified" ? "active" : ""}`}
-                  onClick={() => {
-                    setChangeStatusFilter("verified");
-                    setChangesPage(1);
-                  }}
-                >
-                  Đã xác nhận BHXH ({changeRecords.filter((r) => r.status === "verified").length})
-                </button>
-                <button
-                  type="button"
-                  className={`pill-btn danger ${changeStatusFilter === "rejected" ? "active" : ""}`}
-                  onClick={() => {
-                    setChangeStatusFilter("rejected");
-                    setChangesPage(1);
-                  }}
-                >
-                  Từ chối ({changeRecords.filter((r) => r.status === "rejected").length})
-                </button>
-              </div>
-
-            </div>
           </div>
 
           {filteredChanges.length === 0 ? (
             <EmptyState
-              title={`Không có biến động BHXH trong tháng ${formatMonthYear(selectedPeriod)}`}
-              description={
-                searchTerm
-                  ? "Không tìm thấy hồ sơ biến động phù hợp với từ khóa tìm kiếm."
-                  : "Kỳ này chưa phát sinh biến động tăng/giảm hoặc điều chỉnh lương đóng BHXH. Bấm 'Khai báo biến động' hoặc 'Tải lên biến động' để thêm mới."
-              }
+              title="Không có biến động BHXH"
+              description="Chưa phát sinh biến động tăng/giảm hoặc điều chỉnh lương đóng BHXH. Bấm 'Khai báo biến động' hoặc 'Tải lên biến động' để thêm mới."
               action={
                 <Button variant="primary" onClick={() => setDeclareModalOpen(true)}>
                   <Plus /> Khai báo biến động mới
@@ -771,190 +689,135 @@ export function InsuranceSubtab({
             <div className="data-table-wrap">
               <div className="data-table-scroll">
                 <table className="data-table">
-                <thead>
-                  <tr>
-                    {isAccountant && (
-                      <th style={{ width: "40px" }} className="text-center">
-                        <input
-                          type="checkbox"
-                          checked={isAllPendingSelected}
-                          onChange={toggleSelectAllChanges}
-                          disabled={pendingCount === 0}
-                          title="Chọn tất cả hồ sơ chờ đối chiếu"
-                        />
-                      </th>
-                    )}
-                    <th style={{ width: "45px" }} className="text-center">STT</th>
-                    <th style={{ minWidth: "160px" }}>Người lao động</th>
-                    <th style={{ minWidth: "145px" }}>Loại biến động</th>
-                    <th style={{ minWidth: "135px" }} className="text-right">Mức lương đóng</th>
-                    <th style={{ minWidth: "125px" }} className="text-right">NLĐ trích (10.5%)</th>
-                    <th style={{ minWidth: "125px" }} className="text-right">DN đóng (21.5%)</th>
-                    <th style={{ minWidth: "200px" }}>Lý do & Chứng từ</th>
-                    <th style={{ minWidth: "135px" }}>Trạng thái đối chiếu</th>
-                    <th style={{ minWidth: "160px" }}>Kết quả cơ quan BHXH</th>
-                    <th style={{ width: "60px" }} className="text-center">Thao tác</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {paginatedChanges.map((item, idx) => {
-                    const isPending = item.status === "pending_agency_verification";
-                    const isVerified = item.status === "verified";
-                    const isChecked = selectedChangeIds.has(item.id);
-                    const empAmount = Math.round(item.newSalary * 0.105);
-                    const compAmount = Math.round(item.newSalary * 0.215);
-                    const stt = (changesPage - 1) * changesPageSize + idx + 1;
-                    const emp = employeeMap.get(item.employeeId) || employeeMap.get(item.employeeCode);
-                    const projectCode = item.projectCode || emp?.projectCode;
+                  <thead>
+                    <tr>
+                      {isAccountant && (
+                        <th style={{ width: "40px" }} className="text-center">
+                          <input
+                            type="checkbox"
+                            checked={isAllPendingSelected}
+                            onChange={toggleSelectAllChanges}
+                            disabled={changeRecords.length === 0}
+                            title="Chọn tất cả hồ sơ"
+                          />
+                        </th>
+                      )}
+                      <th style={{ width: "45px" }} className="text-center">STT</th>
+                      <th style={{ minWidth: "160px" }}>Người lao động</th>
+                      <th style={{ minWidth: "145px" }}>Loại biến động</th>
+                      <th style={{ minWidth: "135px" }} className="text-right">Mức lương đóng</th>
+                      <th style={{ minWidth: "125px" }} className="text-right">NLĐ trích (10.5%)</th>
+                      <th style={{ minWidth: "125px" }} className="text-right">DN đóng (21.5%)</th>
+                      <th style={{ minWidth: "135px" }}>Trạng thái</th>
+                      <th style={{ width: "60px" }} className="text-center">Thao tác</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {paginatedChanges.map((item, idx) => {
+                      const isChecked = selectedChangeIds.has(item.id);
+                      const empAmount = Math.round(item.newSalary * 0.105);
+                      const compAmount = Math.round(item.newSalary * 0.215);
+                      const stt = (changesPage - 1) * changesPageSize + idx + 1;
+                      const emp = employeeMap.get(item.employeeId) || employeeMap.get(item.employeeCode);
+                      const projectCode = item.projectCode || emp?.projectCode;
 
-                    return (
-                      <tr
-                        key={item.id}
-                        className={
-                          isChecked
-                            ? "highlight-selected-row"
-                            : undefined
-                        }
-                      >
-                        {isAccountant && (
-                          <td className="text-center">
-                            <input
-                              type="checkbox"
-                              checked={isChecked}
-                              onChange={() => toggleSelectChangeItem(item.id)}
-                              disabled={!isPending}
-                              title={isPending ? "Tích chọn để xác nhận" : "Hồ sơ đã xử lý"}
-                            />
-                          </td>
-                        )}
-                        <td className="text-center text-muted font-medium">{stt}</td>
-                        <td>
-                          <div className="employee-cell-info">
-                            <span className="employee-cell-name font-semibold">{item.employeeName}</span>
-                            <span className="employee-cell-sub">
-                              <span className="employee-code-badge">{item.employeeCode}</span>
-                              {projectCode && <span className="text-muted text-[11px] font-normal">· {projectCode}</span>}
-                            </span>
-                          </div>
-                        </td>
-                        <td>{renderChangeTypeBadge(item.changeType)}</td>
-                        <td className="text-right font-mono">
-                          <div className="salary-diff-cell">
-                            <span className="salary-diff-new">{formatCurrency(item.newSalary)}</span>
-                            {item.oldSalary !== undefined && item.oldSalary !== item.newSalary && (
-                              <span className="salary-diff-old">{formatCurrency(item.oldSalary)}</span>
-                            )}
-                          </div>
-                        </td>
-                        <td className="text-right font-mono">
-                          <span className="text-warning font-semibold">{formatCurrency(empAmount)}</span>
-                        </td>
-                        <td className="text-right font-mono">
-                          <span className="text-info font-semibold">{formatCurrency(compAmount)}</span>
-                        </td>
-                        <td>
-                          <div className="change-reason-cell">
-                            <span className="change-reason-text" title={item.reason}>{item.reason}</span>
-                            {item.documentName && (
-                              <span className="doc-attachment-tag" title={item.documentName}>
-                                <FileText />
-                                <span className="truncate">{item.documentName}</span>
+                      return (
+                        <tr
+                          key={item.id}
+                          className={
+                            isChecked
+                              ? "highlight-selected-row"
+                              : undefined
+                          }
+                        >
+                          {isAccountant && (
+                            <td className="text-center">
+                              <input
+                                type="checkbox"
+                                checked={isChecked}
+                                onChange={() => toggleSelectChangeItem(item.id)}
+                                title="Tích chọn để xác nhận"
+                              />
+                            </td>
+                          )}
+                          <td className="text-center text-muted font-medium">{stt}</td>
+                          <td>
+                            <div className="employee-cell-info">
+                              <span className="employee-cell-name font-semibold">{item.employeeName}</span>
+                              <span className="employee-cell-sub">
+                                <span className="employee-code-badge">{item.employeeCode}</span>
+                                {projectCode && <span className="text-muted text-[11px] font-normal">· {projectCode}</span>}
                               </span>
-                            )}
-                          </div>
-                        </td>
-                        <td>
-                          {isPending ? (
-                            <StatusBadge tone="warning">Chờ đối chiếu</StatusBadge>
-                          ) : isVerified ? (
-                            <StatusBadge tone="success">Đã xác nhận</StatusBadge>
-                          ) : (
-                            <div className="flex flex-col gap-1 items-start">
-                              <StatusBadge tone="danger">Từ chối</StatusBadge>
-                              {item.rejectionReason && (
-                                <span className="text-[11px] text-destructive max-w-[170px] truncate" title={item.rejectionReason}>
-                                  {item.rejectionReason}
-                                </span>
+                            </div>
+                          </td>
+                          <td>{renderChangeTypeBadge(item.changeType)}</td>
+                          <td className="text-right font-mono">
+                            <div className="salary-diff-cell">
+                              <span className="salary-diff-new">{formatCurrency(item.newSalary)}</span>
+                              {item.oldSalary !== undefined && item.oldSalary !== item.newSalary && (
+                                <span className="salary-diff-old">{formatCurrency(item.oldSalary)}</span>
                               )}
                             </div>
-                          )}
-                        </td>
-                        <td>
-                          {item.agencyReceiptCode ? (
-                            <div className="flex flex-col gap-0.5 items-start">
-                              <span className="agency-receipt-code">{item.agencyReceiptCode}</span>
-                              <div className="text-[11px] text-muted">
-                                {item.verifiedBy?.split("(")[0]} • {formatDate(item.verifiedAt)}
-                              </div>
-                            </div>
-                          ) : (
-                            <span className="text-muted text-xs">—</span>
-                          )}
-                        </td>
-                        <td className="text-center">
-                          <TableRowActions
-                            items={[
-                              ...(isAccountant && isPending
-                                ? [
-                                    {
-                                      key: "verify",
-                                      label: "Xác nhận đối chiếu BHXH",
-                                      icon: <Check />,
-                                      onClick: () => {
-                                        setSelectedChangeForAction(item);
-                                        setVerifyModalOpen(true);
+                          </td>
+                          <td className="text-right font-mono">
+                            <span className="text-warning font-semibold">{formatCurrency(empAmount)}</span>
+                          </td>
+                          <td className="text-right font-mono">
+                            <span className="text-info font-semibold">{formatCurrency(compAmount)}</span>
+                          </td>
+                          <td>
+                            <StatusBadge tone="warning">Chờ xác nhận</StatusBadge>
+                          </td>
+                          <td className="text-center">
+                            <TableRowActions
+                              items={[
+                                ...(isAccountant
+                                  ? [
+                                      {
+                                        key: "verify",
+                                        label: "Xác nhận đối chiếu BHXH",
+                                        icon: <Check />,
+                                        onClick: () => {
+                                          setSelectedChangeForAction(item);
+                                          setVerifyModalOpen(true);
+                                        },
                                       },
-                                    },
-                                    {
-                                      key: "reject",
-                                      label: "Từ chối hồ sơ",
-                                      icon: <X />,
-                                      danger: true,
-                                      onClick: () => {
-                                        setSelectedChangeForAction(item);
-                                        setRejectModalOpen(true);
-                                      },
-                                    },
-                                  ]
-                                : []),
-                              ...(item.documentName
-                                ? [
-                                    {
-                                      key: "document",
-                                      label: `Xem chứng từ: ${item.documentName}`,
-                                      icon: <FileText />,
-                                      onClick: () => {
-                                        notify(`Xem chứng từ đính kèm: ${item.documentName}`);
-                                      },
-                                    },
-                                  ]
-                                : []),
-                            ]}
-                          />
-                        </td>
-                      </tr>
-                    );
-                  })}
-                </tbody>
-              </table>
-            </div>
+                                    ]
+                                  : []),
+                              ]}
+                            />
+                          </td>
+                        </tr>
+                      );
+                    })}
+                  </tbody>
+                </table>
+              </div>
 
-            {/* Attached Table Footer */}
-            <TablePaginationFooter
-              totalItems={filteredChanges.length}
-              selectedCount={selectedChangeIds.size}
-              currentPage={changesPage}
-              pageSize={changesPageSize}
-              onPageChange={setChangesPage}
-              onPageSizeChange={(newSize) => {
-                setChangesPageSize(newSize);
-                setChangesPage(1);
-              }}
-            />
-          </div>
-        )}
-      </div>
-    )}
+              {/* Attached Table Footer */}
+              <TablePaginationFooter
+                totalItems={filteredChanges.length}
+                selectedCount={selectedChangeIds.size}
+                currentPage={changesPage}
+                pageSize={changesPageSize}
+                onPageChange={setChangesPage}
+                onPageSizeChange={(newSize) => {
+                  setChangesPageSize(newSize);
+                  setChangesPage(1);
+                }}
+              />
+            </div>
+          )}
+        </div>
+      )}
+
+      {/* BOTTOM AUDIT / ACTIVITY LOG */}
+      <SubtabActivityLog
+        projectId={projectId}
+        module="insurance"
+        title="Nhật ký xét duyệt & biến động BHXH (D02-LT)"
+        description="Lịch sử báo tăng, báo giảm, điều chỉnh lương đóng và kết quả xét duyệt hồ sơ BHXH"
+      />
 
       {/* MODAL 1: TẢI LÊN DANH SÁCH BIẾN ĐỘNG (DÙNG COMPONENT CHUNG) */}
       <ExcelImportModal

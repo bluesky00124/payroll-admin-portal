@@ -13,6 +13,7 @@ import {
   X,
 } from "lucide-react";
 import { useMemo, useState } from "react";
+import { SubtabActivityLog } from "@/components/employees/subtab-activity-log";
 import { useToast } from "@/components/providers";
 import {
   Badge,
@@ -107,6 +108,7 @@ export function UnionFeesSubtab({
     },
     onSuccess: (data) => {
       queryClient.invalidateQueries({ queryKey: ["union-fees"] });
+      queryClient.invalidateQueries({ queryKey: ["activity-logs"] });
       setConfirmModalOpen(false);
       setTargetToggleRecord(null);
       setToggleReason("");
@@ -323,6 +325,14 @@ export function UnionFeesSubtab({
           </div>
         )}
       </div>
+
+      {/* BOTTOM AUDIT / ACTIVITY LOG */}
+      <SubtabActivityLog
+        projectId={projectId}
+        module="union"
+        title="Nhật ký biến động Công đoàn phí"
+        description="Lịch sử đăng ký gia nhập, ngừng tham gia và điều chỉnh mức trích nộp công đoàn phí"
+      />
 
       {/* Modal 1: Xác nhận thay đổi tham gia Công đoàn (Redesigned Confirm Popup) */}
       <Modal

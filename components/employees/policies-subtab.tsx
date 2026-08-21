@@ -12,6 +12,7 @@ import {
 } from "lucide-react";
 import { useMemo, useState } from "react";
 import { ExcelImportModal } from "@/components/employees/excel-import-modal";
+import { SubtabActivityLog } from "@/components/employees/subtab-activity-log";
 import { useToast } from "@/components/providers";
 import {
   Badge,
@@ -26,7 +27,7 @@ import {
 } from "@/components/ui";
 import { api } from "@/lib/api";
 import type { Employee, EmployeePolicyItem, EmployeePolicyRecord } from "@/lib/types";
-import { cn, formatCurrency } from "@/lib/utils";
+import { cn, formatCurrency, formatDate } from "@/lib/utils";
 
 function formatAllowanceValue(pol: EmployeePolicyItem) {
   const valObj = pol.isCustom ? pol.customValue : pol.defaultValue;
@@ -195,6 +196,7 @@ export function EmployeePoliciesSubtab({
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["employee-policies"] });
+      queryClient.invalidateQueries({ queryKey: ["activity-logs"] });
       notify("Đã lưu thiết lập chế độ & phụ cấp nhân viên thành công!");
       setModalOpen(false);
     },
@@ -218,6 +220,7 @@ export function EmployeePoliciesSubtab({
     },
     onSuccess: (data) => {
       queryClient.invalidateQueries({ queryKey: ["employee-policies"] });
+      queryClient.invalidateQueries({ queryKey: ["activity-logs"] });
       setImportModalOpen(false);
       setUploadPreviewRows([]);
       notify(`Đã cập nhật phụ cấp thành công cho ${data.length} nhân sự!`);
@@ -383,7 +386,7 @@ export function EmployeePoliciesSubtab({
                     <th className="text-right" style={{ width: "135px" }}>LƯƠNG CƠ BẢN</th>
                     <th style={{ minWidth: "290px" }}>CÁC KHOẢN PHỤ CẤP ÁP DỤNG</th>
                     <th className="text-right" style={{ width: "145px" }}>TỔNG PHỤ CẤP</th>
-                    <th style={{ width: "140px" }}>CẬP NHẬT BỞI</th>
+                    <th style={{ width: "140px" }}>NGÀY CẬP NHẬT</th>
                     <th style={{ width: "60px" }} className="text-center">THAO TÁC</th>
                   </tr>
                 </thead>
@@ -465,8 +468,12 @@ export function EmployeePoliciesSubtab({
                           {formatCurrency(item.totalAllowance)}
                         </td>
                         <td>
-                          <span className="text-xs font-semibold text-foreground block">{item.updatedBy || "Kế toán C&B"}</span>
-                          {item.updatedAt && <span className="text-[11px] text-muted-foreground block font-mono">{item.updatedAt}</span>}
+                          <span className="text-xs font-semibold font-mono text-foreground block">
+                            {item.updatedAt ? formatDate(item.updatedAt) : "—"}
+                          </span>
+                          <span className="text-[11px] text-muted-foreground block truncate">
+                            {item.updatedBy || "Kế toán C&B"}
+                          </span>
                         </td>
                         <td className="text-center">
                           <TableRowActions
@@ -507,6 +514,14 @@ export function EmployeePoliciesSubtab({
           </div>
         )}
       </div>
+
+      {/* BOTTOM AUDIT / ACTIVITY LOG */}
+      <SubtabActivityLog
+        projectId={projectId}
+        module="policies"
+        title="Nhật ký điều chỉnh Chế độ & Phụ cấp"
+        description="Lịch sử tùy biến phụ cấp riêng, khôi phục chuẩn và import Excel phụ cấp"
+      />
 
       {/* Modal 1: Thiết lập chế độ đãi ngộ & Phụ cấp người lao động */}
       <Modal

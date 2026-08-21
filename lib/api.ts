@@ -1,4 +1,6 @@
 import type {
+  ActivityLogItem,
+  ActivityLogModule,
   ApiResponse,
   AttendanceConfig,
   DataMapping,
@@ -175,4 +177,10 @@ export const api = {
     request<{ success: boolean }>(`/api/projects/${projectId}/employee-groups/${groupId}`, { method: "DELETE" }).then((item) => item.data),
   assignEmployeesToGroup: (projectId: string, groupId: string, payload: { employeeIds: string[] }) =>
     request<{ success: boolean; updatedCount: number }>(`/api/projects/${projectId}/employee-groups/${groupId}/assign`, { method: "POST", body: JSON.stringify(payload) }).then((item) => item.data),
+  getActivityLogs: (params?: { projectId?: string; module?: ActivityLogModule; q?: string }) => {
+    const query = new URLSearchParams(Object.entries(params ?? {}).filter(([, v]) => v !== undefined).map(([k, v]) => [k, String(v)]));
+    return request<ActivityLogItem[]>(`/api/activity-logs?${query}`).then((item) => item.data);
+  },
+  createActivityLog: (payload: Partial<ActivityLogItem>) =>
+    request<ActivityLogItem>("/api/activity-logs", { method: "POST", body: JSON.stringify(payload) }).then((item) => item.data),
 };

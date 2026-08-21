@@ -227,4 +227,34 @@ describe("Employees Module & HR Workflows", () => {
     expect(travelAllowance?.isCustom).toBe(true);
     expect(travelAllowance?.customValue?.amount).toBe(800000);
   });
+
+  it("truy vấn nhật ký hoạt động (activity logs) theo từng phân hệ", async () => {
+    resetMockDatabase();
+    
+    // 1. Policies logs
+    const polLogs = await api.getActivityLogs({ projectId: "prj-jss", module: "policies" });
+    expect(polLogs.length).toBeGreaterThan(0);
+    expect(polLogs.every((l) => l.module === "policies")).toBe(true);
+
+    // 2. Workdays logs
+    const wdLogs = await api.getActivityLogs({ projectId: "prj-jss", module: "workdays" });
+    expect(wdLogs.length).toBeGreaterThan(0);
+    expect(wdLogs.every((l) => l.module === "workdays")).toBe(true);
+
+    // 3. Union fee logs
+    const unLogs = await api.getActivityLogs({ projectId: "prj-jss", module: "union" });
+    expect(unLogs.length).toBeGreaterThan(0);
+    expect(unLogs.every((l) => l.module === "union")).toBe(true);
+
+    // 4. Insurance logs
+    const insLogs = await api.getActivityLogs({ projectId: "prj-jss", module: "insurance" });
+    expect(insLogs.length).toBeGreaterThan(0);
+    expect(insLogs.every((l) => l.module === "insurance")).toBe(true);
+
+    // 5. Dependents logs
+    const depLogs = await api.getActivityLogs({ projectId: "prj-jss", module: "dependents" });
+    expect(depLogs.length).toBeGreaterThan(0);
+    expect(depLogs.every((l) => l.module === "dependents")).toBe(true);
+  });
 });
+

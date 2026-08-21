@@ -13,6 +13,7 @@ import {
 } from "lucide-react";
 import { useMemo, useState } from "react";
 import { ExcelImportModal } from "@/components/employees/excel-import-modal";
+import { SubtabActivityLog } from "@/components/employees/subtab-activity-log";
 import { useToast } from "@/components/providers";
 import {
   Badge,
@@ -118,6 +119,7 @@ export function StandardWorkdaysSubtab({
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["standard-workdays"] });
+      queryClient.invalidateQueries({ queryKey: ["activity-logs"] });
       setOverrideModalOpen(false);
       notify("Đã lưu cấu hình ngày công chuẩn riêng cho nhân viên!");
     },
@@ -139,6 +141,7 @@ export function StandardWorkdaysSubtab({
     },
     onSuccess: (data) => {
       queryClient.invalidateQueries({ queryKey: ["standard-workdays"] });
+      queryClient.invalidateQueries({ queryKey: ["activity-logs"] });
       setImportModalOpen(false);
       setUploadPreviewRows([]);
       notify(`Đã cập nhật thành công ngày công chuẩn cho ${data.length} nhân viên!`);
@@ -355,6 +358,14 @@ export function StandardWorkdaysSubtab({
           />
         </div>
       )}
+
+      {/* BOTTOM AUDIT / ACTIVITY LOG */}
+      <SubtabActivityLog
+        projectId={projectId}
+        module="workdays"
+        title="Nhật ký điều chỉnh Ngày công chuẩn"
+        description="Lịch sử ghi nhận các thao tác ghi đè ngày công cá nhân, khôi phục chuẩn và import file Excel"
+      />
     </div>
 
       {/* Modal 1: Overwrite Single Employee Standard Workday */}
