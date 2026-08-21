@@ -585,6 +585,20 @@ export interface PayrollLinePaymentDetail {
   method: "transfer" | "cash";
   transferAmount: number;
   cashAmount: number;
+  bankName: string;
+  bankAccount: string;
+}
+
+export type PayrollDailyAttendanceStatus = "work" | "overtime" | "off" | "leave" | "unapproved";
+
+export interface PayrollDailyAttendanceEntry {
+  date: string;
+  day: number;
+  weekday: string;
+  code: string;
+  hours: number;
+  overtimeHours: number;
+  status: PayrollDailyAttendanceStatus;
 }
 
 export interface PayrollLineDetail {

@@ -10,6 +10,7 @@ import {
   transitionPayrollRun,
   updatePayrollLine,
 } from "@/lib/payroll-store";
+import { createPayrollDailyAttendance, getPayrollLineDetail } from "@/lib/payroll-line-detail";
 
 const accountant = "Trần Thu Trang (Kế toán C&B)";
 
@@ -102,5 +103,19 @@ describe("payroll workflow store", () => {
     const run = getPayrollWorkspace().payrollRuns.find((item) => item.id === "pay-jss-2026-08");
     expect(run?.status).toBe("payslip_confirmation");
     expect(run?.publishedAt).toBeTruthy();
+  });
+
+  it("tạo đủ dữ liệu ngân hàng và mã công theo từng ngày trong kỳ", () => {
+    const line = getPayrollWorkspace().payrollLines.find((item) => item.payrollId === "pay-jss-2026-08");
+    expect(line).toBeDefined();
+
+    const detail = getPayrollLineDetail(line!);
+    const days = createPayrollDailyAttendance(line!, "2026-08");
+
+    expect(detail.payment.bankName).toBeTruthy();
+    expect(detail.payment.bankAccount).toBeTruthy();
+    expect(days).toHaveLength(31);
+    expect(days.reduce((total, item) => total + item.hours, 0)).toBe(line!.workDays * 8);
+    expect(days.reduce((total, item) => total + item.overtimeHours, 0)).toBe(line!.overtimeHours);
   });
 });

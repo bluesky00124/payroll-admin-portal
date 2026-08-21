@@ -19,6 +19,7 @@ export interface CreatePayrollInput {
 
 export interface PayrollWorkspace {
   projects: MockDatabase["projects"];
+  employees: MockDatabase["employees"];
   attendanceSheets: MockDatabase["payrollAttendanceSheets"];
   payrollRuns: MockDatabase["payrollRuns"];
   payrollLines: MockDatabase["payrollLines"];
@@ -56,6 +57,7 @@ export function getPayrollWorkspace(): PayrollWorkspace {
   const database = readMockDatabase();
   return {
     projects: database.projects,
+    employees: database.employees,
     attendanceSheets: database.payrollAttendanceSheets,
     payrollRuns: database.payrollRuns,
     payrollLines: database.payrollLines,

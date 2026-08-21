@@ -1,4 +1,4 @@
-import type { PayrollLine, PayrollLineDetail } from "@/lib/types";
+import type { PayrollDailyAttendanceEntry, PayrollLine, PayrollLineDetail } from "@/lib/types";
 
 type PayrollLineDetailSource = Pick<
   PayrollLine,
@@ -10,6 +10,8 @@ const roundMoney = (value: number) => Math.max(0, Math.round(value));
 
 const seedFromCode = (employeeCode: string) =>
   [...employeeCode].reduce((total, character) => total + character.charCodeAt(0), 0);
+
+const bankNames = ["Vietcombank", "BIDV", "VietinBank", "Agribank", "MB Bank", "Techcombank"];
 
 const allocate = (total: number, ratios: number[]) => {
   let allocated = 0;
@@ -65,6 +67,8 @@ export function createPayrollLineDetail(line: PayrollLineDetailSource): PayrollL
   const insuranceTotal = socialInsurance + healthInsurance + unemploymentInsurance;
 
   const method = seed % 7 === 0 ? "cash" : "transfer";
+  const bankName = bankNames[seed % bankNames.length];
+  const bankAccount = `${1000000000 + ((seed * 7919) % 8999999999)}`;
 
   return {
     attendance: {
@@ -129,10 +133,76 @@ export function createPayrollLineDetail(line: PayrollLineDetailSource): PayrollL
       method,
       transferAmount: method === "transfer" ? line.netPay : 0,
       cashAmount: method === "cash" ? line.netPay : 0,
+      bankName: method === "transfer" ? bankName : "—",
+      bankAccount: method === "transfer" ? bankAccount : "—",
     },
   };
 }
 
 export function getPayrollLineDetail(line: PayrollLine): PayrollLineDetail {
-  return line.detail ?? createPayrollLineDetail(line);
+  const generated = createPayrollLineDetail(line);
+  if (!line.detail) return generated;
+  return {
+    ...line.detail,
+    payment: { ...generated.payment, ...line.detail.payment },
+  };
+}
+
+export function createPayrollDailyAttendance(line: PayrollLine, period: string): PayrollDailyAttendanceEntry[] {
+  const [year, month] = period.split("-").map(Number);
+  const daysInMonth = new Date(year, month, 0).getDate();
+  const seed = seedFromCode(line.employeeCode);
+  const entries: PayrollDailyAttendanceEntry[] = [];
+  const workCandidates: number[] = [];
+
+  for (let day = 1; day <= daysInMonth; day += 1) {
+    const date = new Date(year, month - 1, day);
+    if (date.getDay() !== 0) workCandidates.push(day);
+  }
+
+  const workDaySet = new Set(workCandidates.slice(0, Math.min(line.workDays, workCandidates.length)));
+  let overtimeRemaining = line.overtimeHours;
+
+  for (let day = 1; day <= daysInMonth; day += 1) {
+    const date = new Date(year, month - 1, day);
+    const isoDate = `${year}-${String(month).padStart(2, "0")}-${String(day).padStart(2, "0")}`;
+    const weekday = new Intl.DateTimeFormat("vi-VN", { weekday: "short" }).format(date);
+    const isSunday = date.getDay() === 0;
+    const isWorkDay = workDaySet.has(day);
+    let status: PayrollDailyAttendanceEntry["status"] = "off";
+    let code = "N";
+    let hours = 0;
+    let overtimeHours = 0;
+
+    if (isWorkDay) {
+      hours = 8;
+      status = "work";
+      code = "D8";
+      if (overtimeRemaining > 0 && (day + seed) % 3 === 0) {
+        overtimeHours = Math.min(4, overtimeRemaining);
+        overtimeRemaining = Math.max(0, overtimeRemaining - overtimeHours);
+        status = "overtime";
+        code = `D${8 + overtimeHours}`;
+      }
+    } else if (!isSunday) {
+      status = (day + seed) % 7 === 0 ? "unapproved" : "leave";
+      code = status === "unapproved" ? "OP" : (day + seed) % 2 === 0 ? "P" : "XN";
+    }
+
+    entries.push({ date: isoDate, day, weekday, code, hours, overtimeHours, status });
+  }
+
+  if (overtimeRemaining > 0) {
+    for (const entry of entries) {
+      if (!overtimeRemaining || !workDaySet.has(entry.day)) break;
+      const added = Math.min(4 - entry.overtimeHours, overtimeRemaining);
+      if (added <= 0) continue;
+      entry.overtimeHours += added;
+      overtimeRemaining -= added;
+      entry.status = "overtime";
+      entry.code = `D${8 + entry.overtimeHours}`;
+    }
+  }
+
+  return entries;
 }
