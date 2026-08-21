@@ -13,7 +13,6 @@ import {
   FileCheck2,
   FileClock,
   FileSpreadsheet,
-  Filter,
   History,
   Inbox,
   LockKeyhole,
@@ -53,7 +52,6 @@ import type {
 } from "@/lib/types";
 import { formatCurrency, formatDate, formatMonthYear } from "@/lib/utils";
 
-type MainView = "payrolls" | "feedback";
 type DetailTab = "overview" | "lines" | "workflow" | "feedback";
 
 const statusConfig: Record<PayrollStatus, { label: string; tone: "neutral" | "success" | "warning" | "danger" | "info"; short: string }> = {
@@ -139,7 +137,6 @@ function getNextAction(run: PayrollRun) {
 
 export function PayrollWorkspacePage() {
   const [workspace, setWorkspace] = useState<PayrollWorkspace | null>(null);
-  const [mainView, setMainView] = useState<MainView>("payrolls");
   const [projectFilter, setProjectFilter] = useState("all");
   const [monthFilter, setMonthFilter] = useState("2026-08");
   const [statusFilter, setStatusFilter] = useState("all");
@@ -199,11 +196,6 @@ export function PayrollWorkspacePage() {
       })
       .sort((a, b) => b.updatedAt.localeCompare(a.updatedAt));
   }, [workspace, projectFilter, monthFilter, statusFilter, query]);
-
-  const allFeedbacks = useMemo(() => {
-    if (!workspace) return [];
-    return [...workspace.feedbacks].sort((a, b) => b.submittedAt.localeCompare(a.submittedAt));
-  }, [workspace]);
 
   if (!workspace) return <div className="payroll-loading"><RefreshCw className="spin" /> Đang tải dữ liệu bảng lương…</div>;
 
@@ -341,20 +333,15 @@ export function PayrollWorkspacePage() {
         <article><span className="payroll-stat-icon locked"><LockKeyhole /></span><div><small>Đã khóa</small><strong>{lockedRuns}</strong><p>Hoàn tất đủ quy trình</p></div></article>
       </section>
 
-      <div className="payroll-view-switch" role="tablist" aria-label="Chế độ xem">
-        <button type="button" className={mainView === "payrolls" ? "active" : ""} onClick={() => setMainView("payrolls")}><FileSpreadsheet />Danh sách bảng lương <span>{workspace.payrollRuns.length}</span></button>
-        <button type="button" className={mainView === "feedback" ? "active" : ""} onClick={() => setMainView("feedback")}><MessageSquareText />Phản hồi phiếu lương {unresolvedFeedbacks > 0 && <span className="attention">{unresolvedFeedbacks}</span>}</button>
-      </div>
-
-      {mainView === "payrolls" ? (
-        <section className="content-card payroll-list-card">
-          <div className="payroll-filter-bar">
-            <label className="search-field payroll-search"><Search /><input value={query} onChange={(event) => setQuery(event.target.value)} placeholder="Tìm mã bảng lương, dự án…" aria-label="Tìm bảng lương" /></label>
-            <div className="payroll-filter-fields">
-              <label><span>Dự án</span><select value={projectFilter} onChange={(event) => setProjectFilter(event.target.value)}><option value="all">Tất cả dự án</option>{workspace.projects.filter((item) => item.status === "active").map((project) => <option value={project.id} key={project.id}>{project.code} — {project.name}</option>)}</select></label>
-              <MonthPicker value={monthFilter} onChange={setMonthFilter} label="Kỳ lương" />
-              <label><span>Trạng thái</span><select value={statusFilter} onChange={(event) => setStatusFilter(event.target.value)}><option value="all">Tất cả trạng thái</option>{Object.entries(statusConfig).map(([value, config]) => <option value={value} key={value}>{config.short}</option>)}</select></label>
-              <Button variant="ghost" size="icon" aria-label="Xóa bộ lọc" title="Xóa bộ lọc" onClick={() => { setProjectFilter("all"); setMonthFilter(""); setStatusFilter("all"); setQuery(""); }}><Filter /></Button>
+      <section className="content-card payroll-list-card">
+          <div className="payroll-filter-bar table-card-toolbar">
+            <div className="filter-panel-top">
+              <div className="filter-panel-inputs">
+                <label className="search-field payroll-search"><Search /><input value={query} onChange={(event) => setQuery(event.target.value)} placeholder="Tìm mã bảng lương, dự án…" aria-label="Tìm bảng lương" /></label>
+                <select className="filter-select payroll-project-filter" value={projectFilter} onChange={(event) => setProjectFilter(event.target.value)} aria-label="Lọc theo dự án"><option value="all">Tất cả dự án</option>{workspace.projects.filter((item) => item.status === "active").map((project) => <option value={project.id} key={project.id}>{project.code} — {project.name}</option>)}</select>
+                <MonthPicker value={monthFilter} onChange={setMonthFilter} className="payroll-period-filter" placeholder="Chọn kỳ lương" />
+                <select className="filter-select payroll-status-filter" value={statusFilter} onChange={(event) => setStatusFilter(event.target.value)} aria-label="Lọc theo trạng thái"><option value="all">Tất cả trạng thái</option>{Object.entries(statusConfig).map(([value, config]) => <option value={value} key={value}>{config.short}</option>)}</select>
+              </div>
             </div>
           </div>
           {filteredRuns.length === 0 ? (
@@ -366,13 +353,14 @@ export function PayrollWorkspacePage() {
                 <tbody>{filteredRuns.map((run) => {
                   const project = getProject(workspace, run.projectId);
                   const stage = stageForStatus[run.status];
+                  const hasUnresolvedFeedback = workspace.feedbacks.some((item) => item.payrollId === run.id && !["adjusted", "rejected"].includes(item.status));
                   return (
                     <tr key={run.id} onClick={() => { setSelectedPayrollId(run.id); setDetailTab("overview"); }}>
                       <td><div className="payroll-code-cell"><span className={run.status === "locked" ? "locked" : ""}>{run.status === "locked" ? <LockKeyhole /> : <FileSpreadsheet />}</span><div><strong>{run.code}</strong><small>{project?.code} · {project?.name}</small></div></div></td>
                       <td><strong>{formatMonthYear(run.period, true)}</strong><small>{run.employeeCount} NLĐ</small></td>
                       <td><strong className="money-value">{formatCurrency(run.netPayroll)}</strong><small>Khấu trừ {formatCurrency(run.totalDeductions)}</small></td>
                       <td><div className="payroll-progress-cell"><div><span style={{ width: `${Math.min(100, ((stage - 1) / 8) * 100)}%` }} /></div><StatusBadge tone={statusConfig[run.status].tone}>{statusConfig[run.status].short}</StatusBadge></div></td>
-                      <td>{run.feedbackCount > 0 ? <Badge tone={workspace.feedbacks.some((item) => item.payrollId === run.id && !["adjusted", "rejected"].includes(item.status)) ? "warning" : "success"}><MessageSquareText />{run.feedbackCount}</Badge> : <span className="muted-dash">—</span>}</td>
+                      <td>{run.feedbackCount > 0 ? <button type="button" className={`payroll-feedback-trigger ${hasUnresolvedFeedback ? "warning" : "success"}`} aria-label={`Mở ${run.feedbackCount} phản hồi của ${run.code}`} onClick={(event) => { event.stopPropagation(); setSelectedPayrollId(run.id); setDetailTab("feedback"); }}><MessageSquareText /><span>{run.feedbackCount}</span></button> : <span className="muted-dash">—</span>}</td>
                       <td><span>{formatDate(run.updatedAt)}</span><small>{run.createdBy.split(" (")[0]}</small></td>
                       <td><button className="row-chevron" type="button" aria-label={`Mở ${run.code}`}><ChevronRight /></button></td>
                     </tr>
@@ -381,25 +369,7 @@ export function PayrollWorkspacePage() {
               </table>
             </div>
           )}
-        </section>
-      ) : (
-        <section className="payroll-feedback-board">
-          <div className="feedback-board-heading"><div><h2>Phản hồi từ phiếu lương</h2><p>NLĐ gửi trên ứng dụng → CDA/GSDA duyệt → Kế toán C&B điều chỉnh hoặc từ chối.</p></div><Badge tone="info"><MessageSquareText />{allFeedbacks.length} phản hồi</Badge></div>
-          <div className="feedback-list">
-            {allFeedbacks.map((feedback) => {
-              const run = workspace.payrollRuns.find((item) => item.id === feedback.payrollId);
-              const project = run ? getProject(workspace, run.projectId) : null;
-              return (
-                <article className="feedback-card" key={feedback.id}>
-                  <div className="feedback-person"><UserAvatar name={feedback.employeeName} /><div><strong>{feedback.employeeName}</strong><span>{feedback.employeeCode} · {project?.code} · {run ? formatMonthYear(run.period, true) : ""}</span></div></div>
-                  <div className="feedback-message"><div><Badge tone="neutral">{feedbackCategoryLabels[feedback.category]}</Badge><StatusBadge tone={feedbackConfig[feedback.status].tone}>{feedbackConfig[feedback.status].label}</StatusBadge></div><p>{feedback.message}</p>{(feedback.accountingNote || feedback.rejectionReason) && <small><b>Kết quả:</b> {feedback.accountingNote || feedback.rejectionReason}</small>}</div>
-                  <div className="feedback-meta"><span><Clock3 />{formatDate(feedback.submittedAt)}</span>{renderFeedbackActions(feedback)}</div>
-                </article>
-              );
-            })}
-          </div>
-        </section>
-      )}
+      </section>
 
       <Modal open={createOpen} onOpenChange={(open) => { if (!generating) setCreateOpen(open); }} title={generating ? "Đang tạo bảng lương" : "Tạo bảng lương mới"} description={generating ? "Hệ thống đang đối chiếu dữ liệu và thực hiện công thức tính." : "Chỉ bảng công đã duyệt cuối cùng và chưa dùng để tính lương mới được chọn."} size="lg" footer={generating ? undefined : <><Button onClick={() => setCreateOpen(false)}>Hủy</Button><Button variant="primary" disabled={!createSheetId} onClick={handleGenerate}><Sparkles />Tạo bảng lương</Button></>}>
         {generating ? (
