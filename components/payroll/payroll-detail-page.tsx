@@ -182,7 +182,24 @@ export function PayrollDetailPage({ payrollId }: { payrollId: string }) {
         </header>
 
         <nav className="payroll-page-tabs" aria-label="Nhóm thông tin bảng lương">
-          {tabs.map(({ value, label, icon: Icon }) => <button type="button" className={activeTab === value ? "active" : ""} onClick={() => changeTab(value)} key={value}><Icon />{label}{value === "feedback" && selectedFeedbacks.length > 0 && <span>{selectedFeedbacks.length}</span>}</button>)}
+          {tabs.map(({ value, label, icon: Icon }) => {
+            const isActive = activeTab === value;
+            return (
+              <button
+                type="button"
+                className={`payroll-page-tab-btn ${isActive ? "active" : ""}`}
+                onClick={() => changeTab(value)}
+                key={value}
+              >
+                <Icon />
+                <span>{label}</span>
+                {value === "feedback" && selectedFeedbacks.length > 0 && (
+                  <span className="tab-badge">{selectedFeedbacks.length}</span>
+                )}
+                {isActive && <span className="tab-indicator" />}
+              </button>
+            );
+          })}
         </nav>
 
         <main className="payroll-detail-page-content">

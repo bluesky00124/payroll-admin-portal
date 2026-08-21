@@ -4459,13 +4459,92 @@ button:disabled { cursor: not-allowed; opacity: .5; }
 .payroll-detail-title > p { margin-top: 5px; color: var(--muted); font-size: 11.5px; }
 .payroll-detail-header-action { display: flex; align-items: center; gap: 12px; }
 .payroll-detail-header-action > small { color: var(--muted); font-size: 9.5px; white-space: nowrap; }
-.payroll-page-tabs { position: sticky; z-index: 18; top: 64px; display: flex; align-items: center; gap: 3px; min-height: 52px; padding: 5px; overflow-x: auto; border: 1px solid var(--border); border-radius: 11px; background: color-mix(in srgb, var(--card) 94%, transparent); box-shadow: 0 6px 18px color-mix(in srgb, var(--foreground) 6%, transparent); backdrop-filter: blur(14px); }
-.payroll-page-tabs button { position: relative; min-height: 40px; display: inline-flex; align-items: center; justify-content: center; gap: 6px; padding: 0 11px; border: 0; border-radius: 7px; color: var(--muted); background: transparent; cursor: pointer; font-size: 10.5px; font-weight: 680; white-space: nowrap; }
-.payroll-page-tabs button:hover { color: var(--foreground); background: var(--secondary); }
-.payroll-page-tabs button.active { color: var(--primary); background: var(--primary-soft); box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--primary) 15%, transparent); }
-.payroll-page-tabs button > svg { width: 14px; height: 14px; }
-.payroll-page-tabs button > span { min-width: 19px; height: 19px; display: grid; place-items: center; padding-inline: 5px; border-radius: 999px; color: var(--warning); background: var(--warning-soft); font-size: 8.5px; }
-.payroll-detail-page-content { min-width: 0; margin-top: 15px; }
+/* Payroll Page Tabs (SOP Standard Minimalist Underline Tabs) */
+.payroll-page-tabs {
+  display: flex;
+  align-items: center;
+  gap: 22px;
+  max-width: 100%;
+  overflow-x: auto;
+  padding: 0 2px;
+  border-bottom: 1px solid var(--border);
+  margin-bottom: 22px;
+  scrollbar-width: none;
+}
+
+.payroll-page-tabs::-webkit-scrollbar {
+  display: none;
+}
+
+.payroll-page-tab-btn {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  gap: 7.5px;
+  padding: 10px 4px 13px 4px;
+  font-size: 13.5px;
+  font-weight: 550;
+  color: var(--muted);
+  background: transparent;
+  border: none;
+  cursor: pointer;
+  white-space: nowrap;
+  transition: color 0.16s ease;
+  user-select: none;
+}
+
+.payroll-page-tab-btn svg {
+  width: 16px;
+  height: 16px;
+  color: var(--muted);
+  transition: color 0.16s ease;
+  flex-shrink: 0;
+}
+
+.payroll-page-tab-btn:hover {
+  color: var(--foreground);
+}
+
+.payroll-page-tab-btn:hover svg {
+  color: var(--foreground);
+}
+
+.payroll-page-tab-btn.active {
+  color: var(--primary);
+  font-weight: 650;
+}
+
+.payroll-page-tab-btn.active svg {
+  color: var(--primary);
+}
+
+.payroll-page-tab-btn .tab-indicator {
+  position: absolute;
+  bottom: -1px;
+  left: 0;
+  right: 0;
+  height: 2.5px;
+  background: var(--primary);
+  border-radius: 4px 4px 0 0;
+}
+
+.payroll-page-tab-btn .tab-badge {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 18px;
+  height: 18px;
+  padding: 0 5px;
+  border-radius: 999px;
+  font-size: 10.5px;
+  font-weight: 750;
+  background: var(--warning-soft);
+  color: var(--warning);
+  border: 1px solid color-mix(in srgb, var(--warning) 28%, transparent);
+  margin-left: 2px;
+}
+
+.payroll-detail-page-content { min-width: 0; }
 .payroll-page-tab-panel { border: 1px solid var(--border); border-radius: 12px; background: color-mix(in srgb, var(--secondary) 22%, var(--card)); }
 .payroll-detail-section { min-width: 0; padding: 17px; border: 1px solid var(--border); border-radius: 12px; background: var(--card); }
 .payroll-overview-tab > .payroll-detail-section { margin-top: 14px; padding-inline: 0; padding-bottom: 0; overflow: hidden; }
@@ -4518,15 +4597,6 @@ button:disabled { cursor: not-allowed; opacity: .5; }
 .payroll-daily-table .status-unapproved { color: var(--destructive); background: color-mix(in srgb, var(--destructive-soft) 70%, var(--card)); }
 .payroll-daily-table .daily-total { color: var(--foreground); font-weight: 750; text-align: center; }
 .payroll-feedback-page-list { padding: 0; }
-
-.payroll-detail { margin: -20px -22px; }
-.payroll-detail-topline { min-height: 44px; display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 8px 22px; background: color-mix(in srgb, var(--secondary) 56%, var(--card)); border-bottom: 1px solid var(--border); }
-.payroll-detail-topline > span { color: var(--muted); font-size: 10.5px; }
-.payroll-detail-tabs { min-height: 50px; display: flex; align-items: flex-end; gap: 4px; padding: 0 22px; border-bottom: 1px solid var(--border); background: var(--card); }
-.payroll-detail-tabs button { position: relative; min-height: 49px; padding: 0 13px; border: 0; color: var(--muted); background: transparent; cursor: pointer; font-size: 12px; font-weight: 650; }
-.payroll-detail-tabs button::after { content: ""; position: absolute; left: 12px; right: 12px; bottom: -1px; height: 2px; border-radius: 2px 2px 0 0; background: transparent; }
-.payroll-detail-tabs button.active { color: var(--primary); }
-.payroll-detail-tabs button.active::after { background: var(--primary); }
 .payroll-overview-tab, .payroll-lines-tab, .detail-feedback-list { padding: 18px 22px 22px; }
 .payroll-money-grid { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); border: 1px solid var(--border); border-radius: 11px; background: var(--card); overflow: hidden; }
 .payroll-money-grid article { min-height: 96px; display: flex; flex-direction: column; justify-content: center; padding: 15px 17px; border-right: 1px solid var(--border); }
@@ -4705,10 +4775,8 @@ button:disabled { cursor: not-allowed; opacity: .5; }
   .payroll-money-grid article { border-right: 0; border-bottom: 1px solid var(--border); }
   .payroll-money-grid article:last-child { border-bottom: 0; }
   .variance-summary { grid-template-columns: 1fr; }
-  .payroll-detail-tabs { overflow-x: auto; }
-  .payroll-detail-tabs button { white-space: nowrap; }
   .payroll-line-table-caption { align-items: flex-start; }
   .payroll-line-table-caption > div span { max-width: 260px; }
   .payroll-overview-tab, .payroll-lines-tab, .detail-feedback-list, .payroll-workflow-tab { padding-inline: 15px; }
-  .payroll-detail-topline, .payroll-detail-tabs { padding-inline: 15px; }
+  .payroll-detail-topline { padding-inline: 15px; }
 }
