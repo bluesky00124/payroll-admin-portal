@@ -125,31 +125,190 @@ export function PayrollWorkspacePage() {
 
   return (
     <>
-      <div className="payroll-page-heading">
-        <div><div className="eyebrow"><Banknote /> VẬN HÀNH KỲ LƯƠNG</div><h1>Bảng lương</h1><p>Tạo từ bảng công đã chốt, duyệt theo quy trình và khóa sau khi hoàn tất.</p></div>
-        <Button variant="primary" onClick={() => setCreateOpen(true)}><Plus />Tạo bảng lương</Button>
+      <div className="payroll-page-title-simple">
+        <h1>Bảng lương</h1>
       </div>
 
-      <section className="payroll-stat-grid" aria-label="Tổng quan bảng lương">
-        <article><span className="payroll-stat-icon active"><FileClock /></span><div><small>Đang xử lý</small><strong>{activeRuns}</strong><p>Kỳ lương chưa hoàn tất</p></div></article>
-        <article><span className="payroll-stat-icon approval"><ShieldCheck /></span><div><small>Chờ phê duyệt</small><strong>{awaitingApproval}</strong><p>Cần hành động theo vai trò</p></div></article>
-        <article><span className="payroll-stat-icon feedback"><MessageSquareText /></span><div><small>Phản hồi mở</small><strong>{unresolvedFeedbacks}</strong><p>Từ phiếu lương NLĐ</p></div></article>
-        <article><span className="payroll-stat-icon locked"><LockKeyhole /></span><div><small>Đã khóa</small><strong>{lockedRuns}</strong><p>Hoàn tất đủ quy trình</p></div></article>
-      </section>
+      <div className="payroll-header-controls">
+        <div className="payroll-header-filters">
+          <label className="payroll-filter-control">
+            <span className="payroll-control-label">CHỌN DỰ ÁN</span>
+            <select
+              className="payroll-control-select"
+              value={projectFilter}
+              onChange={(event) => setProjectFilter(event.target.value)}
+              aria-label="Chọn dự án"
+            >
+              <option value="all">Tất cả dự án</option>
+              {workspace.projects
+                .filter((item) => item.status === "active")
+                .map((project) => (
+                  <option value={project.id} key={project.id}>
+                    {project.code} — {project.name}
+                  </option>
+                ))}
+            </select>
+          </label>
+
+          <div className="payroll-filter-control">
+            <span className="payroll-control-label">THÁNG</span>
+            <MonthPicker
+              value={monthFilter}
+              onChange={setMonthFilter}
+              className="payroll-control-month"
+              placeholder="Chọn tháng..."
+            />
+          </div>
+        </div>
+
+        <div className="payroll-header-actions">
+          <Button
+            variant="primary"
+            className="payroll-action-btn"
+            onClick={() => setCreateOpen(true)}
+          >
+            <FileSpreadsheet />
+            Tạo bảng lương
+          </Button>
+        </div>
+      </div>
 
       <section className="content-card payroll-list-card">
-        <div className="payroll-filter-bar table-card-toolbar"><div className="filter-panel-top"><div className="filter-panel-inputs">
-          <label className="search-field payroll-search"><Search /><input value={query} onChange={(event) => setQuery(event.target.value)} placeholder="Tìm mã bảng lương, dự án…" aria-label="Tìm bảng lương" /></label>
-          <select className="filter-select payroll-project-filter" value={projectFilter} onChange={(event) => setProjectFilter(event.target.value)} aria-label="Lọc theo dự án"><option value="all">Tất cả dự án</option>{workspace.projects.filter((item) => item.status === "active").map((project) => <option value={project.id} key={project.id}>{project.code} — {project.name}</option>)}</select>
-          <MonthPicker value={monthFilter} onChange={setMonthFilter} className="payroll-period-filter" placeholder="Chọn kỳ lương" />
-          <select className="filter-select payroll-status-filter" value={statusFilter} onChange={(event) => setStatusFilter(event.target.value)} aria-label="Lọc theo trạng thái"><option value="all">Tất cả trạng thái</option>{Object.entries(statusConfig).map(([value, config]) => <option value={value} key={value}>{config.short}</option>)}</select>
-        </div></div></div>
-        {filteredRuns.length === 0 ? <div className="payroll-empty"><Inbox /><h3>Chưa có bảng lương phù hợp</h3><p>Thay đổi bộ lọc hoặc tạo bảng lương từ một bảng công đã được duyệt.</p><Button variant="primary" onClick={() => setCreateOpen(true)}><Plus />Tạo bảng lương</Button></div> : <><div className="payroll-table-wrap"><table className="payroll-table"><thead><tr><th>Bảng lương</th><th>Kỳ lương</th><th>Thực nhận</th><th>Tiến độ</th><th>Phản hồi</th><th>Cập nhật</th><th /></tr></thead><tbody>{paginatedRuns.map((run) => {
-          const project = getProject(workspace, run.projectId);
-          const stage = getWorkflowStage(run);
-          const hasUnresolvedFeedback = workspace.feedbacks.some((item) => item.payrollId === run.id && !["adjusted", "rejected"].includes(item.status));
-          return <tr key={run.id} onClick={() => router.push(`/payroll/${run.id}`)}><td><div className="payroll-code-cell"><span className={run.status === "locked" ? "locked" : ""}>{run.status === "locked" ? <LockKeyhole /> : <FileSpreadsheet />}</span><div><strong>{run.code}</strong><small>{project?.code} · {project?.name}</small></div></div></td><td><strong>{formatMonthYear(run.period, true)}</strong><small>{run.employeeCount} NLĐ</small></td><td><strong className="money-value">{formatCurrency(run.netPayroll)}</strong><small>Khấu trừ {formatCurrency(run.totalDeductions)}</small></td><td><div className="payroll-progress-cell"><div><span style={{ width: `${Math.min(100, ((stage - 1) / 8) * 100)}%` }} /></div><StatusBadge tone={statusConfig[run.status].tone}>{statusConfig[run.status].short}</StatusBadge></div></td><td>{run.feedbackCount > 0 ? <button type="button" className={`payroll-feedback-trigger ${hasUnresolvedFeedback ? "warning" : "success"}`} aria-label={`Mở ${run.feedbackCount} phản hồi của ${run.code}`} onClick={(event) => { event.stopPropagation(); router.push(`/payroll/${run.id}?tab=feedback`); }}><MessageSquareText /><span>{run.feedbackCount}</span></button> : <span className="muted-dash">—</span>}</td><td><span>{formatDate(run.updatedAt)}</span><small>{run.createdBy.split(" (")[0]}</small></td><td><button className="row-chevron" type="button" aria-label={`Mở ${run.code}`} onClick={(event) => { event.stopPropagation(); router.push(`/payroll/${run.id}`); }}><ChevronRight /></button></td></tr>;
-        })}</tbody></table></div><TablePaginationFooter totalItems={filteredRuns.length} currentPage={page} pageSize={pageSize} onPageChange={setPage} onPageSizeChange={(newSize) => { setPageSize(newSize); setPage(1); }} /></>}
+        {filteredRuns.length > 0 && (
+          <div className="payroll-filter-bar table-card-toolbar">
+            <div className="filter-panel-top">
+              <div className="filter-panel-inputs">
+                <label className="search-field payroll-search">
+                  <Search />
+                  <input
+                    value={query}
+                    onChange={(event) => setQuery(event.target.value)}
+                    placeholder="Tìm mã bảng lương, dự án…"
+                    aria-label="Tìm bảng lương"
+                  />
+                </label>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {filteredRuns.length === 0 ? (
+          <div className="payroll-empty-sync">
+            <div className="payroll-empty-icon-box">
+              <Inbox />
+            </div>
+            <h3>Dữ liệu bảng lương trống</h3>
+            <p>Vui lòng chọn dự án và tháng để xem bảng lương.</p>
+            <Button variant="primary" onClick={() => setCreateOpen(true)}>
+              <Plus />Tạo bảng lương
+            </Button>
+          </div>
+        ) : (
+          <>
+            <div className="payroll-table-wrap">
+              <table className="payroll-table">
+                <thead>
+                  <tr>
+                    <th>Bảng lương</th>
+                    <th>Kỳ lương</th>
+                    <th>Thực nhận</th>
+                    <th>Tiến độ</th>
+                    <th>Phản hồi</th>
+                    <th>Cập nhật</th>
+                    <th />
+                  </tr>
+                </thead>
+                <tbody>
+                  {paginatedRuns.map((run) => {
+                    const project = getProject(workspace, run.projectId);
+                    const stage = getWorkflowStage(run);
+                    const hasUnresolvedFeedback = workspace.feedbacks.some(
+                      (item) => item.payrollId === run.id && !["adjusted", "rejected"].includes(item.status)
+                    );
+                    return (
+                      <tr key={run.id} onClick={() => router.push(`/payroll/${run.id}`)}>
+                        <td>
+                          <div className="payroll-code-cell">
+                            <span className={run.status === "locked" ? "locked" : ""}>
+                              {run.status === "locked" ? <LockKeyhole /> : <FileSpreadsheet />}
+                            </span>
+                            <div>
+                              <strong>{run.code}</strong>
+                              <small>{project?.code} · {project?.name}</small>
+                            </div>
+                          </div>
+                        </td>
+                        <td>
+                          <strong>{formatMonthYear(run.period, true)}</strong>
+                          <small>{run.employeeCount} NLĐ</small>
+                        </td>
+                        <td>
+                          <strong className="money-value">{formatCurrency(run.netPayroll)}</strong>
+                          <small>Khấu trừ {formatCurrency(run.totalDeductions)}</small>
+                        </td>
+                        <td>
+                          <div className="payroll-progress-cell">
+                            <div>
+                              <span style={{ width: `${Math.min(100, ((stage - 1) / 8) * 100)}%` }} />
+                            </div>
+                            <StatusBadge tone={statusConfig[run.status].tone}>
+                              {statusConfig[run.status].short}
+                            </StatusBadge>
+                          </div>
+                        </td>
+                        <td>
+                          {run.feedbackCount > 0 ? (
+                            <button
+                              type="button"
+                              className={`payroll-feedback-trigger ${hasUnresolvedFeedback ? "warning" : "success"}`}
+                              aria-label={`Mở chi tiết xác nhận của ${run.code}`}
+                              onClick={(event) => {
+                                event.stopPropagation();
+                                router.push(`/payroll/${run.id}?tab=workflow&dialog=confirmations`);
+                              }}
+                            >
+                              <MessageSquareText />
+                              <span>{run.feedbackCount}</span>
+                            </button>
+                          ) : (
+                            <span className="muted-dash">—</span>
+                          )}
+                        </td>
+                        <td>
+                          <span>{formatDate(run.updatedAt)}</span>
+                          <small>{run.createdBy.split(" (")[0]}</small>
+                        </td>
+                        <td>
+                          <button
+                            className="row-chevron"
+                            type="button"
+                            aria-label={`Mở ${run.code}`}
+                            onClick={(event) => {
+                              event.stopPropagation();
+                              router.push(`/payroll/${run.id}`);
+                            }}
+                          >
+                            <ChevronRight />
+                          </button>
+                        </td>
+                      </tr>
+                    );
+                  })}
+                </tbody>
+              </table>
+            </div>
+            <TablePaginationFooter
+              totalItems={filteredRuns.length}
+              currentPage={page}
+              pageSize={pageSize}
+              onPageChange={setPage}
+              onPageSizeChange={(newSize) => {
+                setPageSize(newSize);
+                setPage(1);
+              }}
+            />
+          </>
+        )}
       </section>
 
       <Modal open={createOpen} onOpenChange={(open) => { if (!generating) setCreateOpen(open); }} title={generating ? "Đang tạo bảng lương" : "Tạo bảng lương mới"} description={generating ? "Hệ thống đang đối chiếu dữ liệu và thực hiện công thức tính." : "Chỉ bảng công đã duyệt cuối cùng và chưa dùng để tính lương mới được chọn."} size="lg" footer={generating ? undefined : <><Button onClick={() => setCreateOpen(false)}>Hủy</Button><Button variant="primary" disabled={!createSheetId} onClick={handleGenerate}>Tạo bảng lương</Button></>}>

@@ -172,7 +172,7 @@ export function StatusBadge({
   return (
     <span className={cn("status-badge", `status-badge-${tone}`, className)}>
       {dot && <span className="status-badge-dot" aria-hidden="true" />}
-      <span>{children}</span>
+      <span className="status-badge-label">{children}</span>
     </span>
   );
 }

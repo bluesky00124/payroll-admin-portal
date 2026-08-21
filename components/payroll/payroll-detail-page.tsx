@@ -13,6 +13,7 @@ import {
   MessageSquareText,
   RefreshCw,
   RotateCcw,
+  Search,
   Send,
   UserCheck,
   XCircle,
@@ -22,10 +23,8 @@ import { useRouter, useSearchParams } from "next/navigation";
 import { useEffect, useMemo, useState } from "react";
 import { useToast, useUserRole, type UserRole } from "@/components/providers";
 import {
-  feedbackCategoryLabels,
   feedbackConfig,
   roleActors,
-  sourceLabels,
   statusConfig,
   getWorkflowStage,
   workflowSteps,
@@ -43,24 +42,23 @@ import {
   resubmitPayrollCorrection,
   reviewPayrollFeedback,
   submitPayrollExplanation,
-  syncPayslipConfirmations,
   updatePayrollLine,
   type PayrollWorkspace,
 } from "@/lib/payroll-store";
 import type { PayrollAuditEvent, PayrollAttendanceSheet, PayrollFeedback, PayrollLine, PayrollRun } from "@/lib/types";
 import { formatCurrency, formatDate, formatMonthYear } from "@/lib/utils";
 
-type DetailTab = "overview" | "workflow" | "feedback";
+type DetailTab = "overview" | "workflow";
 
 const tabs: Array<{ value: DetailTab; label: string; icon: typeof FileSpreadsheet }> = [
   { value: "overview", label: "Bảng lương", icon: FileSpreadsheet },
   { value: "workflow", label: "Quy trình duyệt", icon: History },
-  { value: "feedback", label: "Phản hồi", icon: MessageSquareText },
 ];
 
 const validTabs = new Set(tabs.map((item) => item.value));
 
-type WorkflowAction = "confirm_review" | "confirm_project" | "publish" | "sync_payslips" | "record_revenue" | "submit_explanation" | "finalize" | "resubmit";
+type WorkflowAction = "confirm_review" | "confirm_project" | "publish" | "record_revenue" | "submit_explanation" | "finalize" | "resubmit";
+type ConfirmationFilter = "all" | "pending" | "feedback" | "confirmed";
 
 export function PayrollDetailPage({ payrollId }: { payrollId: string }) {
   const [workspace, setWorkspace] = useState<PayrollWorkspace | null>(null);
@@ -74,6 +72,9 @@ export function PayrollDetailPage({ payrollId }: { payrollId: string }) {
   const [lockOpen, setLockOpen] = useState(false);
   const [correctionDialog, setCorrectionDialog] = useState<{ mode: "request" | "resubmit"; step: 3 | 4 } | null>(null);
   const [correctionNote, setCorrectionNote] = useState("");
+  const [confirmationOpen, setConfirmationOpen] = useState(false);
+  const [confirmationFilter, setConfirmationFilter] = useState<ConfirmationFilter>("all");
+  const [confirmationQuery, setConfirmationQuery] = useState("");
   const [feedbackAction, setFeedbackAction] = useState<{ feedback: PayrollFeedback; action: "adjusted" | "rejected" } | null>(null);
   const [feedbackNote, setFeedbackNote] = useState("");
   const { role } = useUserRole();
@@ -86,6 +87,9 @@ export function PayrollDetailPage({ payrollId }: { payrollId: string }) {
 
   const refresh = () => setWorkspace(getPayrollWorkspace());
   useEffect(() => refresh(), []);
+  useEffect(() => {
+    if (searchParams.get("dialog") === "confirmations") setConfirmationOpen(true);
+  }, [searchParams]);
 
   const selectedRun = workspace?.payrollRuns.find((item) => item.id === payrollId) ?? null;
   const selectedProject = selectedRun && workspace ? workspace.projects.find((item) => item.id === selectedRun.projectId) : null;
@@ -98,6 +102,19 @@ export function PayrollDetailPage({ payrollId }: { payrollId: string }) {
   const changeTab = (tab: DetailTab) => {
     setQuery("");
     router.replace(tab === "overview" ? `/payroll/${payrollId}` : `/payroll/${payrollId}?tab=${tab}`, { scroll: false });
+  };
+
+  const openConfirmations = () => {
+    setConfirmationFilter("all");
+    setConfirmationQuery("");
+    setConfirmationOpen(true);
+  };
+
+  const closeConfirmations = () => {
+    setConfirmationOpen(false);
+    if (searchParams.get("dialog") === "confirmations") {
+      router.replace(`/payroll/${payrollId}?tab=workflow`, { scroll: false });
+    }
   };
 
   const runMutation = (action: () => void, success: string) => {
@@ -128,7 +145,6 @@ export function PayrollDetailPage({ payrollId }: { payrollId: string }) {
     if (action === "confirm_review") runMutation(() => confirmPayrollReview(selectedRun.id, actor), "Đã chuyển CDA/GSDA xác nhận");
     else if (action === "confirm_project") runMutation(() => confirmProjectPayroll(selectedRun.id, actor), "Đã xác nhận bảng lương, chờ phát hành phiếu lương");
     else if (action === "publish") runMutation(() => publishPayrollPayslips(selectedRun.id, actor), "Đã phát hành phiếu lương cho NLĐ");
-    else if (action === "sync_payslips") runMutation(() => syncPayslipConfirmations(selectedRun.id, actor), "NLĐ đã xác nhận đủ phiếu lương");
     else if (action === "record_revenue") setRevenueOpen(true);
     else if (action === "submit_explanation") { setExplanation(selectedRun.explanation ?? ""); setExplanationOpen(true); }
     else if (action === "finalize") setLockOpen(true);
@@ -161,15 +177,13 @@ export function PayrollDetailPage({ payrollId }: { payrollId: string }) {
   if (!workspace) return <div className="payroll-loading"><RefreshCw className="spin" /> Đang tải chi tiết bảng lương…</div>;
   if (!selectedRun || !selectedProject) return <section className="content-card payroll-not-found"><FileSpreadsheet /><h1>Không tìm thấy bảng lương</h1><p>Bảng lương có thể đã bị xóa hoặc đường dẫn không còn hợp lệ.</p><Button onClick={() => router.push("/payroll")}><ArrowLeft />Quay lại danh sách</Button></section>;
 
-  const hasOpenFeedback = selectedFeedbacks.some((item) => !["adjusted", "rejected"].includes(item.status));
-
   return (
     <>
       <div className="payroll-detail-page">
         <header className="payroll-detail-page-header">
           <div className="payroll-detail-title">
             <Link href="/payroll" className="payroll-back-link"><ArrowLeft />Danh sách bảng lương</Link>
-            <div className="payroll-detail-title-row"><h1>{selectedRun.code}</h1><StatusBadge tone={statusConfig[selectedRun.status].tone}>{selectedRun.status === "locked" && <LockKeyhole />}{statusConfig[selectedRun.status].label}</StatusBadge></div>
+            <div className="payroll-detail-title-row"><h1>{selectedRun.code}</h1><StatusBadge tone={statusConfig[selectedRun.status].tone}>{statusConfig[selectedRun.status].label}</StatusBadge></div>
             <p>{selectedProject.code} · {selectedProject.name} · {formatMonthYear(selectedRun.period, true)}</p>
           </div>
           <div className="payroll-detail-header-action"><small>Cập nhật {formatDate(selectedRun.updatedAt)}</small></div>
@@ -187,9 +201,6 @@ export function PayrollDetailPage({ payrollId }: { payrollId: string }) {
               >
                 <Icon />
                 <span>{label}</span>
-                {value === "feedback" && selectedFeedbacks.length > 0 && (
-                  <span className="tab-badge">{selectedFeedbacks.length}</span>
-                )}
                 {isActive && <span className="tab-indicator" />}
               </button>
             );
@@ -197,14 +208,25 @@ export function PayrollDetailPage({ payrollId }: { payrollId: string }) {
         </nav>
 
         <main className="payroll-detail-page-content">
-          {activeTab === "overview" && <OverviewTab run={selectedRun} sheet={selectedSheet ?? undefined} feedbacks={selectedFeedbacks} onEdit={openLineEditor} lines={selectedLines} employees={workspace.employees} query={query} onQueryChange={setQuery} canViewSensitive={canViewSensitive} />}
-          {activeTab === "workflow" && <WorkflowTab run={selectedRun} sheet={selectedSheet ?? undefined} audits={selectedAudits} feedbacks={selectedFeedbacks} role={role} onAction={handleWorkflowAction} onRequestCorrection={openCorrectionRequest} onOpenFeedback={() => changeTab("feedback")} />}
-          {activeTab === "feedback" && <FeedbackTab feedbacks={selectedFeedbacks} role={role} onOwnerApprove={(feedback) => runMutation(() => reviewPayrollFeedback(feedback.id, "pending_accounting", actor), "Đã duyệt và chuyển phản hồi tới Kế toán C&B")} onResolve={(feedback, action) => { setFeedbackAction({ feedback, action }); setFeedbackNote(""); }} />}
+          {activeTab === "overview" && <OverviewTab run={selectedRun} feedbacks={selectedFeedbacks} onEdit={openLineEditor} lines={selectedLines} employees={workspace.employees} query={query} onQueryChange={setQuery} canViewSensitive={canViewSensitive} />}
+          {activeTab === "workflow" && <WorkflowTab run={selectedRun} sheet={selectedSheet ?? undefined} audits={selectedAudits} feedbacks={selectedFeedbacks} role={role} onAction={handleWorkflowAction} onRequestCorrection={openCorrectionRequest} onOpenConfirmations={openConfirmations} />}
         </main>
-
-        {selectedRun.status === "payslip_confirmation" && hasOpenFeedback && <div className="payroll-page-warning"><AlertTriangle />Cần xử lý hết phản hồi của người lao động trước khi chuyển bước.</div>}
       </div>
 
+      <Modal open={confirmationOpen} onOpenChange={(open) => { if (!open) closeConfirmations(); }} title="Chi tiết xác nhận phiếu lương" description={`${selectedRun.code} · ${selectedProject.code} · ${formatMonthYear(selectedRun.period, true)}`} size="xl" footer={<Button onClick={closeConfirmations}>Đóng</Button>}>
+        <PayslipConfirmationPanel
+          run={selectedRun}
+          lines={selectedLines}
+          feedbacks={selectedFeedbacks}
+          role={role}
+          filter={confirmationFilter}
+          query={confirmationQuery}
+          onFilterChange={setConfirmationFilter}
+          onQueryChange={setConfirmationQuery}
+          onOwnerApprove={(feedback) => runMutation(() => reviewPayrollFeedback(feedback.id, "pending_accounting", actor), "Đã duyệt và chuyển phản hồi tới Kế toán C&B")}
+          onResolve={(feedback, action) => { setFeedbackAction({ feedback, action }); setFeedbackNote(""); }}
+        />
+      </Modal>
       <Modal open={Boolean(editingLine)} onOpenChange={(open) => { if (!open) setEditingLine(null); }} title={`Điều chỉnh lương · ${editingLine?.employeeCode ?? ""}`} description={editingLine ? `${editingLine.employeeName} · ${editingLine.position}` : undefined} size="lg" footer={<><Button onClick={() => setEditingLine(null)}>Hủy</Button><Button variant="primary" disabled={!editValues.reason.trim()} onClick={saveLine}><Check />Lưu điều chỉnh</Button></>}>
         <div className="edit-payroll-form"><div className="form-grid"><label className="form-field"><span>Ngày công</span><input type="number" step="0.5" value={editValues.workDays} onChange={(event) => setEditValues((value) => ({ ...value, workDays: Number(event.target.value) }))} /></label><label className="form-field"><span>Giờ tăng ca</span><input type="number" step="0.5" value={editValues.overtimeHours} onChange={(event) => setEditValues((value) => ({ ...value, overtimeHours: Number(event.target.value) }))} /></label><MoneyField label="Lương theo công" value={editValues.basePay} onChange={(value) => setEditValues((current) => ({ ...current, basePay: value }))} /><MoneyField label="Tiền tăng ca" value={editValues.overtimePay} onChange={(value) => setEditValues((current) => ({ ...current, overtimePay: value }))} /><MoneyField label="Tổng phụ cấp" value={editValues.allowances} onChange={(value) => setEditValues((current) => ({ ...current, allowances: value }))} /><MoneyField label="Tổng khấu trừ" value={editValues.deductions} onChange={(value) => setEditValues((current) => ({ ...current, deductions: value }))} /><label className="form-field form-field-wide"><span>Ghi chú dòng lương</span><textarea rows={2} value={editValues.note} onChange={(event) => setEditValues((value) => ({ ...value, note: event.target.value }))} /></label><label className="form-field form-field-wide"><span>Lý do điều chỉnh <b>*</b></span><textarea rows={3} value={editValues.reason} onChange={(event) => setEditValues((value) => ({ ...value, reason: event.target.value }))} placeholder="Nêu rõ căn cứ điều chỉnh hoặc cấp quản lý phê duyệt…" /></label></div><div className="edit-net-preview"><span>Thực nhận sau điều chỉnh</span><strong>{formatCurrency(editValues.basePay + editValues.overtimePay + editValues.allowances - editValues.deductions)}</strong></div></div>
       </Modal>
@@ -217,8 +239,29 @@ export function PayrollDetailPage({ payrollId }: { payrollId: string }) {
   );
 }
 
-function OverviewTab({ run, sheet, feedbacks, onEdit, lines, employees, query, onQueryChange, canViewSensitive }: { run: PayrollRun; sheet: PayrollWorkspace["attendanceSheets"][number] | undefined; feedbacks: PayrollFeedback[]; onEdit: (line: PayrollLine) => void; lines: PayrollLine[]; employees: PayrollWorkspace["employees"]; query: string; onQueryChange: (value: string) => void; canViewSensitive: boolean }) {
-  return <div className="payroll-overview-tab payroll-page-tab-panel"><div className="payroll-money-grid"><article><span>Tổng thu nhập</span><strong>{formatCurrency(run.grossPayroll)}</strong><small>Trước khấu trừ</small></article><article><span>Tổng khấu trừ</span><strong>{formatCurrency(run.totalDeductions)}</strong><small>BHXH, thuế và phát sinh</small></article><article className="net"><span>Thực nhận</span><strong>{formatCurrency(run.netPayroll)}</strong><small>{run.employeeCount} người lao động</small></article><article><span>Phiếu lương xác nhận</span><strong>{run.confirmedPayslipCount}/{run.employeeCount}</strong><small>{run.feedbackCount} phản hồi</small></article></div><section className="payroll-info-panel payroll-source-panel"><h3>Nguồn dữ liệu</h3><dl><div><dt>Bảng công</dt><dd>{sheet?.code}</dd></div><div><dt>Nguồn</dt><dd>{sheet ? sourceLabels[sheet.source] : "—"}</dd></div><div><dt>Trạng thái bảng công</dt><dd><Badge tone="success"><CheckCircle2 />Đã duyệt cuối</Badge></dd></div><div><dt>Khởi tạo bởi</dt><dd>{run.createdBy}</dd></div></dl></section>{(run.currentRevenue || run.varianceRate !== undefined) && <div className="variance-summary"><div><span>Doanh thu kỳ này</span><strong>{formatCurrency(run.currentRevenue ?? 0)}</strong></div><div><span>Chênh lệch A</span><strong className={Math.abs(run.varianceRate ?? 0) > 1.5 ? "danger" : "success"}>{(run.varianceRate ?? 0).toFixed(2)}%</strong></div><div><span>Quy đổi B</span><strong>{formatCurrency(run.varianceAmount ?? 0)}</strong></div>{run.explanation && <p><b>Giải trình:</b> {run.explanation}</p>}</div>}<PayrollFullTable run={run} lines={lines} employees={employees} locked={run.status === "locked"} query={query} onQueryChange={onQueryChange} onEdit={onEdit} canViewSensitive={canViewSensitive} />{run.status === "payslip_confirmation" && feedbacks.some((item) => !["adjusted", "rejected"].includes(item.status)) && <div className="tab-context-note"><AlertTriangle /><div><strong>Còn phản hồi chưa xử lý</strong><p>Mở tab Phản hồi để chủ dự án duyệt và C&B xác nhận kết quả.</p></div></div>}</div>;
+function OverviewTab({ run, feedbacks, onEdit, lines, employees, query, onQueryChange, canViewSensitive }: { run: PayrollRun; feedbacks: PayrollFeedback[]; onEdit: (line: PayrollLine) => void; lines: PayrollLine[]; employees: PayrollWorkspace["employees"]; query: string; onQueryChange: (value: string) => void; canViewSensitive: boolean }) {
+  return (
+    <div className="payroll-overview-tab payroll-page-tab-panel">
+      {(run.currentRevenue || run.varianceRate !== undefined) && (
+        <div className="variance-summary">
+          <div><span>Doanh thu kỳ này</span><strong>{formatCurrency(run.currentRevenue ?? 0)}</strong></div>
+          <div><span>Chênh lệch A</span><strong className={Math.abs(run.varianceRate ?? 0) > 1.5 ? "danger" : "success"}>{(run.varianceRate ?? 0).toFixed(2)}%</strong></div>
+          <div><span>Quy đổi B</span><strong>{formatCurrency(run.varianceAmount ?? 0)}</strong></div>
+          {run.explanation && <p><b>Giải trình:</b> {run.explanation}</p>}
+        </div>
+      )}
+      <PayrollFullTable run={run} lines={lines} employees={employees} locked={run.status === "locked"} query={query} onQueryChange={onQueryChange} onEdit={onEdit} canViewSensitive={canViewSensitive} />
+      {run.status === "payslip_confirmation" && feedbacks.some((item) => !["adjusted", "rejected"].includes(item.status)) && (
+        <div className="tab-context-note">
+          <AlertTriangle />
+          <div>
+            <strong>Còn phản hồi chưa xử lý</strong>
+            <p>Xem chi tiết tại Bước 6 trong quy trình duyệt để CDA/GSDA và Kế toán C&B xử lý.</p>
+          </div>
+        </div>
+      )}
+    </div>
+  );
 }
 
 function inferAuditStep(event: PayrollAuditEvent) {
@@ -248,25 +291,25 @@ function getWorkflowAssignee(step: number, run: PayrollRun, sheet: PayrollAttend
   return isDone && event?.type === "lock" ? event.actor : roleActors.accountant;
 }
 
-function WorkflowTab({ run, sheet, audits, feedbacks, role, onAction, onRequestCorrection, onOpenFeedback }: { run: PayrollRun; sheet: PayrollAttendanceSheet | undefined; audits: PayrollWorkspace["auditEvents"]; feedbacks: PayrollFeedback[]; role: UserRole; onAction: (action: WorkflowAction) => void; onRequestCorrection: (step: 3 | 4) => void; onOpenFeedback: () => void }) {
+function WorkflowTab({ run, sheet, audits, feedbacks, role, onAction, onRequestCorrection, onOpenConfirmations }: { run: PayrollRun; sheet: PayrollAttendanceSheet | undefined; audits: PayrollWorkspace["auditEvents"]; feedbacks: PayrollFeedback[]; role: UserRole; onAction: (action: WorkflowAction) => void; onRequestCorrection: (step: 3 | 4) => void; onOpenConfirmations: () => void }) {
   const stage = getWorkflowStage(run);
-  const hasOpenFeedback = feedbacks.some((item) => !["adjusted", "rejected"].includes(item.status));
   const payslipProgress = run.employeeCount > 0 ? Math.round((run.confirmedPayslipCount / run.employeeCount) * 100) : 0;
 
-  const renderAction = (step: number, isActive: boolean, isCorrection: boolean) => {
+  const renderAction = (step: number, isActive: boolean, isCorrection: boolean, isDone: boolean) => {
+    if (step === 6 && (isActive || isDone)) return <Button size="sm" onClick={onOpenConfirmations}><UserCheck />Chi tiết xác nhận</Button>;
+    if (isDone) return <span className="workflow-done-check" aria-label="Đã hoàn tất"><Check /></span>;
     if (!isActive || run.status === "locked") return <span className="workflow-no-action">—</span>;
     if (isCorrection) return role === "accountant" ? <Button size="sm" variant="primary" onClick={() => onAction("resubmit")}><Send />Đã điều chỉnh</Button> : <span className="workflow-waiting">Chờ Kế toán C&B</span>;
     if (step === 3) return role === "bcsx" ? <div className="workflow-actions"><Button size="sm" variant="primary" onClick={() => onAction("confirm_review")}><FileCheck2 />Xác nhận</Button><Button size="sm" onClick={() => onRequestCorrection(3)}><RotateCcw />Yêu cầu điều chỉnh</Button></div> : <span className="workflow-waiting">Chờ Admin/BCSX</span>;
     if (step === 4) return role === "project_owner" ? <div className="workflow-actions"><Button size="sm" variant="primary" onClick={() => onAction("confirm_project")}><Check />Xác nhận</Button><Button size="sm" onClick={() => onRequestCorrection(4)}><RotateCcw />Trả lại C&B</Button></div> : <span className="workflow-waiting">Chờ CDA/GSDA</span>;
     if (step === 5) return role === "accountant" || role === "project_owner" ? <Button size="sm" variant="primary" onClick={() => onAction("publish")}><Send />Phát hành</Button> : <span className="workflow-waiting">Chờ CDA/GSDA/C&B</span>;
-    if (step === 6) return hasOpenFeedback ? <Button size="sm" onClick={onOpenFeedback}><MessageSquareText />Xử lý phản hồi</Button> : role === "accountant" ? <Button size="sm" variant="primary" onClick={() => onAction("sync_payslips")}><RefreshCw />Đồng bộ trạng thái</Button> : <span className="workflow-waiting">Chờ NLĐ xác nhận</span>;
     if (step === 7) return role === "payment_accountant" ? <Button size="sm" variant="primary" onClick={() => onAction("record_revenue")}><BarChart3 />Cập nhật doanh thu</Button> : <span className="workflow-waiting">Chờ Kế toán thanh toán</span>;
     if (step === 8) return role === "project_owner" ? <Button size="sm" variant="primary" onClick={() => onAction("submit_explanation")}><MessageSquareText />Gửi giải trình</Button> : <span className="workflow-waiting">Chờ CDA/GSDA</span>;
     if (step === 9) return role === "accountant" ? <Button size="sm" variant="primary" onClick={() => onAction("finalize")}><LockKeyhole />Hoàn tất & khóa</Button> : <span className="workflow-waiting">Chờ Kế toán C&B</span>;
     return <span className="workflow-no-action">—</span>;
   };
 
-  return <section className="payroll-workflow-tab payroll-page-tab-panel"><header className="workflow-table-heading"><div><span className="eyebrow"><History /> QUY TRÌNH THEO PKT.QT06</span><h2>Quy trình xác nhận bảng lương</h2><p>Chỉ bước hiện tại và đúng vai trò mới có thể thao tác. Mọi kết quả được ghi nhận trực tiếp trên từng bước.</p></div><StatusBadge tone={statusConfig[run.status].tone}>{statusConfig[run.status].label}</StatusBadge></header><div className="workflow-table-wrap"><table className="workflow-approval-table"><thead><tr><th>STT</th><th>Bước</th><th>Trạng thái</th><th>Người xử lý</th><th>Thời gian</th><th>Ghi chú / Kết quả</th><th>Xác nhận</th></tr></thead><tbody>{workflowSteps.map((item) => {
+  return <section className="payroll-workflow-tab payroll-page-tab-panel"><header className="workflow-table-heading"><div><span className="eyebrow"><History /> QUY TRÌNH THEO PKT.QT06</span><h2>Quy trình xác nhận bảng lương</h2><p>Chỉ bước hiện tại và đúng vai trò mới có thể thao tác. Mọi kết quả được ghi nhận trực tiếp trên từng bước.</p></div><StatusBadge tone={statusConfig[run.status].tone}>{statusConfig[run.status].label}</StatusBadge></header><div className="workflow-table-wrap"><table className="workflow-approval-table"><thead><tr><th>STT</th><th>Bước</th><th>Trạng thái</th><th>Người xử lý</th><th>Thời gian</th><th>Ghi chú / Kết quả</th><th>Thao tác</th></tr></thead><tbody>{workflowSteps.map((item) => {
     const isCorrection = run.status === "correction_required" && item.step === stage;
     const isSkipped = item.step === 8 && stage > 8 && !run.explanation && run.varianceRate !== undefined;
     const isDone = !isSkipped && (run.status === "locked" || item.step < stage);
@@ -274,15 +317,64 @@ function WorkflowTab({ run, sheet, audits, feedbacks, role, onAction, onRequestC
     const event = audits.find((candidate) => inferAuditStep(candidate) === item.step);
     const revenueEvent = isSkipped ? audits.find((candidate) => inferAuditStep(candidate) === 7) : undefined;
     const time = item.step === 1 ? sheet?.approvedAt : item.step === 2 ? event?.createdAt ?? run.createdAt : item.step === 5 ? event?.createdAt ?? run.publishedAt : item.step === 9 ? event?.createdAt ?? run.lockedAt : isSkipped ? revenueEvent?.createdAt : event?.createdAt;
-    const statusLabel = isCorrection ? "Cần điều chỉnh" : isSkipped ? "Không yêu cầu" : isDone ? "Đã hoàn tất" : isActive ? item.step === 6 ? "Đang chờ NLĐ" : "Chờ xử lý" : "Chờ bước trước";
+    const statusLabel = isCorrection ? "Cần điều chỉnh" : isSkipped ? "Không yêu cầu" : isDone ? "Đã hoàn tất" : isActive ? item.step === 6 ? "Đang xác nhận" : "Chờ xử lý" : "Chờ bước trước";
     const statusTone = isCorrection ? "danger" : isSkipped ? "neutral" : isDone ? "success" : isActive ? "warning" : "neutral";
-    const note = isCorrection ? run.returnReason : isSkipped ? "Chênh lệch A và B nằm trong ngưỡng cho phép." : item.step === 1 && sheet ? `${sheet.code} đã được duyệt cuối.` : event?.description;
-    return <tr className={`${isActive ? "active" : ""} ${isDone ? "done" : ""} ${isCorrection ? "correction" : ""}`} key={item.step}><td><span className="workflow-step-number">{String(item.step).padStart(2, "0")}</span></td><td><div className="workflow-step-cell"><strong>{item.title}</strong><p>{item.description}</p><small>{item.owner} · SLA {item.time}</small></div></td><td><StatusBadge tone={statusTone}>{isDone && <Check />}{statusLabel}</StatusBadge></td><td><div className="workflow-assignee"><strong>{isSkipped ? "Hệ thống kiểm soát" : getWorkflowAssignee(item.step, run, sheet, event, isCorrection, isDone)}</strong><small>{isCorrection ? "Kế toán C&B xử lý yêu cầu trả lại" : isSkipped ? "Tự động theo ngưỡng A và B" : item.owner}</small>{item.step === 6 && <div className="workflow-employee-progress"><span><i style={{ width: `${payslipProgress}%` }} /></span><b>{run.confirmedPayslipCount}/{run.employeeCount} · {payslipProgress}%</b></div>}</div></td><td><span className="workflow-time">{time ? formatDate(time) : "—"}</span></td><td><span className={`workflow-note ${note ? "" : "empty"}`}>{note ?? "—"}</span></td><td>{renderAction(item.step, isActive, isCorrection)}</td></tr>;
+    const openFeedbackCount = feedbacks.filter((feedback) => !["adjusted", "rejected"].includes(feedback.status)).length;
+    const note = isCorrection ? run.returnReason : isSkipped ? "Chênh lệch A và B nằm trong ngưỡng cho phép." : item.step === 6 && isActive ? `${run.confirmedPayslipCount}/${run.employeeCount} đã xác nhận${openFeedbackCount > 0 ? ` · ${openFeedbackCount} phản hồi đang xử lý` : ` · ${run.employeeCount - run.confirmedPayslipCount} NLĐ chưa phản hồi`}.` : item.step === 1 && sheet ? `${sheet.code} đã được duyệt cuối.` : event?.description;
+    return <tr className={`${isActive ? "active" : ""} ${isDone ? "done" : ""} ${isCorrection ? "correction" : ""}`} key={item.step}><td><span className="workflow-step-number">{String(item.step).padStart(2, "0")}</span></td><td><div className="workflow-step-cell"><strong>{item.title}</strong><p>{item.description}</p><small>{item.owner} · SLA {item.time}</small></div></td><td><StatusBadge tone={statusTone}>{statusLabel}</StatusBadge></td><td><div className="workflow-assignee"><strong>{isSkipped ? "Hệ thống kiểm soát" : getWorkflowAssignee(item.step, run, sheet, event, isCorrection, isDone)}</strong><small>{isCorrection ? "Kế toán C&B xử lý yêu cầu trả lại" : isSkipped ? "Tự động theo ngưỡng A và B" : item.owner}</small>{item.step === 6 && <div className="workflow-employee-progress"><span><i style={{ width: `${payslipProgress}%` }} /></span><b>{run.confirmedPayslipCount}/{run.employeeCount} · {payslipProgress}%</b></div>}</div></td><td><span className="workflow-time">{time ? formatDate(time) : "—"}</span></td><td><span className={`workflow-note ${note ? "" : "empty"}`}>{note ?? "—"}</span></td><td>{renderAction(item.step, isActive, isCorrection, isDone)}</td></tr>;
   })}</tbody></table></div></section>;
 }
 
-function FeedbackTab({ feedbacks, role, onOwnerApprove, onResolve }: { feedbacks: PayrollFeedback[]; role: UserRole; onOwnerApprove: (feedback: PayrollFeedback) => void; onResolve: (feedback: PayrollFeedback, action: "adjusted" | "rejected") => void }) {
-  return <section className="payroll-detail-section"><div className="payroll-section-heading"><div><h2>Phản hồi phiếu lương</h2><p>Chủ dự án duyệt nội dung, sau đó Kế toán xác nhận đã điều chỉnh hoặc từ chối.</p></div><Badge tone="neutral">{feedbacks.length} phản hồi</Badge></div><div className="detail-feedback-list payroll-feedback-page-list">{feedbacks.length === 0 ? <div className="payroll-empty compact"><MessageSquareText /><h3>Chưa có phản hồi</h3><p>Phản hồi từ phiếu lương trên ứng dụng NLĐ sẽ hiển thị tại đây.</p></div> : feedbacks.map((feedback) => <article className="detail-feedback-card" key={feedback.id}><UserAvatar name={feedback.employeeName} /><div className="detail-feedback-content"><div><strong>{feedback.employeeName}</strong><Badge tone="neutral">{feedbackCategoryLabels[feedback.category]}</Badge><StatusBadge tone={feedbackConfig[feedback.status].tone}>{feedbackConfig[feedback.status].label}</StatusBadge></div><p>{feedback.message}</p>{(feedback.accountingNote || feedback.rejectionReason) && <small><b>Kết quả xử lý:</b> {feedback.accountingNote || feedback.rejectionReason}</small>}<span>Gửi {formatDate(feedback.submittedAt)}</span></div>{feedback.status === "pending_owner" ? role === "project_owner" ? <Button size="sm" variant="primary" onClick={() => onOwnerApprove(feedback)}><UserCheck />CDA/GSDA duyệt</Button> : <span className="feedback-role-waiting">Chờ CDA/GSDA</span> : feedback.status === "pending_accounting" ? role === "accountant" ? <div className="feedback-actions"><Button size="sm" variant="primary" onClick={() => onResolve(feedback, "adjusted")}><Check />Đã điều chỉnh</Button><Button size="sm" onClick={() => onResolve(feedback, "rejected")}><XCircle />Từ chối</Button></div> : <span className="feedback-role-waiting">Chờ Kế toán C&B</span> : null}</article>)}</div></section>;
+function PayslipConfirmationPanel({ run, lines, feedbacks, role, filter, query, onFilterChange, onQueryChange, onOwnerApprove, onResolve }: { run: PayrollRun; lines: PayrollLine[]; feedbacks: PayrollFeedback[]; role: UserRole; filter: ConfirmationFilter; query: string; onFilterChange: (filter: ConfirmationFilter) => void; onQueryChange: (query: string) => void; onOwnerApprove: (feedback: PayrollFeedback) => void; onResolve: (feedback: PayrollFeedback, action: "adjusted" | "rejected") => void }) {
+  const rows = useMemo(() => {
+    const latestFeedbackByEmployee = new Map<string, PayrollFeedback>();
+    [...feedbacks].sort((a, b) => b.submittedAt.localeCompare(a.submittedAt)).forEach((feedback) => {
+      if (!latestFeedbackByEmployee.has(feedback.employeeId)) latestFeedbackByEmployee.set(feedback.employeeId, feedback);
+    });
+    const workflowCompleted = getWorkflowStage(run) > 6;
+    const confirmedEmployeeIds = new Set(lines.filter((line) => !latestFeedbackByEmployee.has(line.employeeId)).slice(0, run.confirmedPayslipCount).map((line) => line.employeeId));
+    return lines.map((line) => {
+      const feedback = latestFeedbackByEmployee.get(line.employeeId);
+      const hasOpenFeedback = feedback && !["adjusted", "rejected"].includes(feedback.status);
+      if (workflowCompleted) return { line, feedback, group: "confirmed" as const, label: "Đã xác nhận", tone: "success" as const };
+      if (hasOpenFeedback) return { line, feedback, group: "feedback" as const, label: feedbackConfig[feedback.status].label, tone: feedbackConfig[feedback.status].tone };
+      if (feedback && ["adjusted", "rejected"].includes(feedback.status)) return { line, feedback, group: "pending" as const, label: "Chờ NLĐ xác nhận lại", tone: "warning" as const };
+      if (confirmedEmployeeIds.has(line.employeeId)) return { line, feedback, group: "confirmed" as const, label: "Đã xác nhận", tone: "success" as const };
+      return { line, feedback, group: "pending" as const, label: "Chưa phản hồi", tone: "neutral" as const };
+    });
+  }, [feedbacks, lines, run]);
+
+  const counts = {
+    all: rows.length,
+    confirmed: rows.filter((row) => row.group === "confirmed").length,
+    pending: rows.filter((row) => row.group === "pending").length,
+    feedback: rows.filter((row) => row.group === "feedback").length,
+  };
+  const normalizedQuery = query.trim().toLocaleLowerCase("vi");
+  const filteredRows = rows.filter((row) => filter === "all" || row.group === filter).filter((row) => `${row.line.employeeCode} ${row.line.employeeName} ${row.line.position}`.toLocaleLowerCase("vi").includes(normalizedQuery));
+
+  const filters: Array<{ value: ConfirmationFilter; label: string; count: number }> = [
+    { value: "all", label: "Tất cả", count: counts.all },
+    { value: "pending", label: "Chưa phản hồi", count: counts.pending },
+    { value: "feedback", label: "Cần xử lý", count: counts.feedback },
+    { value: "confirmed", label: "Đã xác nhận", count: counts.confirmed },
+  ];
+
+  return (
+    <div className="payslip-confirmation-modal">
+      <div className="confirmation-toolbar">
+        <label className="search-field confirmation-search"><Search /><input value={query} onChange={(event) => onQueryChange(event.target.value)} placeholder="Tìm mã hoặc tên người lao động…" aria-label="Tìm người lao động trong danh sách xác nhận" /></label>
+        <div className="confirmation-filters" aria-label="Lọc trạng thái xác nhận">{filters.map((item) => <button type="button" className={filter === item.value ? "active" : ""} onClick={() => onFilterChange(item.value)} key={item.value}>{item.label}<span>{item.count}</span></button>)}</div>
+      </div>
+      <div className="confirmation-table-wrap">
+        <table className="confirmation-table">
+          <thead><tr><th>Người lao động</th><th>Trạng thái</th><th>Thời gian</th><th>Nội dung phản hồi</th><th>Người xử lý</th><th>Thao tác</th></tr></thead>
+          <tbody>{filteredRows.length === 0 ? <tr><td colSpan={6}><div className="confirmation-empty"><UserCheck /><strong>Không có người lao động phù hợp</strong><span>Thử thay đổi từ khóa hoặc trạng thái lọc.</span></div></td></tr> : filteredRows.map(({ line, feedback, group, label, tone }) => <tr key={line.id}><td><div className="confirmation-employee"><UserAvatar name={line.employeeName} /><div><strong>{line.employeeName}</strong><small>{line.employeeCode} · {line.position}</small></div></div></td><td><StatusBadge tone={tone}>{label}</StatusBadge></td><td><span className="confirmation-time">{feedback ? formatDate(feedback.submittedAt) : "—"}</span></td><td>{feedback ? <div className="confirmation-feedback"><p>{feedback.message}</p>{(feedback.accountingNote || feedback.rejectionReason) && <small><b>Kết quả:</b> {feedback.accountingNote || feedback.rejectionReason}</small>}</div> : <span className="muted-dash">—</span>}</td><td>{group === "feedback" ? <span className="confirmation-owner">{feedback?.status === "pending_owner" ? roleActors.project_owner : roleActors.accountant}</span> : <span className="muted-dash">—</span>}</td><td>{feedback?.status === "pending_owner" ? role === "project_owner" ? <Button size="sm" variant="primary" onClick={() => onOwnerApprove(feedback)}><UserCheck />Duyệt</Button> : <span className="feedback-role-waiting">Chờ CDA/GSDA</span> : feedback?.status === "pending_accounting" ? role === "accountant" ? <div className="feedback-actions"><Button size="sm" variant="primary" onClick={() => onResolve(feedback, "adjusted")}><Check />Đã điều chỉnh</Button><Button size="sm" onClick={() => onResolve(feedback, "rejected")}><XCircle />Từ chối</Button></div> : <span className="feedback-role-waiting">Chờ Kế toán C&B</span> : <span className="muted-dash">—</span>}</td></tr>)}</tbody>
+        </table>
+      </div>
+      <div className="confirmation-rule"><CheckCircle2 /><p>Bước 6 chỉ hoàn tất khi tất cả NLĐ đã xác nhận phiên bản phiếu lương cuối cùng và không còn phản hồi đang xử lý.</p></div>
+    </div>
+  );
 }
 
 function MoneyField({ label, value, onChange }: { label: string; value: number; onChange: (value: number) => void }) {

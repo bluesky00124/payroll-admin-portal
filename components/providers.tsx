@@ -90,7 +90,7 @@ function AppRuntime({ children }: { children: React.ReactNode }) {
   const roleValue = useMemo(() => {
     const roleMeta: Record<UserRole, { label: string; subtitle: string }> = {
       accountant: { label: "Kế toán (C&B)", subtitle: "Tính lương & điều chỉnh" },
-      bcsx: { label: "Ban Chăm Sóc (BCSX)", subtitle: "Kiểm tra dữ liệu dự án" },
+      bcsx: { label: "Báo Cáo Sản Xuất (BCSX)", subtitle: "Kiểm tra dữ liệu dự án" },
       project_owner: { label: "Chủ dự án (CDA)", subtitle: "Phê duyệt & giải trình" },
       payment_accountant: { label: "Kế toán Thanh toán", subtitle: "Doanh thu & đối chiếu" },
     };

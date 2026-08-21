@@ -119,11 +119,11 @@ export function AdminShell({ children, detailLabel }: { children: React.ReactNod
                     className={role === "bcsx" ? "selected" : ""}
                     onSelect={() => {
                       setRole("bcsx");
-                      notify("Đã đăng nhập: Ban Chăm Sóc Sản Xuất (Thu thập & Khai báo)");
+                      notify("Đã đăng nhập: Báo Cáo Sản Xuất (BCSX) (Thu thập & Khai báo)");
                     }}
                   >
                     <div>
-                      <strong>Ban Chăm Sóc (BCSX)</strong>
+                      <strong>Báo Cáo Sản Xuất (BCSX)</strong>
                       <div className="text-xs text-muted">Khai báo hồ sơ NPT kèm CCCD/GCN tại xưởng</div>
                     </div>
                   </DropdownMenu.Item>
