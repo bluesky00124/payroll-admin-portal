@@ -4915,6 +4915,44 @@ button:disabled { cursor: not-allowed; opacity: .5; }
 .payroll-lines-table tfoot td.payroll-line-employee-sticky small { margin-top: 2px; color: var(--muted); font-size: 11px; font-weight: 500; }
 .payroll-lines-table tfoot td.payroll-line-action-sticky { position: sticky; z-index: 50; bottom: 0; right: 0; background-color: color-mix(in srgb, var(--secondary) 95%, var(--card)); box-shadow: -1px 0 0 var(--border); }
 .payroll-lines-table td.payroll-line-action-sticky button { margin: 0 auto; display: flex; }
+
+/* Unified Excel-style payroll table */
+.payroll-full-section { margin-top: 16px; }
+.payroll-full-section .payroll-section-toolbar { padding-inline: 18px; }
+.payroll-full-table-meta { display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 0 18px 12px; }
+.payroll-full-table-meta .attendance-code-legend, .payroll-full-table-meta .payroll-sensitive-note { margin: 0; }
+.payroll-full-table-meta .payroll-sensitive-note { flex: 0 0 auto; }
+.payroll-full-table-wrap { max-height: 68vh; border-radius: 0 !important; }
+.payroll-unified-table { min-width: 8200px; }
+.payroll-unified-table thead tr.payroll-unified-section-row th { position: sticky; z-index: 31; top: 0; height: 36px; min-height: 36px; padding: 6px 10px; color: var(--foreground); font-size: 10.5px; font-weight: 800; letter-spacing: .07em; text-align: center; }
+.payroll-unified-table thead tr.payroll-unified-group-row th { position: sticky; z-index: 30; top: 36px; height: 34px; min-height: 34px; padding: 5px 9px; font-size: 10px; text-align: center; }
+.payroll-unified-table thead tr.payroll-unified-column-row th { position: sticky; z-index: 29; top: 70px; height: 58px; min-height: 58px; padding: 7px 9px; font-size: 10px; }
+.payroll-unified-table thead th.payroll-line-employee-sticky,
+.payroll-unified-table thead tr.payroll-unified-section-row th.payroll-line-employee-sticky,
+.payroll-unified-table thead th.payroll-line-action-sticky,
+.payroll-unified-table thead tr.payroll-unified-section-row th.payroll-line-action-sticky { z-index: 60; top: 0; height: 128px; min-height: 128px; }
+.payroll-unified-table .payroll-unified-section.section-employee { color: #0f766e; background: color-mix(in srgb, #5eead4 22%, var(--card)); }
+.payroll-unified-table .payroll-unified-section.section-bank { color: #6d28d9; background: color-mix(in srgb, #c4b5fd 24%, var(--card)); }
+.payroll-unified-table .payroll-unified-section.section-daily,
+.payroll-unified-table .payroll-unified-section.section-attendance { color: #0369a1; background: color-mix(in srgb, #7dd3fc 24%, var(--card)); }
+.payroll-unified-table .payroll-unified-section.section-income { color: #047857; background: color-mix(in srgb, #6ee7b7 24%, var(--card)); }
+.payroll-unified-table .payroll-unified-section.section-deduction { color: #b45309; background: color-mix(in srgb, #fcd34d 24%, var(--card)); }
+.payroll-unified-table .payroll-line-group.group-employee { color: #0f766e; background: color-mix(in srgb, #99f6e4 20%, var(--card)); }
+.payroll-unified-table th.payroll-day-col { width: 60px; min-width: 60px; max-width: 60px; padding-inline: 4px; text-align: center; }
+.payroll-unified-table th.payroll-day-col > span, .payroll-unified-table th.payroll-day-col > small { display: block; }
+.payroll-unified-table th.payroll-day-col > small { margin-top: 2px; font-size: 8px; font-weight: 600; letter-spacing: 0; text-transform: none; }
+.payroll-unified-table th.payroll-day-col.weekend { color: var(--destructive); background: color-mix(in srgb, var(--destructive-soft) 60%, var(--card)); }
+.payroll-unified-table td.payroll-full-day-cell { width: 60px; min-width: 60px; max-width: 60px; padding: 6px 4px; text-align: center; font-family: var(--font-mono); }
+.payroll-unified-table .payroll-full-day-cell strong { display: block; font-size: 10px; }
+.payroll-unified-table .payroll-full-day-cell small { display: block; margin-top: 2px; font-size: 8px; }
+.payroll-unified-table .payroll-full-day-cell.status-work { color: #1d4ed8; background: color-mix(in srgb, #dbeafe 56%, var(--card)); }
+.payroll-unified-table .payroll-full-day-cell.status-overtime { color: #0f766e; background: color-mix(in srgb, #ccfbf1 64%, var(--card)); }
+.payroll-unified-table .payroll-full-day-cell.status-leave { color: #a16207; background: color-mix(in srgb, #fef3c7 60%, var(--card)); }
+.payroll-unified-table .payroll-full-day-cell.status-off { color: var(--muted); background: color-mix(in srgb, var(--secondary) 72%, var(--card)); }
+.payroll-unified-table .payroll-full-day-cell.status-unapproved { color: var(--destructive); background: color-mix(in srgb, var(--destructive-soft) 72%, var(--card)); }
+.payroll-unified-table tfoot td.payroll-full-footer-note { color: var(--muted); font-family: var(--font-sans); font-size: 10.5px; font-weight: 600; text-align: left; }
+.payroll-full-table-footnote { margin: 10px 18px 0; color: var(--muted); font-size: 9.5px; }
+
 .line-employee { min-width: 210px; display: flex; align-items: center; gap: 10px; }
 .line-employee > div { min-width: 0; display: flex; flex-direction: column; }
 .line-employee strong { color: var(--foreground); font-size: 13px; font-weight: 650; }

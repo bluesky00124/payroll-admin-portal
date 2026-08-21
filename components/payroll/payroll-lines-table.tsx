@@ -1,15 +1,15 @@
 "use client";
 
 import { PencilLine, Search } from "lucide-react";
-import { Badge, Button, UserAvatar } from "@/components/ui";
+import { Button, UserAvatar } from "@/components/ui";
 import { getPayrollLineDetail } from "@/lib/payroll-line-detail";
 import type { PayrollLine, PayrollLineDetail } from "@/lib/types";
 import { formatCurrency } from "@/lib/utils";
 
 export type PayrollLineView = "summary" | "attendance" | "income" | "deductions";
-type PayrollLineCellKind = "currency" | "hours" | "days" | "number" | "text";
+export type PayrollLineCellKind = "currency" | "hours" | "days" | "number" | "text";
 
-interface PayrollLineColumn {
+export interface PayrollLineColumn {
   key: string;
   label: string;
   kind: PayrollLineCellKind;
@@ -18,7 +18,7 @@ interface PayrollLineColumn {
   emphasis?: "income" | "deduction" | "net";
 }
 
-interface PayrollLineColumnGroup {
+export interface PayrollLineColumnGroup {
   label: string;
   tone: "attendance" | "income" | "deduction" | "payment";
   columns: PayrollLineColumn[];
@@ -31,7 +31,7 @@ const viewMeta: Record<PayrollLineView, { label: string; description: string }> 
   deductions: { label: "Khấu trừ & thanh toán", description: "Bảo hiểm, thuế, công đoàn, tạm ứng và phương thức chi trả." },
 };
 
-const columnGroups: Record<PayrollLineView, PayrollLineColumnGroup[]> = {
+export const payrollLineColumnGroups: Record<PayrollLineView, PayrollLineColumnGroup[]> = {
   summary: [
     { label: "Công & tăng ca", tone: "attendance", columns: [
       { key: "workDays", label: "Ngày công", kind: "days", value: (line) => line.workDays },
@@ -138,7 +138,7 @@ const columnGroups: Record<PayrollLineView, PayrollLineColumnGroup[]> = {
 
 const quantityFormatter = new Intl.NumberFormat("vi-VN", { maximumFractionDigits: 1 });
 
-const formatCell = (column: PayrollLineColumn, value: number | string) => {
+export const formatPayrollLineCell = (column: PayrollLineColumn, value: number | string) => {
   if (column.kind === "text") return String(value);
   const numericValue = Number(value);
   if (!numericValue) return "—";
@@ -165,7 +165,7 @@ export function PayrollLinesTable({
   const visibleLines = lines.filter((line) =>
     `${line.employeeCode} ${line.employeeName} ${line.position}`.toLocaleLowerCase("vi").includes(normalizedQuery),
   );
-  const groups = columnGroups[view];
+  const groups = payrollLineColumnGroups[view];
 
   return (
     <section className="payroll-detail-section payroll-line-section">
@@ -193,7 +193,7 @@ export function PayrollLinesTable({
                   <td className="payroll-line-employee-sticky"><div className="line-employee"><UserAvatar name={line.employeeName} size="sm" /><div><strong>{line.employeeName}</strong><small>{line.employeeCode} · {line.position}</small>{line.note && <em>{line.note}</em>}</div></div></td>
                   {groups.flatMap((group) => group.columns.map((column) => {
                     const value = column.value(line, detail);
-                    return <td className={`payroll-line-data-cell kind-${column.kind} ${column.emphasis ? `emphasis-${column.emphasis}` : ""}`} key={column.key}>{formatCell(column, value)}</td>;
+                    return <td className={`payroll-line-data-cell kind-${column.kind} ${column.emphasis ? `emphasis-${column.emphasis}` : ""}`} key={column.key}>{formatPayrollLineCell(column, value)}</td>;
                   }))}
                   <td className="payroll-line-action-sticky"><Button variant="ghost" size="icon" disabled={locked} aria-label={`Sửa lương ${line.employeeName}`} onClick={() => onEdit(line)}><PencilLine /></Button></td>
                 </tr>
@@ -202,7 +202,7 @@ export function PayrollLinesTable({
             <tfoot><tr><td className="payroll-line-employee-sticky"><strong>Tổng cộng</strong><small>{visibleLines.length} NLĐ</small></td>{groups.flatMap((group) => group.columns.map((column) => {
               if (column.aggregate === false || column.kind === "text") return <td className="text-center" key={column.key}>—</td>;
               const total = visibleLines.reduce((sum, line) => sum + Number(column.value(line, getPayrollLineDetail(line)) || 0), 0);
-              return <td className={`kind-${column.kind} ${column.emphasis ? `emphasis-${column.emphasis}` : ""}`} key={column.key}>{formatCell(column, total)}</td>;
+              return <td className={`kind-${column.kind} ${column.emphasis ? `emphasis-${column.emphasis}` : ""}`} key={column.key}>{formatPayrollLineCell(column, total)}</td>;
             }))}<td className="payroll-line-action-sticky" /></tr></tfoot>
           </table>
         </div>
