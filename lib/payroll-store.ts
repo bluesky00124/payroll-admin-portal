@@ -133,6 +133,7 @@ export function createPayrollRun(input: CreatePayrollInput): PayrollRun {
     sheet.usedByPayrollId = runId;
     addAudit(database, runId, {
       type: "create",
+      workflowStep: 2,
       title: "Khởi tạo bảng lương",
       description: `Đã đối chiếu Master Data và tạo bảng lương từ ${sheet.code}.`,
       actor: input.actor,
@@ -142,19 +143,105 @@ export function createPayrollRun(input: CreatePayrollInput): PayrollRun {
   return created;
 }
 
-export function transitionPayrollRun(
-  payrollId: string,
-  nextStatus: PayrollStatus,
-  event: Omit<PayrollAuditEvent, "id" | "payrollId" | "createdAt">,
-) {
+function getEditablePayrollRun(database: MockDatabase, payrollId: string) {
+  const run = database.payrollRuns.find((item) => item.id === payrollId);
+  if (!run) throw new Error("Không tìm thấy bảng lương.");
+  if (run.status === "locked") throw new Error("Bảng lương đã khóa, không thể thay đổi.");
+  return run;
+}
+
+export function confirmPayrollReview(payrollId: string, actor: string) {
   mutateMockDatabase((database) => {
-    const run = database.payrollRuns.find((item) => item.id === payrollId);
-    if (!run) throw new Error("Không tìm thấy bảng lương.");
-    if (run.status === "locked") throw new Error("Bảng lương đã khóa, không thể thay đổi.");
-    run.status = nextStatus;
+    const run = getEditablePayrollRun(database, payrollId);
+    if (run.status !== "admin_review") throw new Error("Bảng lương chưa ở bước Admin/BCSX kiểm tra.");
+    run.status = "project_approval";
     run.updatedAt = now();
-    if (nextStatus === "payslip_confirmation") run.publishedAt = run.updatedAt;
-    addAudit(database, payrollId, event);
+    addAudit(database, payrollId, {
+      type: "approve",
+      workflowStep: 3,
+      title: "Admin/BCSX xác nhận đã kiểm tra",
+      description: "Đã đối chiếu dữ liệu thực tế và chuyển CDA/GSDA xác nhận.",
+      actor,
+    });
+  });
+}
+
+export function confirmProjectPayroll(payrollId: string, actor: string) {
+  mutateMockDatabase((database) => {
+    const run = getEditablePayrollRun(database, payrollId);
+    if (run.status !== "project_approval") throw new Error("Bảng lương chưa ở bước CDA/GSDA xác nhận.");
+    run.status = "payslip_publish";
+    run.updatedAt = now();
+    addAudit(database, payrollId, {
+      type: "approve",
+      workflowStep: 4,
+      title: "CDA/GSDA xác nhận bảng lương",
+      description: "Bảng lương đã được xác nhận và đủ điều kiện phát hành phiếu lương.",
+      actor,
+    });
+  });
+}
+
+export function publishPayrollPayslips(payrollId: string, actor: string) {
+  mutateMockDatabase((database) => {
+    const run = getEditablePayrollRun(database, payrollId);
+    if (run.status !== "payslip_publish") throw new Error("Bảng lương chưa đủ điều kiện phát hành phiếu lương.");
+    const stamp = now();
+    run.status = "payslip_confirmation";
+    run.publishedAt = stamp;
+    run.updatedAt = stamp;
+    addAudit(database, payrollId, {
+      type: "publish",
+      workflowStep: 5,
+      title: "Phát hành phiếu lương",
+      description: `Đã phát hành ${run.employeeCount} phiếu lương tới ứng dụng NLĐ.`,
+      actor,
+    });
+  });
+}
+
+export function requestPayrollCorrection(payrollId: string, step: 3 | 4, actor: string, reason: string) {
+  mutateMockDatabase((database) => {
+    const run = getEditablePayrollRun(database, payrollId);
+    const expectedStatus: PayrollStatus = step === 3 ? "admin_review" : "project_approval";
+    if (run.status !== expectedStatus) throw new Error("Bảng lương không còn ở bước có thể yêu cầu điều chỉnh.");
+    const stamp = now();
+    Object.assign(run, {
+      status: "correction_required" as PayrollStatus,
+      returnToStep: step,
+      returnReason: reason,
+      returnedAt: stamp,
+      returnedBy: actor,
+      updatedAt: stamp,
+    });
+    addAudit(database, payrollId, {
+      type: "return",
+      workflowStep: step,
+      title: step === 3 ? "Admin/BCSX yêu cầu điều chỉnh" : "CDA/GSDA trả lại bảng lương",
+      description: reason,
+      actor,
+    });
+  });
+}
+
+export function resubmitPayrollCorrection(payrollId: string, actor: string, note: string) {
+  mutateMockDatabase((database) => {
+    const run = getEditablePayrollRun(database, payrollId);
+    if (run.status !== "correction_required" || !run.returnToStep) throw new Error("Bảng lương không có yêu cầu điều chỉnh đang mở.");
+    const returnToStep = run.returnToStep;
+    run.status = returnToStep === 3 ? "admin_review" : "project_approval";
+    run.updatedAt = now();
+    delete run.returnToStep;
+    delete run.returnReason;
+    delete run.returnedAt;
+    delete run.returnedBy;
+    addAudit(database, payrollId, {
+      type: "resubmit",
+      workflowStep: returnToStep,
+      title: "Kế toán C&B đã điều chỉnh và gửi lại",
+      description: note,
+      actor,
+    });
   });
 }
 
@@ -229,6 +316,7 @@ export function syncPayslipConfirmations(payrollId: string, actor: string) {
     run.updatedAt = now();
     addAudit(database, payrollId, {
       type: "approve",
+      workflowStep: 6,
       title: "NLĐ hoàn tất xác nhận phiếu lương",
       description: `${run.employeeCount}/${run.employeeCount} phiếu lương đã được xác nhận.`,
       actor,
@@ -260,6 +348,7 @@ export function recordRevenueCheck(payrollId: string, currentRevenue: number, ac
     });
     addAudit(database, payrollId, {
       type: "revenue",
+      workflowStep: 7,
       title: "Cập nhật doanh thu và kiểm tra chênh lệch",
       description: requiresExplanation
         ? `Chênh lệch ${varianceRate.toFixed(2)}% cần CDA/GSDA giải trình.`
@@ -279,6 +368,7 @@ export function submitPayrollExplanation(payrollId: string, explanation: string,
     run.updatedAt = now();
     addAudit(database, payrollId, {
       type: "explain",
+      workflowStep: 8,
       title: "CDA/GSDA gửi giải trình chênh lệch",
       description: explanation,
       actor,
@@ -297,6 +387,7 @@ export function lockPayrollRun(payrollId: string, actor: string) {
     run.updatedAt = stamp;
     addAudit(database, payrollId, {
       type: "lock",
+      workflowStep: 9,
       title: "Hoàn tất và khóa bảng lương",
       description: "Dữ liệu bảng lương được khóa, không thể chỉnh sửa thêm.",
       actor,

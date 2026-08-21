@@ -1,13 +1,17 @@
 import { describe, expect, it } from "vitest";
 import {
   createPayrollRun,
+  confirmPayrollReview,
+  confirmProjectPayroll,
   getPayrollWorkspace,
   lockPayrollRun,
+  publishPayrollPayslips,
   recordRevenueCheck,
+  requestPayrollCorrection,
+  resubmitPayrollCorrection,
   reviewPayrollFeedback,
   submitPayrollExplanation,
   syncPayslipConfirmations,
-  transitionPayrollRun,
   updatePayrollLine,
 } from "@/lib/payroll-store";
 import { createPayrollDailyAttendance, getPayrollLineDetail } from "@/lib/payroll-line-detail";
@@ -87,22 +91,28 @@ describe("payroll workflow store", () => {
   });
 
   it("duyệt qua Admin/BCSX rồi CDA/GSDA và phát hành phiếu lương", () => {
-    transitionPayrollRun("pay-jss-2026-08", "project_approval", {
-      type: "approve",
-      title: "Admin/BCSX xác nhận",
-      description: "Đã đối chiếu dữ liệu dự án.",
-      actor: "Bùi Minh Hạnh (BCSX)",
-    });
-    transitionPayrollRun("pay-jss-2026-08", "payslip_confirmation", {
-      type: "publish",
-      title: "CDA/GSDA xác nhận & phát hành",
-      description: "Đã phát hành phiếu lương.",
-      actor: "Trần Minh Anh (CDA)",
-    });
+    confirmPayrollReview("pay-jss-2026-08", "Bùi Minh Hạnh (BCSX)");
+    confirmProjectPayroll("pay-jss-2026-08", "Trần Minh Anh (CDA)");
+
+    expect(getPayrollWorkspace().payrollRuns.find((item) => item.id === "pay-jss-2026-08")?.status).toBe("payslip_publish");
+
+    publishPayrollPayslips("pay-jss-2026-08", accountant);
 
     const run = getPayrollWorkspace().payrollRuns.find((item) => item.id === "pay-jss-2026-08");
     expect(run?.status).toBe("payslip_confirmation");
     expect(run?.publishedAt).toBeTruthy();
+  });
+
+  it("trả lại Kế toán điều chỉnh và gửi đúng bước duyệt lại", () => {
+    requestPayrollCorrection("pay-jss-2026-08", 3, "Bùi Minh Hạnh (BCSX)", "Thiếu xác nhận ngày công khách hàng.");
+    let run = getPayrollWorkspace().payrollRuns.find((item) => item.id === "pay-jss-2026-08");
+    expect(run?.status).toBe("correction_required");
+    expect(run?.returnToStep).toBe(3);
+
+    resubmitPayrollCorrection("pay-jss-2026-08", accountant, "Đã bổ sung biên bản xác nhận khách hàng.");
+    run = getPayrollWorkspace().payrollRuns.find((item) => item.id === "pay-jss-2026-08");
+    expect(run?.status).toBe("admin_review");
+    expect(run?.returnToStep).toBeUndefined();
   });
 
   it("tạo đủ dữ liệu ngân hàng và mã công theo từng ngày trong kỳ", () => {

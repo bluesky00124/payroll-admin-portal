@@ -466,7 +466,9 @@ export interface PayrollAttendanceSheet {
 
 export type PayrollStatus =
   | "admin_review"
+  | "correction_required"
   | "project_approval"
+  | "payslip_publish"
   | "payslip_confirmation"
   | "revenue_check"
   | "explanation_required"
@@ -492,6 +494,10 @@ export interface PayrollRun {
   varianceRate?: number;
   varianceAmount?: number;
   explanation?: string;
+  returnToStep?: 3 | 4;
+  returnReason?: string;
+  returnedAt?: string;
+  returnedBy?: string;
   createdBy: string;
   createdAt: string;
   updatedAt: string;
@@ -634,7 +640,8 @@ export interface PayrollFeedback {
 export interface PayrollAuditEvent {
   id: string;
   payrollId: string;
-  type: "create" | "approve" | "publish" | "revenue" | "explain" | "edit" | "feedback" | "lock";
+  type: "create" | "approve" | "publish" | "return" | "resubmit" | "revenue" | "explain" | "edit" | "feedback" | "lock";
+  workflowStep?: number;
   title: string;
   description: string;
   actor: string;

@@ -119,12 +119,12 @@ const payrollFeedbacks: PayrollFeedback[] = [
 ];
 
 const payrollAuditEvents: PayrollAuditEvent[] = [
-  { id: "audit-jss-aug-create", payrollId: "pay-jss-2026-08", type: "create", title: "Khởi tạo bảng lương", description: "Đã đối chiếu Master Data và tạo bảng lương từ BCC-JSS-082026-01.", actor: "Trần Thu Trang (Kế toán C&B)", createdAt: "2026-08-20T09:10:00.000Z" },
-  { id: "audit-swm-create", payrollId: "pay-swm-2026-08", type: "create", title: "Khởi tạo bảng lương", description: "Tạo từ bảng công khách hàng đã xác nhận.", actor: "Trần Thu Trang (Kế toán C&B)", createdAt: "2026-08-18T08:30:00.000Z" },
-  { id: "audit-swm-admin", payrollId: "pay-swm-2026-08", type: "approve", title: "Admin/BCSX xác nhận", description: "Đã đối chiếu ngày công, hồ sơ và các khoản khấu trừ.", actor: "Bùi Minh Hạnh (BCSX)", createdAt: "2026-08-19T14:20:00.000Z" },
-  { id: "audit-swm-owner", payrollId: "pay-swm-2026-08", type: "approve", title: "CDA/GSDA xác nhận", description: "Bảng lương đủ điều kiện phát hành phiếu lương.", actor: "Nguyễn Thu Hà (CDA)", createdAt: "2026-08-20T07:55:00.000Z" },
-  { id: "audit-swm-publish", payrollId: "pay-swm-2026-08", type: "publish", title: "Phát hành phiếu lương", description: "Đã gửi 3 phiếu lương tới ứng dụng NLĐ.", actor: "Trần Thu Trang (Kế toán C&B)", createdAt: "2026-08-20T08:00:00.000Z" },
-  { id: "audit-jss-jul-lock", payrollId: "pay-jss-2026-07", type: "lock", title: "Hoàn tất và khóa bảng lương", description: "Dữ liệu được khóa sau khi hoàn tất duyệt và xử lý phản hồi.", actor: "Trần Thu Trang (Kế toán C&B)", createdAt: "2026-07-24T16:35:00.000Z" },
+  { id: "audit-jss-aug-create", payrollId: "pay-jss-2026-08", type: "create", workflowStep: 2, title: "Khởi tạo bảng lương", description: "Đã đối chiếu Master Data và tạo bảng lương từ BCC-JSS-082026-01.", actor: "Trần Thu Trang (Kế toán C&B)", createdAt: "2026-08-20T09:10:00.000Z" },
+  { id: "audit-swm-create", payrollId: "pay-swm-2026-08", type: "create", workflowStep: 2, title: "Khởi tạo bảng lương", description: "Tạo từ bảng công khách hàng đã xác nhận.", actor: "Trần Thu Trang (Kế toán C&B)", createdAt: "2026-08-18T08:30:00.000Z" },
+  { id: "audit-swm-admin", payrollId: "pay-swm-2026-08", type: "approve", workflowStep: 3, title: "Admin/BCSX xác nhận", description: "Đã đối chiếu ngày công, hồ sơ và các khoản khấu trừ.", actor: "Bùi Minh Hạnh (BCSX)", createdAt: "2026-08-19T14:20:00.000Z" },
+  { id: "audit-swm-owner", payrollId: "pay-swm-2026-08", type: "approve", workflowStep: 4, title: "CDA/GSDA xác nhận", description: "Bảng lương đủ điều kiện phát hành phiếu lương.", actor: "Nguyễn Thu Hà (CDA)", createdAt: "2026-08-20T07:55:00.000Z" },
+  { id: "audit-swm-publish", payrollId: "pay-swm-2026-08", type: "publish", workflowStep: 5, title: "Phát hành phiếu lương", description: "Đã gửi 3 phiếu lương tới ứng dụng NLĐ.", actor: "Trần Thu Trang (Kế toán C&B)", createdAt: "2026-08-20T08:00:00.000Z" },
+  { id: "audit-jss-jul-lock", payrollId: "pay-jss-2026-07", type: "lock", workflowStep: 9, title: "Hoàn tất và khóa bảng lương", description: "Dữ liệu được khóa sau khi hoàn tất duyệt và xử lý phản hồi.", actor: "Trần Thu Trang (Kế toán C&B)", createdAt: "2026-07-24T16:35:00.000Z" },
 ];
 
 export const payrollSeed = {

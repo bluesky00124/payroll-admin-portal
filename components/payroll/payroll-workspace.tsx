@@ -20,7 +20,7 @@ import {
 import { useRouter } from "next/navigation";
 import { useEffect, useMemo, useState } from "react";
 import { useToast, useUserRole } from "@/components/providers";
-import { roleActors, sourceLabels, stageForStatus, statusConfig } from "@/components/payroll/payroll-config";
+import { getWorkflowStage, roleActors, sourceLabels, statusConfig } from "@/components/payroll/payroll-config";
 import { Badge, Button, Modal, MonthPicker, StatusBadge, TablePaginationFooter } from "@/components/ui";
 import { createPayrollRun, getPayrollWorkspace, type PayrollWorkspace } from "@/lib/payroll-store";
 import { formatCurrency, formatDate, formatMonthYear } from "@/lib/utils";
@@ -121,7 +121,7 @@ export function PayrollWorkspacePage() {
   const unresolvedFeedbacks = workspace.feedbacks.filter((item) => !["adjusted", "rejected"].includes(item.status)).length;
   const activeRuns = workspace.payrollRuns.filter((item) => item.status !== "locked").length;
   const lockedRuns = workspace.payrollRuns.filter((item) => item.status === "locked").length;
-  const awaitingApproval = workspace.payrollRuns.filter((item) => ["admin_review", "project_approval", "explanation_required"].includes(item.status)).length;
+  const awaitingApproval = workspace.payrollRuns.filter((item) => ["admin_review", "correction_required", "project_approval", "explanation_required"].includes(item.status)).length;
 
   return (
     <>
@@ -146,7 +146,7 @@ export function PayrollWorkspacePage() {
         </div></div></div>
         {filteredRuns.length === 0 ? <div className="payroll-empty"><Inbox /><h3>Chưa có bảng lương phù hợp</h3><p>Thay đổi bộ lọc hoặc tạo bảng lương từ một bảng công đã được duyệt.</p><Button variant="primary" onClick={() => setCreateOpen(true)}><Plus />Tạo bảng lương</Button></div> : <><div className="payroll-table-wrap"><table className="payroll-table"><thead><tr><th>Bảng lương</th><th>Kỳ lương</th><th>Thực nhận</th><th>Tiến độ</th><th>Phản hồi</th><th>Cập nhật</th><th /></tr></thead><tbody>{paginatedRuns.map((run) => {
           const project = getProject(workspace, run.projectId);
-          const stage = stageForStatus[run.status];
+          const stage = getWorkflowStage(run);
           const hasUnresolvedFeedback = workspace.feedbacks.some((item) => item.payrollId === run.id && !["adjusted", "rejected"].includes(item.status));
           return <tr key={run.id} onClick={() => router.push(`/payroll/${run.id}`)}><td><div className="payroll-code-cell"><span className={run.status === "locked" ? "locked" : ""}>{run.status === "locked" ? <LockKeyhole /> : <FileSpreadsheet />}</span><div><strong>{run.code}</strong><small>{project?.code} · {project?.name}</small></div></div></td><td><strong>{formatMonthYear(run.period, true)}</strong><small>{run.employeeCount} NLĐ</small></td><td><strong className="money-value">{formatCurrency(run.netPayroll)}</strong><small>Khấu trừ {formatCurrency(run.totalDeductions)}</small></td><td><div className="payroll-progress-cell"><div><span style={{ width: `${Math.min(100, ((stage - 1) / 8) * 100)}%` }} /></div><StatusBadge tone={statusConfig[run.status].tone}>{statusConfig[run.status].short}</StatusBadge></div></td><td>{run.feedbackCount > 0 ? <button type="button" className={`payroll-feedback-trigger ${hasUnresolvedFeedback ? "warning" : "success"}`} aria-label={`Mở ${run.feedbackCount} phản hồi của ${run.code}`} onClick={(event) => { event.stopPropagation(); router.push(`/payroll/${run.id}?tab=feedback`); }}><MessageSquareText /><span>{run.feedbackCount}</span></button> : <span className="muted-dash">—</span>}</td><td><span>{formatDate(run.updatedAt)}</span><small>{run.createdBy.split(" (")[0]}</small></td><td><button className="row-chevron" type="button" aria-label={`Mở ${run.code}`} onClick={(event) => { event.stopPropagation(); router.push(`/payroll/${run.id}`); }}><ChevronRight /></button></td></tr>;
         })}</tbody></table></div><TablePaginationFooter totalItems={filteredRuns.length} currentPage={page} pageSize={pageSize} onPageChange={setPage} onPageSizeChange={(newSize) => { setPageSize(newSize); setPage(1); }} /></>}
