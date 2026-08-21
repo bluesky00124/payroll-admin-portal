@@ -173,7 +173,6 @@ export function PayrollLinesTable({
         <div><h2>{viewMeta[view].label}</h2><p>{viewMeta[view].description}</p></div>
         <label className="search-field payroll-line-search"><Search /><input value={query} onChange={(event) => onQueryChange(event.target.value)} placeholder="Tìm mã, tên hoặc chức vụ…" aria-label="Tìm người lao động trong bảng lương" /></label>
       </div>
-      <div className="payroll-line-table-caption"><div><strong>{viewMeta[view].label}</strong><span>Dữ liệu tại thời điểm lập bảng lương</span></div><Badge tone="neutral">{visibleLines.length} người lao động</Badge></div>
       {visibleLines.length === 0 ? (
         <div className="payroll-empty compact"><Search /><h3>Không tìm thấy người lao động</h3><p>Thử thay đổi từ khóa tìm kiếm trong bảng lương.</p></div>
       ) : (
@@ -185,7 +184,7 @@ export function PayrollLinesTable({
                 {groups.map((group) => <th className={`payroll-line-group group-${group.tone}`} colSpan={group.columns.length} scope="colgroup" key={group.label}>{group.label}</th>)}
                 <th className="payroll-line-action-sticky" rowSpan={2} scope="col" aria-label="Thao tác" />
               </tr>
-              <tr>{groups.flatMap((group) => group.columns.map((column) => <th scope="col" key={column.key}>{column.label}</th>))}</tr>
+              <tr>{groups.flatMap((group) => group.columns.map((column) => <th className={`payroll-col-${column.kind}`} scope="col" key={column.key}>{column.label}</th>))}</tr>
             </thead>
             <tbody>{visibleLines.map((line) => {
               const detail = getPayrollLineDetail(line);
@@ -201,9 +200,9 @@ export function PayrollLinesTable({
               );
             })}</tbody>
             <tfoot><tr><td className="payroll-line-employee-sticky"><strong>Tổng cộng</strong><small>{visibleLines.length} NLĐ</small></td>{groups.flatMap((group) => group.columns.map((column) => {
-              if (column.aggregate === false || column.kind === "text") return <td key={column.key}>—</td>;
+              if (column.aggregate === false || column.kind === "text") return <td className="text-center" key={column.key}>—</td>;
               const total = visibleLines.reduce((sum, line) => sum + Number(column.value(line, getPayrollLineDetail(line)) || 0), 0);
-              return <td className={`${column.emphasis ? `emphasis-${column.emphasis}` : ""}`} key={column.key}>{formatCell(column, total)}</td>;
+              return <td className={`kind-${column.kind} ${column.emphasis ? `emphasis-${column.emphasis}` : ""}`} key={column.key}>{formatCell(column, total)}</td>;
             }))}<td className="payroll-line-action-sticky" /></tr></tfoot>
           </table>
         </div>
