@@ -383,7 +383,7 @@ export function PayrollWorkspacePage() {
             <div className="form-grid">
               <label className="form-field"><span>1. Chọn dự án</span><select value={createProjectId} onChange={(event) => setCreateProjectId(event.target.value)}>{workspace.projects.filter((item) => item.status === "active").map((project) => <option value={project.id} key={project.id}>{project.code} — {project.name}</option>)}</select></label>
               <div className="form-field">
-                <span>2. Chọn tháng cần xuất</span>
+                <span>2. Chọn tháng</span>
                 <MonthPicker value={createPeriod} onChange={setCreatePeriod} variant="form" placeholder="Chọn tháng..." />
               </div>
             </div>
