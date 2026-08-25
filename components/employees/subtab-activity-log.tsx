@@ -21,7 +21,12 @@ interface SubtabActivityLogProps {
   description?: string;
 }
 
-type FilterTab = "all" | "approved" | "created" | "updated" | "rejected";
+interface TabConfig {
+  key: string;
+  label: string;
+  badgeBgClass: string;
+  actionTypes?: ActivityLogItem["actionType"][];
+}
 
 export function SubtabActivityLog({
   projectId,
@@ -30,7 +35,7 @@ export function SubtabActivityLog({
   description = "Lịch sử ghi nhận các thao tác cập nhật, phê duyệt và điều chỉnh dữ liệu nhân sự",
 }: SubtabActivityLogProps) {
   const [searchTerm, setSearchTerm] = useState("");
-  const [activeTab, setActiveTab] = useState<FilterTab>("all");
+  const [activeTab, setActiveTab] = useState<string>("all");
   const [collapsedDates, setCollapsedDates] = useState<Set<string>>(new Set());
   const [page, setPage] = useState(1);
   const [pageSize, setPageSize] = useState(10);
@@ -42,35 +47,67 @@ export function SubtabActivityLog({
 
   const logs = useMemo(() => logsQuery.data ?? [], [logsQuery.data]);
 
+  const tabDefinitions = useMemo<TabConfig[]>(() => {
+    if (module === "deductions" || module === "incomes") {
+      return [
+        { key: "all", label: "Tất cả sự kiện", badgeBgClass: "bg-secondary border border-border/50 text-muted" },
+        { key: "created", label: "Tạo mới", actionTypes: ["create"], badgeBgClass: "bg-sky-50 text-sky-600 dark:bg-sky-950/40 dark:text-sky-400 border border-sky-200/60" },
+        { key: "updated", label: "Điều chỉnh & Import", actionTypes: ["update", "override", "restore", "import"], badgeBgClass: "bg-amber-50 text-amber-600 dark:bg-amber-950/40 dark:text-amber-400 border border-amber-200/60" },
+        { key: "deleted", label: "Đã xóa", actionTypes: ["delete"], badgeBgClass: "bg-rose-50 text-rose-600 dark:bg-rose-950/40 dark:text-rose-400 border border-rose-200/60" },
+      ];
+    }
+
+    if (module === "union") {
+      return [
+        { key: "all", label: "Tất cả sự kiện", badgeBgClass: "bg-secondary border border-border/50 text-muted" },
+        { key: "created", label: "Đăng ký tham gia", actionTypes: ["join", "create"], badgeBgClass: "bg-emerald-50 text-emerald-600 dark:bg-emerald-950/40 dark:text-emerald-400 border border-emerald-200/60" },
+        { key: "updated", label: "Điều chỉnh mức đóng", actionTypes: ["update", "override", "import"], badgeBgClass: "bg-amber-50 text-amber-600 dark:bg-amber-950/40 dark:text-amber-400 border border-amber-200/60" },
+        { key: "rejected", label: "Ngừng tham gia", actionTypes: ["leave", "delete", "reject"], badgeBgClass: "bg-rose-50 text-rose-600 dark:bg-rose-950/40 dark:text-rose-400 border border-rose-200/60" },
+      ];
+    }
+
+    if (module === "policies" || module === "workdays") {
+      return [
+        { key: "all", label: "Tất cả sự kiện", badgeBgClass: "bg-secondary border border-border/50 text-muted" },
+        { key: "created", label: "Tùy biến riêng", actionTypes: ["create", "override"], badgeBgClass: "bg-sky-50 text-sky-600 dark:bg-sky-950/40 dark:text-sky-400 border border-sky-200/60" },
+        { key: "updated", label: "Khôi phục chuẩn & Import", actionTypes: ["restore", "import", "update"], badgeBgClass: "bg-amber-50 text-amber-600 dark:bg-amber-950/40 dark:text-amber-400 border border-amber-200/60" },
+        { key: "deleted", label: "Đã xóa", actionTypes: ["delete"], badgeBgClass: "bg-rose-50 text-rose-600 dark:bg-rose-950/40 dark:text-rose-400 border border-rose-200/60" },
+      ];
+    }
+
+    // Default: approval workflows (insurance, dependents, leave)
+    return [
+      { key: "all", label: "Tất cả sự kiện", badgeBgClass: "bg-secondary border border-border/50 text-muted" },
+      { key: "approved", label: "Phê duyệt", actionTypes: ["approve"], badgeBgClass: "bg-emerald-50 text-emerald-600 dark:bg-emerald-950/40 dark:text-emerald-400 border border-emerald-200/60" },
+      { key: "created", label: "Khai báo / Tạo mới", actionTypes: ["create", "join"], badgeBgClass: "bg-sky-50 text-sky-600 dark:bg-sky-950/40 dark:text-sky-400 border border-sky-200/60" },
+      { key: "updated", label: "Điều chỉnh & Ghi đè", actionTypes: ["update", "override", "restore", "import"], badgeBgClass: "bg-amber-50 text-amber-600 dark:bg-amber-950/40 dark:text-amber-400 border border-amber-200/60" },
+      { key: "rejected", label: "Từ chối / Ngừng", actionTypes: ["reject", "leave", "delete"], badgeBgClass: "bg-rose-50 text-rose-600 dark:bg-rose-950/40 dark:text-rose-400 border border-rose-200/60" },
+    ];
+  }, [module]);
+
   // Tab counts
   const tabCounts = useMemo(() => {
-    return {
-      all: logs.length,
-      approved: logs.filter((l) => l.actionType === "approve").length,
-      created: logs.filter((l) => l.actionType === "create" || l.actionType === "join").length,
-      updated: logs.filter(
-        (l) => l.actionType === "update" || l.actionType === "override" || l.actionType === "restore" || l.actionType === "import"
-      ).length,
-      rejected: logs.filter((l) => l.actionType === "reject" || l.actionType === "leave" || l.actionType === "delete").length,
-    };
-  }, [logs]);
+    const counts: Record<string, number> = {};
+    tabDefinitions.forEach((tab) => {
+      if (tab.key === "all") {
+        counts.all = logs.length;
+      } else if (tab.actionTypes) {
+        counts[tab.key] = logs.filter((l) => tab.actionTypes!.includes(l.actionType)).length;
+      } else {
+        counts[tab.key] = 0;
+      }
+    });
+    return counts;
+  }, [logs, tabDefinitions]);
 
   // Filtered Logs
   const filteredLogs = useMemo(() => {
+    const currentTabDef = tabDefinitions.find((t) => t.key === activeTab);
     return logs.filter((item) => {
       // 1. Tab filter
-      if (activeTab === "approved" && item.actionType !== "approve") return false;
-      if (activeTab === "created" && item.actionType !== "create" && item.actionType !== "join") return false;
-      if (
-        activeTab === "updated" &&
-        item.actionType !== "update" &&
-        item.actionType !== "override" &&
-        item.actionType !== "restore" &&
-        item.actionType !== "import"
-      )
-        return false;
-      if (activeTab === "rejected" && item.actionType !== "reject" && item.actionType !== "leave" && item.actionType !== "delete")
-        return false;
+      if (activeTab !== "all" && currentTabDef?.actionTypes) {
+        if (!currentTabDef.actionTypes.includes(item.actionType)) return false;
+      }
 
       // 2. Search filter
       if (searchTerm.trim()) {
@@ -90,7 +127,7 @@ export function SubtabActivityLog({
 
       return true;
     });
-  }, [logs, activeTab, searchTerm]);
+  }, [logs, activeTab, searchTerm, tabDefinitions]);
 
   // Paginated Logs
   const paginatedLogs = useMemo(() => {
@@ -249,97 +286,32 @@ export function SubtabActivityLog({
           </div>
         </div>
 
-        {/* TABS NAVIGATION (Identical to reference UI: All | Approved | Created | Updated | Rejected) */}
+        {/* TABS NAVIGATION (Dynamically tailored per module) */}
         <div className="px-4 pt-2 border-b border-border/60 flex items-center gap-6 overflow-x-auto bg-card">
-          <button
-            type="button"
-            onClick={() => {
-              setActiveTab("all");
-              setPage(1);
-            }}
-            className={`pb-2.5 pt-1 text-xs font-semibold flex items-center gap-1.5 border-b-2 transition-all cursor-pointer whitespace-nowrap ${
-              activeTab === "all"
-                ? "border-primary text-primary font-bold"
-                : "border-transparent text-muted hover:text-foreground"
-            }`}
-          >
-            <span>Tất cả sự kiện</span>
-            <span className="text-[10.5px] font-mono px-1.5 py-0.2 rounded-full bg-secondary border border-border/50 text-muted">
-              {tabCounts.all}
-            </span>
-          </button>
-
-          <button
-            type="button"
-            onClick={() => {
-              setActiveTab("approved");
-              setPage(1);
-            }}
-            className={`pb-2.5 pt-1 text-xs font-semibold flex items-center gap-1.5 border-b-2 transition-all cursor-pointer whitespace-nowrap ${
-              activeTab === "approved"
-                ? "border-primary text-primary font-bold"
-                : "border-transparent text-muted hover:text-foreground"
-            }`}
-          >
-            <span>Phê duyệt</span>
-            <span className="text-[10.5px] font-mono px-1.5 py-0.2 rounded-full bg-emerald-50 text-emerald-600 dark:bg-emerald-950/40 dark:text-emerald-400 border border-emerald-200/60">
-              {tabCounts.approved}
-            </span>
-          </button>
-
-          <button
-            type="button"
-            onClick={() => {
-              setActiveTab("created");
-              setPage(1);
-            }}
-            className={`pb-2.5 pt-1 text-xs font-semibold flex items-center gap-1.5 border-b-2 transition-all cursor-pointer whitespace-nowrap ${
-              activeTab === "created"
-                ? "border-primary text-primary font-bold"
-                : "border-transparent text-muted hover:text-foreground"
-            }`}
-          >
-            <span>Khai báo / Tạo mới</span>
-            <span className="text-[10.5px] font-mono px-1.5 py-0.2 rounded-full bg-sky-50 text-sky-600 dark:bg-sky-950/40 dark:text-sky-400 border border-sky-200/60">
-              {tabCounts.created}
-            </span>
-          </button>
-
-          <button
-            type="button"
-            onClick={() => {
-              setActiveTab("updated");
-              setPage(1);
-            }}
-            className={`pb-2.5 pt-1 text-xs font-semibold flex items-center gap-1.5 border-b-2 transition-all cursor-pointer whitespace-nowrap ${
-              activeTab === "updated"
-                ? "border-primary text-primary font-bold"
-                : "border-transparent text-muted hover:text-foreground"
-            }`}
-          >
-            <span>Điều chỉnh &amp; Ghi đè</span>
-            <span className="text-[10.5px] font-mono px-1.5 py-0.2 rounded-full bg-amber-50 text-amber-600 dark:bg-amber-950/40 dark:text-amber-400 border border-amber-200/60">
-              {tabCounts.updated}
-            </span>
-          </button>
-
-          <button
-            type="button"
-            onClick={() => {
-              setActiveTab("rejected");
-              setPage(1);
-            }}
-            className={`pb-2.5 pt-1 text-xs font-semibold flex items-center gap-1.5 border-b-2 transition-all cursor-pointer whitespace-nowrap ${
-              activeTab === "rejected"
-                ? "border-primary text-primary font-bold"
-                : "border-transparent text-muted hover:text-foreground"
-            }`}
-          >
-            <span>Từ chối / Ngừng</span>
-            <span className="text-[10.5px] font-mono px-1.5 py-0.2 rounded-full bg-rose-50 text-rose-600 dark:bg-rose-950/40 dark:text-rose-400 border border-rose-200/60">
-              {tabCounts.rejected}
-            </span>
-          </button>
+          {tabDefinitions.map((tab) => {
+            const isSelected = activeTab === tab.key;
+            const count = tabCounts[tab.key] || 0;
+            return (
+              <button
+                key={tab.key}
+                type="button"
+                onClick={() => {
+                  setActiveTab(tab.key);
+                  setPage(1);
+                }}
+                className={`pb-2.5 pt-1 text-xs font-semibold flex items-center gap-1.5 border-b-2 transition-all cursor-pointer whitespace-nowrap ${
+                  isSelected
+                    ? "border-primary text-primary font-bold"
+                    : "border-transparent text-muted hover:text-foreground"
+                }`}
+              >
+                <span>{tab.label}</span>
+                <span className={`text-[10.5px] font-mono px-1.5 py-0.2 rounded-full ${tab.badgeBgClass}`}>
+                  {count}
+                </span>
+              </button>
+            );
+          })}
         </div>
 
         {/* SEARCH FILTER ROW */}

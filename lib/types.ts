@@ -667,7 +667,63 @@ export interface PayrollAuditEvent {
   createdAt: string;
 }
 
-export type ActivityLogModule = "policies" | "workdays" | "union" | "insurance" | "dependents";
+export type OtherDeductionCategory =
+  | "violation" // Phạt vi phạm nội quy
+  | "compensation" // Bồi thường tài sản / thiết bị
+  | "late_penalty" // Phạt đi trễ / về sớm theo quyết định
+  | "uniform" // Khấu trừ đồng phục / dụng cụ
+  | "other"; // Khác
+
+export interface OtherDeductionRecord {
+  id: string;
+  projectId: string;
+  employeeId: string;
+  employeeCode: string;
+  employeeName: string;
+  position?: string;
+  period: string; // YYYY-MM
+  category: OtherDeductionCategory;
+  categoryLabel?: string;
+  amount: number;
+  decisionNo?: string;
+  decisionDate?: string;
+  attachmentName?: string;
+  attachmentUrl?: string;
+  attachmentSize?: string;
+  reason: string;
+  updatedBy: string;
+  updatedAt: string;
+}
+
+export type OtherIncomeCategory =
+  | "spot_bonus" // Thưởng nóng / thưởng thành tích đột xuất
+  | "project_bonus" // Thưởng tiến độ / thưởng dự án
+  | "support" // Hỗ trợ khó khăn / trợ cấp đột xuất
+  | "incentive" // Khen thưởng chuyên cần / sáng kiến
+  | "other"; // Thu nhập khác
+
+export interface OtherIncomeRecord {
+  id: string;
+  projectId: string;
+  employeeId: string;
+  employeeCode: string;
+  employeeName: string;
+  position?: string;
+  period: string; // YYYY-MM
+  category: OtherIncomeCategory;
+  categoryLabel?: string;
+  amount: number;
+  decisionNo?: string;
+  decisionDate?: string;
+  attachmentName?: string;
+  attachmentUrl?: string;
+  attachmentSize?: string;
+  reason: string;
+  updatedBy: string;
+  updatedAt: string;
+}
+
+export type ActivityLogModule = "policies" | "workdays" | "union" | "insurance" | "dependents" | "deductions" | "incomes";
 
 export interface ActivityLogItem {
   id: string;
@@ -710,6 +766,8 @@ export interface MockDatabase {
   projectEmployeeGroups: ProjectEmployeeGroup[];
   projectCustomVariables?: ProjectCustomVariable[];
   activityLogs: ActivityLogItem[];
+  otherDeductions: OtherDeductionRecord[];
+  otherIncomes: OtherIncomeRecord[];
   payrollAttendanceSheets: PayrollAttendanceSheet[];
   payrollRuns: PayrollRun[];
   payrollLines: PayrollLine[];

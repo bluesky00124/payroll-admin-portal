@@ -24,6 +24,8 @@ import type {
   TaxConfigRecord,
   TestRunResult,
   UnionFeeRecord,
+  OtherDeductionRecord,
+  OtherIncomeRecord,
 } from "@/lib/types";
 import { defaultCustomVariablesDefinitions } from "@/lib/mock-data";
 import { uid } from "@/lib/utils";
@@ -1758,5 +1760,469 @@ export const handlers = [
       db.activityLogs = [newLog, ...(db.activityLogs ?? [])];
     });
     return ok(newLog);
+  }),
+
+  // ==========================================
+  // OTHER DEDUCTIONS (Khoản trừ khác)
+  // ==========================================
+  http.get("/api/other-deductions", async ({ request }) => {
+    await delay(180);
+    const url = new URL(request.url);
+    const projId = url.searchParams.get("projectId");
+    const period = url.searchParams.get("period");
+    const q = (url.searchParams.get("q") ?? "").toLocaleLowerCase("vi").trim();
+    const database = readMockDatabase();
+    let list = [...(database.otherDeductions ?? [])];
+
+    if (projId && projId !== "all") {
+      list = list.filter((item) => item.projectId === projId);
+    }
+    if (period && period !== "all") {
+      list = list.filter((item) => item.period === period);
+    }
+    if (q) {
+      list = list.filter((item) =>
+        `${item.employeeName} ${item.employeeCode} ${item.decisionNo ?? ""} ${item.categoryLabel ?? ""} ${item.reason}`
+          .toLocaleLowerCase("vi")
+          .includes(q)
+      );
+    }
+
+    list.sort((a, b) => b.updatedAt.localeCompare(a.updatedAt));
+    return ok(list);
+  }),
+
+  http.post("/api/other-deductions", async ({ request }) => {
+    await delay(200);
+    const payload = (await request.json()) as Partial<OtherDeductionRecord>;
+    const database = readMockDatabase();
+    const emp = database.employees.find((e) => e.id === payload.employeeId || e.code === payload.employeeCode);
+
+    const categoryLabels: Record<string, string> = {
+      violation: "Phạt vi phạm nội quy",
+      compensation: "Bồi thường tài sản",
+      late_penalty: "Phạt đi trễ theo quyết định",
+      uniform: "Khấu trừ đồng phục",
+      other: "Khác",
+    };
+
+    const newRecord: OtherDeductionRecord = {
+      id: `ded-${Date.now()}`,
+      projectId: payload.projectId || emp?.projectId || "prj-jss",
+      employeeId: emp?.id ?? payload.employeeId ?? "",
+      employeeCode: emp?.code ?? payload.employeeCode ?? "",
+      employeeName: emp?.name ?? payload.employeeName ?? "",
+      position: emp?.position ?? payload.position ?? "Nhân viên",
+      period: payload.period || "2026-08",
+      category: payload.category || "violation",
+      categoryLabel: categoryLabels[payload.category || "violation"] || "Khoản trừ khác",
+      amount: payload.amount ?? 0,
+      decisionNo: payload.decisionNo,
+      decisionDate: payload.decisionDate,
+      attachmentName: payload.attachmentName,
+      attachmentUrl: payload.attachmentUrl,
+      attachmentSize: payload.attachmentSize,
+      reason: payload.reason || "Khấu trừ theo quyết định ban hành",
+      updatedBy: payload.updatedBy || "Trần Thu Trang (Kế toán)",
+      updatedAt: new Date().toISOString(),
+    };
+
+    const logItem: ActivityLogItem = {
+      id: uid("act"),
+      projectId: newRecord.projectId,
+      module: "deductions",
+      employeeId: newRecord.employeeId,
+      employeeCode: newRecord.employeeCode,
+      employeeName: newRecord.employeeName,
+      actionType: "create",
+      actionLabel: "Thêm khoản trừ",
+      details: `${newRecord.categoryLabel}: -${newRecord.amount.toLocaleString("vi-VN")}đ (Kỳ: ${newRecord.period}${newRecord.decisionNo ? ` - ${newRecord.decisionNo}` : ""})`,
+      newValue: newRecord.amount,
+      changedBy: newRecord.updatedBy,
+      reason: newRecord.reason,
+      createdAt: new Date().toISOString(),
+    };
+
+    mutateMockDatabase((db) => {
+      db.otherDeductions = [newRecord, ...(db.otherDeductions ?? [])];
+      db.activityLogs = [logItem, ...(db.activityLogs ?? [])];
+    });
+
+    return ok(newRecord);
+  }),
+
+  http.put("/api/other-deductions/:id", async ({ params, request }) => {
+    await delay(200);
+    const { id } = params;
+    const payload = (await request.json()) as Partial<OtherDeductionRecord>;
+    let updated: OtherDeductionRecord | null = null;
+
+    const categoryLabels: Record<string, string> = {
+      violation: "Phạt vi phạm nội quy",
+      compensation: "Bồi thường tài sản",
+      late_penalty: "Phạt đi trễ theo quyết định",
+      uniform: "Khấu trừ đồng phục",
+      other: "Khác",
+    };
+
+    mutateMockDatabase((db) => {
+      const idx = (db.otherDeductions ?? []).findIndex((item) => item.id === id);
+      if (idx !== -1) {
+        const cur = db.otherDeductions[idx];
+        const updatedCat = payload.category ?? cur.category;
+        db.otherDeductions[idx] = {
+          ...cur,
+          ...payload,
+          category: updatedCat,
+          categoryLabel: categoryLabels[updatedCat] || cur.categoryLabel,
+          updatedAt: new Date().toISOString(),
+        };
+        updated = db.otherDeductions[idx];
+
+        const logItem: ActivityLogItem = {
+          id: uid("act"),
+          projectId: cur.projectId,
+          module: "deductions",
+          employeeId: cur.employeeId,
+          employeeCode: cur.employeeCode,
+          employeeName: cur.employeeName,
+          actionType: "update",
+          actionLabel: "Sửa khoản trừ",
+          details: `Cập nhật ${updated.categoryLabel}: -${updated.amount.toLocaleString("vi-VN")}đ (QĐ: ${updated.decisionNo || "N/A"})`,
+          oldValue: cur.amount,
+          newValue: updated.amount,
+          changedBy: payload.updatedBy || "Trần Thu Trang (Kế toán)",
+          reason: updated.reason,
+          createdAt: new Date().toISOString(),
+        };
+        db.activityLogs = [logItem, ...(db.activityLogs ?? [])];
+      }
+    });
+
+    return updated ? ok(updated) : fail(404, "NOT_FOUND", "Không tìm thấy bản ghi khoản trừ");
+  }),
+
+  http.delete("/api/other-deductions/:id", async ({ params }) => {
+    await delay(150);
+    const { id } = params;
+    let deleted = false;
+
+    mutateMockDatabase((db) => {
+      const idx = (db.otherDeductions ?? []).findIndex((item) => item.id === id);
+      if (idx !== -1) {
+        const cur = db.otherDeductions[idx];
+        const logItem: ActivityLogItem = {
+          id: uid("act"),
+          projectId: cur.projectId,
+          module: "deductions",
+          employeeId: cur.employeeId,
+          employeeCode: cur.employeeCode,
+          employeeName: cur.employeeName,
+          actionType: "delete",
+          actionLabel: "Xóa khoản trừ",
+          details: `Xóa ${cur.categoryLabel}: -${cur.amount.toLocaleString("vi-VN")}đ (${cur.decisionNo || "N/A"})`,
+          oldValue: cur.amount,
+          changedBy: "Trần Thu Trang (Kế toán)",
+          createdAt: new Date().toISOString(),
+        };
+        db.activityLogs = [logItem, ...(db.activityLogs ?? [])];
+        db.otherDeductions.splice(idx, 1);
+        deleted = true;
+      }
+    });
+
+    return deleted ? ok({ success: true }) : fail(404, "NOT_FOUND", "Không tìm thấy bản ghi cần xóa");
+  }),
+
+  http.post("/api/other-deductions/batch-import", async ({ request }) => {
+    await delay(400);
+    const payload = (await request.json()) as {
+      projectId: string;
+      period: string;
+      items: Array<Partial<OtherDeductionRecord>>;
+    };
+
+    const database = readMockDatabase();
+    const categoryLabels: Record<string, string> = {
+      violation: "Phạt vi phạm nội quy",
+      compensation: "Bồi thường tài sản",
+      late_penalty: "Phạt đi trễ theo quyết định",
+      uniform: "Khấu trừ đồng phục",
+      other: "Khác",
+    };
+
+    const createdRecords: OtherDeductionRecord[] = (payload.items ?? []).map((item, idx) => {
+      const emp = database.employees.find((e) => e.code === item.employeeCode || e.id === item.employeeId);
+      const cat = item.category || "violation";
+      return {
+        id: `ded-imp-${Date.now()}-${idx}`,
+        projectId: payload.projectId || emp?.projectId || "prj-jss",
+        employeeId: emp?.id ?? item.employeeId ?? "",
+        employeeCode: emp?.code ?? item.employeeCode ?? "",
+        employeeName: emp?.name ?? item.employeeName ?? "",
+        position: emp?.position ?? item.position ?? "Nhân viên",
+        period: payload.period || item.period || "2026-08",
+        category: cat,
+        categoryLabel: categoryLabels[cat] || "Khoản trừ khác",
+        amount: item.amount ?? 0,
+        decisionNo: item.decisionNo,
+        decisionDate: item.decisionDate,
+        attachmentName: item.attachmentName,
+        attachmentUrl: item.attachmentUrl,
+        attachmentSize: item.attachmentSize,
+        reason: item.reason || "Import danh sách khoản trừ hàng loạt từ file Excel",
+        updatedBy: "Trần Thu Trang (Kế toán)",
+        updatedAt: new Date().toISOString(),
+      };
+    });
+
+    mutateMockDatabase((db) => {
+      db.otherDeductions = [...createdRecords, ...(db.otherDeductions ?? [])];
+      const logItem: ActivityLogItem = {
+        id: uid("act"),
+        projectId: payload.projectId,
+        module: "deductions",
+        actionType: "import",
+        actionLabel: "Import Excel khoản trừ",
+        details: `Nhập khẩu ${createdRecords.length} khoản trừ cho kỳ ${payload.period} từ file Excel`,
+        changedBy: "Trần Thu Trang (Kế toán)",
+        createdAt: new Date().toISOString(),
+      };
+      db.activityLogs = [logItem, ...(db.activityLogs ?? [])];
+    });
+
+    return ok(createdRecords);
+  }),
+
+  // ==========================================
+  // OTHER INCOMES (Khoản thu nhập khác)
+  // ==========================================
+  http.get("/api/other-incomes", async ({ request }) => {
+    await delay(180);
+    const url = new URL(request.url);
+    const projId = url.searchParams.get("projectId");
+    const period = url.searchParams.get("period");
+    const q = (url.searchParams.get("q") ?? "").toLocaleLowerCase("vi").trim();
+    const database = readMockDatabase();
+    let list = [...(database.otherIncomes ?? [])];
+
+    if (projId && projId !== "all") {
+      list = list.filter((item) => item.projectId === projId);
+    }
+    if (period && period !== "all") {
+      list = list.filter((item) => item.period === period);
+    }
+    if (q) {
+      list = list.filter((item) =>
+        `${item.employeeName} ${item.employeeCode} ${item.decisionNo ?? ""} ${item.categoryLabel ?? ""} ${item.reason}`
+          .toLocaleLowerCase("vi")
+          .includes(q)
+      );
+    }
+
+    list.sort((a, b) => b.updatedAt.localeCompare(a.updatedAt));
+    return ok(list);
+  }),
+
+  http.post("/api/other-incomes", async ({ request }) => {
+    await delay(200);
+    const payload = (await request.json()) as Partial<OtherIncomeRecord>;
+    const database = readMockDatabase();
+    const emp = database.employees.find((e) => e.id === payload.employeeId || e.code === payload.employeeCode);
+
+    const categoryLabels: Record<string, string> = {
+      spot_bonus: "Thưởng nóng thành tích",
+      project_bonus: "Thưởng tiến độ dự án",
+      support: "Hỗ trợ khó khăn",
+      incentive: "Khen thưởng chuyên cần",
+      other: "Thu nhập khác",
+    };
+
+    const newRecord: OtherIncomeRecord = {
+      id: `inc-${Date.now()}`,
+      projectId: payload.projectId || emp?.projectId || "prj-jss",
+      employeeId: emp?.id ?? payload.employeeId ?? "",
+      employeeCode: emp?.code ?? payload.employeeCode ?? "",
+      employeeName: emp?.name ?? payload.employeeName ?? "",
+      position: emp?.position ?? payload.position ?? "Nhân viên",
+      period: payload.period || "2026-08",
+      category: payload.category || "spot_bonus",
+      categoryLabel: categoryLabels[payload.category || "spot_bonus"] || "Thu nhập khác",
+      amount: payload.amount ?? 0,
+      decisionNo: payload.decisionNo,
+      decisionDate: payload.decisionDate,
+      attachmentName: payload.attachmentName,
+      attachmentUrl: payload.attachmentUrl,
+      attachmentSize: payload.attachmentSize,
+      reason: payload.reason || "Khen thưởng / hỗ trợ theo quyết định",
+      updatedBy: payload.updatedBy || "Trần Thu Trang (Kế toán)",
+      updatedAt: new Date().toISOString(),
+    };
+
+    const logItem: ActivityLogItem = {
+      id: uid("act"),
+      projectId: newRecord.projectId,
+      module: "incomes",
+      employeeId: newRecord.employeeId,
+      employeeCode: newRecord.employeeCode,
+      employeeName: newRecord.employeeName,
+      actionType: "create",
+      actionLabel: "Thêm thu nhập",
+      details: `${newRecord.categoryLabel}: +${newRecord.amount.toLocaleString("vi-VN")}đ (Kỳ: ${newRecord.period}${newRecord.decisionNo ? ` - ${newRecord.decisionNo}` : ""})`,
+      newValue: newRecord.amount,
+      changedBy: newRecord.updatedBy,
+      reason: newRecord.reason,
+      createdAt: new Date().toISOString(),
+    };
+
+    mutateMockDatabase((db) => {
+      db.otherIncomes = [newRecord, ...(db.otherIncomes ?? [])];
+      db.activityLogs = [logItem, ...(db.activityLogs ?? [])];
+    });
+
+    return ok(newRecord);
+  }),
+
+  http.put("/api/other-incomes/:id", async ({ params, request }) => {
+    await delay(200);
+    const { id } = params;
+    const payload = (await request.json()) as Partial<OtherIncomeRecord>;
+    let updated: OtherIncomeRecord | null = null;
+
+    const categoryLabels: Record<string, string> = {
+      spot_bonus: "Thưởng nóng thành tích",
+      project_bonus: "Thưởng tiến độ dự án",
+      support: "Hỗ trợ khó khăn",
+      incentive: "Khen thưởng chuyên cần",
+      other: "Thu nhập khác",
+    };
+
+    mutateMockDatabase((db) => {
+      const idx = (db.otherIncomes ?? []).findIndex((item) => item.id === id);
+      if (idx !== -1) {
+        const cur = db.otherIncomes[idx];
+        const updatedCat = payload.category ?? cur.category;
+        db.otherIncomes[idx] = {
+          ...cur,
+          ...payload,
+          category: updatedCat,
+          categoryLabel: categoryLabels[updatedCat] || cur.categoryLabel,
+          updatedAt: new Date().toISOString(),
+        };
+        updated = db.otherIncomes[idx];
+
+        const logItem: ActivityLogItem = {
+          id: uid("act"),
+          projectId: cur.projectId,
+          module: "incomes",
+          employeeId: cur.employeeId,
+          employeeCode: cur.employeeCode,
+          employeeName: cur.employeeName,
+          actionType: "update",
+          actionLabel: "Sửa thu nhập",
+          details: `Cập nhật ${updated.categoryLabel}: +${updated.amount.toLocaleString("vi-VN")}đ (QĐ: ${updated.decisionNo || "N/A"})`,
+          oldValue: cur.amount,
+          newValue: updated.amount,
+          changedBy: payload.updatedBy || "Trần Thu Trang (Kế toán)",
+          reason: updated.reason,
+          createdAt: new Date().toISOString(),
+        };
+        db.activityLogs = [logItem, ...(db.activityLogs ?? [])];
+      }
+    });
+
+    return updated ? ok(updated) : fail(404, "NOT_FOUND", "Không tìm thấy bản ghi thu nhập");
+  }),
+
+  http.delete("/api/other-incomes/:id", async ({ params }) => {
+    await delay(150);
+    const { id } = params;
+    let deleted = false;
+
+    mutateMockDatabase((db) => {
+      const idx = (db.otherIncomes ?? []).findIndex((item) => item.id === id);
+      if (idx !== -1) {
+        const cur = db.otherIncomes[idx];
+        const logItem: ActivityLogItem = {
+          id: uid("act"),
+          projectId: cur.projectId,
+          module: "incomes",
+          employeeId: cur.employeeId,
+          employeeCode: cur.employeeCode,
+          employeeName: cur.employeeName,
+          actionType: "delete",
+          actionLabel: "Xóa thu nhập",
+          details: `Xóa ${cur.categoryLabel}: +${cur.amount.toLocaleString("vi-VN")}đ (${cur.decisionNo || "N/A"})`,
+          oldValue: cur.amount,
+          changedBy: "Trần Thu Trang (Kế toán)",
+          createdAt: new Date().toISOString(),
+        };
+        db.activityLogs = [logItem, ...(db.activityLogs ?? [])];
+        db.otherIncomes.splice(idx, 1);
+        deleted = true;
+      }
+    });
+
+    return deleted ? ok({ success: true }) : fail(404, "NOT_FOUND", "Không tìm thấy bản ghi cần xóa");
+  }),
+
+  http.post("/api/other-incomes/batch-import", async ({ request }) => {
+    await delay(400);
+    const payload = (await request.json()) as {
+      projectId: string;
+      period: string;
+      items: Array<Partial<OtherIncomeRecord>>;
+    };
+
+    const database = readMockDatabase();
+    const categoryLabels: Record<string, string> = {
+      spot_bonus: "Thưởng nóng thành tích",
+      project_bonus: "Thưởng tiến độ dự án",
+      support: "Hỗ trợ khó khăn",
+      incentive: "Khen thưởng chuyên cần",
+      other: "Thu nhập khác",
+    };
+
+    const createdRecords: OtherIncomeRecord[] = (payload.items ?? []).map((item, idx) => {
+      const emp = database.employees.find((e) => e.code === item.employeeCode || e.id === item.employeeId);
+      const cat = item.category || "spot_bonus";
+      return {
+        id: `inc-imp-${Date.now()}-${idx}`,
+        projectId: payload.projectId || emp?.projectId || "prj-jss",
+        employeeId: emp?.id ?? item.employeeId ?? "",
+        employeeCode: emp?.code ?? item.employeeCode ?? "",
+        employeeName: emp?.name ?? item.employeeName ?? "",
+        position: emp?.position ?? item.position ?? "Nhân viên",
+        period: payload.period || item.period || "2026-08",
+        category: cat,
+        categoryLabel: categoryLabels[cat] || "Thu nhập khác",
+        amount: item.amount ?? 0,
+        decisionNo: item.decisionNo,
+        decisionDate: item.decisionDate,
+        attachmentName: item.attachmentName,
+        attachmentUrl: item.attachmentUrl,
+        attachmentSize: item.attachmentSize,
+        reason: item.reason || "Import danh sách thu nhập hàng loạt từ file Excel",
+        updatedBy: "Trần Thu Trang (Kế toán)",
+        updatedAt: new Date().toISOString(),
+      };
+    });
+
+    mutateMockDatabase((db) => {
+      db.otherIncomes = [...createdRecords, ...(db.otherIncomes ?? [])];
+      const logItem: ActivityLogItem = {
+        id: uid("act"),
+        projectId: payload.projectId,
+        module: "incomes",
+        actionType: "import",
+        actionLabel: "Import Excel thu nhập",
+        details: `Nhập khẩu ${createdRecords.length} khoản thu nhập cho kỳ ${payload.period} từ file Excel`,
+        changedBy: "Trần Thu Trang (Kế toán)",
+        createdAt: new Date().toISOString(),
+      };
+      db.activityLogs = [logItem, ...(db.activityLogs ?? [])];
+    });
+
+    return ok(createdRecords);
   }),
 ];

@@ -6,21 +6,33 @@ import {
   Coins,
   Filter,
   Palmtree,
+  ReceiptText,
   ScrollText,
   ShieldCheck,
   Users,
+  WalletCards,
 } from "lucide-react";
 import { useState } from "react";
 import { DependentsSubtab } from "@/components/employees/dependents-subtab";
-import { EmployeePoliciesSubtab } from "@/components/employees/policies-subtab";
 import { InsuranceSubtab } from "@/components/employees/insurance-subtab";
 import { LeaveSubtab } from "@/components/employees/leave-subtab";
+import { OtherDeductionsSubtab } from "@/components/employees/other-deductions-subtab";
+import { OtherIncomesSubtab } from "@/components/employees/other-incomes-subtab";
+import { EmployeePoliciesSubtab } from "@/components/employees/policies-subtab";
 import { StandardWorkdaysSubtab } from "@/components/employees/standard-workdays-subtab";
 import { UnionFeesSubtab } from "@/components/employees/union-fees-subtab";
 import { EmptyState, ErrorState, LoadingBlock, SearchableSelect } from "@/components/ui";
 import { api } from "@/lib/api";
 
-type EmployeeSubtab = "dependents" | "leave" | "union" | "workdays" | "insurance" | "policies";
+type EmployeeSubtab =
+  | "dependents"
+  | "leave"
+  | "union"
+  | "workdays"
+  | "insurance"
+  | "policies"
+  | "deductions"
+  | "incomes";
 
 const SUBTABS: { id: EmployeeSubtab; label: string; icon: React.ComponentType<{ className?: string }> }[] = [
   { id: "dependents", label: "Người phụ thuộc", icon: Users },
@@ -29,6 +41,8 @@ const SUBTABS: { id: EmployeeSubtab; label: string; icon: React.ComponentType<{ 
   { id: "workdays", label: "Ngày công chuẩn", icon: CalendarDays },
   { id: "insurance", label: "Bảo hiểm xã hội", icon: ShieldCheck },
   { id: "policies", label: "Chế độ & Phụ cấp", icon: ScrollText },
+  { id: "deductions", label: "Khoản trừ khác", icon: ReceiptText },
+  { id: "incomes", label: "Thu nhập khác", icon: WalletCards },
 ];
 
 export function EmployeesTab({
@@ -135,6 +149,12 @@ export function EmployeesTab({
             )}
             {activeSubtab === "policies" && (
               <EmployeePoliciesSubtab projectId={effectiveProjectId} employees={employees} />
+            )}
+            {activeSubtab === "deductions" && (
+              <OtherDeductionsSubtab projectId={effectiveProjectId} employees={employees} />
+            )}
+            {activeSubtab === "incomes" && (
+              <OtherIncomesSubtab projectId={effectiveProjectId} employees={employees} />
             )}
           </>
         )}

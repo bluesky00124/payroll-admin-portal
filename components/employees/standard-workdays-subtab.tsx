@@ -259,7 +259,7 @@ export function StandardWorkdaysSubtab({
         ) : (
           <div className="data-table-wrap">
             <div className="data-table-scroll">
-              <table className="data-table">
+              <table className="data-table min-w-[1000px]">
               <thead>
                 <tr>
                   <th style={{ width: "45px" }} className="text-center">STT</th>

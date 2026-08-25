@@ -27,6 +27,8 @@ import type {
   EmployeePolicyItem,
   EmployeePolicyRecord,
   ProjectEmployeeGroup,
+  OtherDeductionRecord,
+  OtherIncomeRecord,
 } from "@/lib/types";
 
 export class ApiRequestError extends Error {
@@ -186,4 +188,30 @@ export const api = {
   },
   createActivityLog: (payload: Partial<ActivityLogItem>) =>
     request<ActivityLogItem>("/api/activity-logs", { method: "POST", body: JSON.stringify(payload) }).then((item) => item.data),
+  // Other Deductions API
+  getOtherDeductions: (params?: { projectId?: string; period?: string; q?: string }) => {
+    const query = new URLSearchParams(Object.entries(params ?? {}).filter(([, v]) => v !== undefined).map(([k, v]) => [k, String(v)]));
+    return request<OtherDeductionRecord[]>(`/api/other-deductions?${query}`).then((item) => item.data);
+  },
+  createOtherDeduction: (payload: Partial<OtherDeductionRecord>) =>
+    request<OtherDeductionRecord>("/api/other-deductions", { method: "POST", body: JSON.stringify(payload) }).then((item) => item.data),
+  updateOtherDeduction: (id: string, payload: Partial<OtherDeductionRecord>) =>
+    request<OtherDeductionRecord>(`/api/other-deductions/${id}`, { method: "PUT", body: JSON.stringify(payload) }).then((item) => item.data),
+  deleteOtherDeduction: (id: string) =>
+    request<{ success: boolean }>(`/api/other-deductions/${id}`, { method: "DELETE" }).then((item) => item.data),
+  batchImportOtherDeductions: (payload: { projectId: string; period: string; items: Array<Partial<OtherDeductionRecord>> }) =>
+    request<OtherDeductionRecord[]>("/api/other-deductions/batch-import", { method: "POST", body: JSON.stringify(payload) }).then((item) => item.data),
+  // Other Incomes API
+  getOtherIncomes: (params?: { projectId?: string; period?: string; q?: string }) => {
+    const query = new URLSearchParams(Object.entries(params ?? {}).filter(([, v]) => v !== undefined).map(([k, v]) => [k, String(v)]));
+    return request<OtherIncomeRecord[]>(`/api/other-incomes?${query}`).then((item) => item.data);
+  },
+  createOtherIncome: (payload: Partial<OtherIncomeRecord>) =>
+    request<OtherIncomeRecord>("/api/other-incomes", { method: "POST", body: JSON.stringify(payload) }).then((item) => item.data),
+  updateOtherIncome: (id: string, payload: Partial<OtherIncomeRecord>) =>
+    request<OtherIncomeRecord>(`/api/other-incomes/${id}`, { method: "PUT", body: JSON.stringify(payload) }).then((item) => item.data),
+  deleteOtherIncome: (id: string) =>
+    request<{ success: boolean }>(`/api/other-incomes/${id}`, { method: "DELETE" }).then((item) => item.data),
+  batchImportOtherIncomes: (payload: { projectId: string; period: string; items: Array<Partial<OtherIncomeRecord>> }) =>
+    request<OtherIncomeRecord[]>("/api/other-incomes/batch-import", { method: "POST", body: JSON.stringify(payload) }).then((item) => item.data),
 };

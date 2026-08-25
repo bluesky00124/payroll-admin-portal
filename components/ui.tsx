@@ -336,13 +336,15 @@ export function TablePaginationFooter({
 
 
 export interface MonthPickerProps {
-  value: string; // YYYY-MM (e.g. "2026-08")
+  value: string; // YYYY-MM (e.g. "2026-08") or "" / "all"
   onChange: (value: string) => void;
   label?: string;
   placeholder?: string;
   className?: string;
   disabled?: boolean;
   variant?: "filter" | "form";
+  allowClear?: boolean;
+  clearLabel?: string;
 }
 
 export function MonthPicker({
@@ -353,6 +355,8 @@ export function MonthPicker({
   className,
   disabled = false,
   variant = "filter",
+  allowClear = false,
+  clearLabel = "Tất cả các tháng",
 }: MonthPickerProps) {
   const [isOpen, setIsOpen] = useState(false);
   const containerRef = useRef<HTMLDivElement>(null);
@@ -406,6 +410,11 @@ export function MonthPicker({
     setIsOpen(false);
   };
 
+  const handleClear = () => {
+    onChange(allowClear ? "all" : "");
+    setIsOpen(false);
+  };
+
   const months = [
     "Tháng 1",
     "Tháng 2",
@@ -441,7 +450,7 @@ export function MonthPicker({
       >
         <Calendar className="month-picker-icon" />
         <span className="month-picker-display">
-          {value ? formatMonthYear(value) : placeholder}
+          {value && value !== "all" ? formatMonthYear(value, variant === "filter") : placeholder || "Tất cả các tháng"}
         </span>
         <ChevronDown className="month-picker-chevron" />
       </button>
@@ -472,7 +481,7 @@ export function MonthPicker({
             {months.map((mName, idx) => {
               const monthNum = idx + 1;
               const isSelected =
-                viewYear === parsedYear && monthNum === parsedMonth;
+                value !== "all" && Boolean(value) && viewYear === parsedYear && monthNum === parsedMonth;
               return (
                 <button
                   key={monthNum}
@@ -489,7 +498,16 @@ export function MonthPicker({
             })}
           </div>
 
-          <div className="month-picker-footer">
+          <div className="month-picker-footer flex items-center justify-between gap-2">
+            {allowClear ? (
+              <button
+                type="button"
+                className="month-picker-today-btn text-muted hover:text-foreground font-normal"
+                onClick={handleClear}
+              >
+                {clearLabel}
+              </button>
+            ) : null}
             <button
               type="button"
               className="month-picker-today-btn"

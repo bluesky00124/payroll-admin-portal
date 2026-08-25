@@ -164,103 +164,105 @@ export function AttendanceTab({ projectId, embedded = false }: { projectId: stri
           />
         ) : (
           <div className="data-table-wrap">
-            <table className="data-table policy-table">
-              <thead>
-                <tr>
-                  <th style={{ width: "45px" }} className="text-center">STT</th>
-                  <th>Loại tăng ca</th>
-                  <th style={{ width: "240px" }}>Hệ số đơn giá</th>
-                  <th style={{ width: "140px" }} className="text-center">Thao tác</th>
-                </tr>
-              </thead>
-              <tbody>
-                {visibleConfigs.map((config, index) => {
-                  const type = typeMap.get(config.overtimeTypeId);
-                  const isEditingThisRow = editingRowId === config.id;
+            <div className="data-table-scroll">
+              <table className="data-table policy-table min-w-[750px]">
+                <thead>
+                  <tr>
+                    <th style={{ width: "45px" }} className="text-center">STT</th>
+                    <th>Loại tăng ca</th>
+                    <th style={{ width: "240px" }}>Hệ số đơn giá</th>
+                    <th style={{ width: "140px" }} className="text-center">Thao tác</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {visibleConfigs.map((config, index) => {
+                    const type = typeMap.get(config.overtimeTypeId);
+                    const isEditingThisRow = editingRowId === config.id;
 
-                  return (
-                    <tr key={config.id} className={isEditingThisRow ? "bg-amber-50/50 dark:bg-amber-950/20" : ""}>
-                      <td className="text-center font-mono text-xs text-muted font-medium">{index + 1}</td>
-                      <td>
-                        <div className="name-description">
-                          <strong className="text-foreground font-semibold text-sm">{type?.name}</strong>
-                          {type?.description && (
-                            <small className="text-muted block text-xs mt-0.5">{type.description}</small>
+                    return (
+                      <tr key={config.id} className={isEditingThisRow ? "bg-amber-50/50 dark:bg-amber-950/20" : ""}>
+                        <td className="text-center font-mono text-xs text-muted font-medium">{index + 1}</td>
+                        <td>
+                          <div className="name-description">
+                            <strong className="text-foreground font-semibold text-sm">{type?.name}</strong>
+                            {type?.description && (
+                              <small className="text-muted block text-xs mt-0.5">{type.description}</small>
+                            )}
+                          </div>
+                        </td>
+
+                        {/* Multiplier Cell */}
+                        <td>
+                          {isEditingThisRow ? (
+                            <div className="inline-cell-wrap" style={{ maxWidth: "140px" }}>
+                              <input
+                                type="number"
+                                step="0.1"
+                                min="0"
+                                className="inline-cell-input"
+                                value={editingValue}
+                                onChange={(e) => setEditingValue(Number(e.target.value))}
+                                autoFocus
+                              />
+                            </div>
+                          ) : (
+                            <span className="font-semibold text-sky-600 dark:text-sky-400 text-sm">
+                              {config.multiplier}
+                            </span>
                           )}
-                        </div>
-                      </td>
+                        </td>
 
-                      {/* Multiplier Cell */}
-                      <td>
-                        {isEditingThisRow ? (
-                          <div className="inline-cell-wrap" style={{ maxWidth: "140px" }}>
-                            <input
-                              type="number"
-                              step="0.1"
-                              min="0"
-                              className="inline-cell-input"
-                              value={editingValue}
-                              onChange={(e) => setEditingValue(Number(e.target.value))}
-                              autoFocus
-                            />
-                          </div>
-                        ) : (
-                          <span className="font-semibold text-sky-600 dark:text-sky-400 text-sm">
-                            {config.multiplier}
-                          </span>
-                        )}
-                      </td>
-
-                      {/* Action Cell (Matching PoliciesTab) */}
-                      <td className="text-center">
-                        {isEditingThisRow ? (
-                          <div className="flex items-center gap-1 justify-center">
-                            <Button
-                              size="sm"
-                              variant="primary"
-                              onClick={() => saveRowMutation.mutate(config)}
-                              disabled={saveRowMutation.isPending}
-                              title="Lưu dòng này"
-                            >
-                              <Save className="w-3.5 h-3.5" /> Lưu
-                            </Button>
-                            <Button
-                              size="icon"
-                              variant="ghost"
-                              onClick={() => setEditingRowId(null)}
-                              title="Hủy sửa"
-                            >
-                              <X className="w-4 h-4" />
-                            </Button>
-                          </div>
-                        ) : (
-                          <div className="flex items-center gap-1 justify-center">
-                            <Button
-                              size="icon"
-                              variant="ghost"
-                              onClick={() => startEditingRow(config)}
-                              aria-label={`Sửa ${type?.name}`}
-                              title="Chỉnh sửa dòng này"
-                            >
-                              <Pencil className="w-4 h-4 text-primary" />
-                            </Button>
-                            <Button
-                              size="icon"
-                              variant="ghost"
-                              onClick={() => setDeleteTarget(config)}
-                              aria-label={`Xóa ${type?.name}`}
-                              title="Xóa chế độ này khỏi dự án"
-                            >
-                              <Trash2 className="w-4 h-4 text-rose-500" />
-                            </Button>
-                          </div>
-                        )}
-                      </td>
-                    </tr>
-                  );
-                })}
-              </tbody>
-            </table>
+                        {/* Action Cell (Matching PoliciesTab) */}
+                        <td className="text-center">
+                          {isEditingThisRow ? (
+                            <div className="flex items-center gap-1 justify-center">
+                              <Button
+                                size="sm"
+                                variant="primary"
+                                onClick={() => saveRowMutation.mutate(config)}
+                                disabled={saveRowMutation.isPending}
+                                title="Lưu dòng này"
+                              >
+                                <Save className="w-3.5 h-3.5" /> Lưu
+                              </Button>
+                              <Button
+                                size="icon"
+                                variant="ghost"
+                                onClick={() => setEditingRowId(null)}
+                                title="Hủy sửa"
+                              >
+                                <X className="w-4 h-4" />
+                              </Button>
+                            </div>
+                          ) : (
+                            <div className="flex items-center gap-1 justify-center">
+                              <Button
+                                size="icon"
+                                variant="ghost"
+                                onClick={() => startEditingRow(config)}
+                                aria-label={`Sửa ${type?.name}`}
+                                title="Chỉnh sửa dòng này"
+                              >
+                                <Pencil className="w-4 h-4 text-primary" />
+                              </Button>
+                              <Button
+                                size="icon"
+                                variant="ghost"
+                                onClick={() => setDeleteTarget(config)}
+                                aria-label={`Xóa ${type?.name}`}
+                                title="Xóa chế độ này khỏi dự án"
+                              >
+                                <Trash2 className="w-4 h-4 text-rose-500" />
+                              </Button>
+                            </div>
+                          )}
+                        </td>
+                      </tr>
+                    );
+                  })}
+                </tbody>
+              </table>
+            </div>
           </div>
         )}
       </section>

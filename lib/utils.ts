@@ -49,7 +49,7 @@ export function formatDate(value?: string | null): string {
 }
 
 export function formatMonthYear(value?: string | null, includePrefix = false): string {
-  if (!value) return "—";
+  if (!value || value === "all") return "Tất cả các tháng";
   if (/^\d{4}-\d{2}$/.test(value)) {
     const [y, m] = value.split("-");
     return includePrefix ? `Tháng ${m}/${y}` : `${m}/${y}`;

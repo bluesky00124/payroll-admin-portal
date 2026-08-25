@@ -377,7 +377,7 @@ export function EmployeePoliciesSubtab({
         ) : (
           <div className="data-table-wrap">
             <div className="data-table-scroll">
-              <table className="data-table">
+              <table className="data-table min-w-[1100px]">
                 <thead>
                   <tr>
                     <th style={{ width: "45px" }} className="text-center">STT</th>
