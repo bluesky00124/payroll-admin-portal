@@ -15,6 +15,7 @@ import type {
   OvertimeType,
   PolicyDefinition,
   Project,
+  ProjectCustomVariable,
   ProjectEmployeeGroup,
   ProjectOvertimeConfig,
   ProjectPolicy,
@@ -1307,7 +1308,111 @@ const formulaVariables: FormulaVariable[] = [
   { code: "TONG_PHU_CAP", name: "Tổng phụ cấp", group: "policy", sampleValue: 750000, unit: "VNĐ" },
   { code: "BAO_HIEM_NV", name: "Bảo hiểm nhân viên", group: "policy", sampleValue: 682500, unit: "VNĐ" },
   { code: "KHAU_TRU_KHAC", name: "Khấu trừ khác", group: "policy", sampleValue: 23400, unit: "VNĐ" },
+  // Custom Variables (Tham số đầu vào dự án do Backend trả về - Chưa có giá trị cố định)
+  {
+    code: "DON_GIA_KHOAN",
+    name: "Đơn giá khoán sản lượng",
+    group: "custom",
+    unit: "VNĐ/sp",
+    description: "Đơn giá khoán tính trên mỗi đơn vị sản lượng hoàn thành của dự án",
+    isCustom: true,
+    sampleValue: 35000,
+    defaultValue: 35000,
+  },
+  {
+    code: "HE_SO_HOAN_THANH_MIN",
+    name: "Hệ số hoàn thành tối thiểu",
+    group: "custom",
+    unit: "%",
+    description: "Tỷ lệ % KPI tối thiểu để được xét nhận thưởng năng suất",
+    isCustom: true,
+    sampleValue: 80,
+    defaultValue: 80,
+  },
+  {
+    code: "MUC_THUONG_NONG_DU_AN",
+    name: "Mức thưởng nóng dự án",
+    group: "custom",
+    unit: "VNĐ",
+    description: "Khoản thưởng đột xuất bổ sung trong kỳ của dự án",
+    isCustom: true,
+    sampleValue: 1500000,
+    defaultValue: 1500000,
+  },
+  {
+    code: "DON_GIA_CA_DEM_DAC_BIET",
+    name: "Đơn giá ca đêm đặc biệt",
+    group: "custom",
+    unit: "VNĐ/giờ",
+    description: "Đơn giá phụ cấp riêng cho ca làm việc ban đêm trong các đợt cao điểm",
+    isCustom: true,
+    sampleValue: 45000,
+    defaultValue: 45000,
+  },
+  {
+    code: "TY_LE_TRICH_QUY_DU_AN",
+    name: "Tỷ lệ trích quỹ dự án",
+    group: "custom",
+    unit: "%",
+    description: "Tỷ lệ trích nộp quỹ hoạt động nội bộ của dự án",
+    isCustom: true,
+    sampleValue: 1.5,
+    defaultValue: 1.5,
+  },
 ];
+
+export const defaultCustomVariablesDefinitions = [
+  {
+    code: "DON_GIA_KHOAN",
+    name: "Đơn giá khoán sản lượng",
+    unit: "VNĐ/sp",
+    description: "Đơn giá khoán tính trên mỗi đơn vị sản lượng hoàn thành của dự án",
+    defaultValue: 35000,
+  },
+  {
+    code: "HE_SO_HOAN_THANH_MIN",
+    name: "Hệ số hoàn thành tối thiểu",
+    unit: "%",
+    description: "Tỷ lệ % KPI tối thiểu để được xét nhận thưởng năng suất",
+    defaultValue: 80,
+  },
+  {
+    code: "MUC_THUONG_NONG_DU_AN",
+    name: "Mức thưởng nóng dự án",
+    unit: "VNĐ",
+    description: "Khoản thưởng đột xuất bổ sung trong kỳ của dự án",
+    defaultValue: 1500000,
+  },
+  {
+    code: "DON_GIA_CA_DEM_DAC_BIET",
+    name: "Đơn giá ca đêm đặc biệt",
+    unit: "VNĐ/giờ",
+    description: "Đơn giá phụ cấp riêng cho ca làm việc ban đêm trong các đợt cao điểm",
+    defaultValue: 45000,
+  },
+  {
+    code: "TY_LE_TRICH_QUY_DU_AN",
+    name: "Tỷ lệ trích quỹ dự án",
+    unit: "%",
+    description: "Tỷ lệ trích nộp quỹ hoạt động nội bộ của dự án",
+    defaultValue: 1.5,
+  },
+];
+
+const projectCustomVariables: ProjectCustomVariable[] = projects.flatMap((project, pIndex) =>
+  defaultCustomVariablesDefinitions.map((def, vIndex) => ({
+    id: `${project.id}-${def.code}`,
+    projectId: project.id,
+    code: def.code,
+    name: def.name,
+    unit: def.unit,
+    description: def.description,
+    defaultValue: def.defaultValue,
+    // Set value for some variables on first project, while leaving others null so user can input and test
+    value: pIndex === 0 && vIndex < 3 ? def.defaultValue ?? null : null,
+    updatedAt: "2026-08-20T10:00:00Z",
+  }))
+);
 
 const attendanceConfigs: AttendanceConfig[] = projects.map((project, index) => ({
   projectId: project.id,
@@ -3207,7 +3312,7 @@ export const activityLogs: ActivityLogItem[] = [
 ];
 
 export const seedDatabase: MockDatabase = {
-  schemaVersion: 15,
+  schemaVersion: 16,
   projects,
   policyDefinitions,
   projectPolicies,
@@ -3216,6 +3321,7 @@ export const seedDatabase: MockDatabase = {
   overtimeConfigs,
   formulas: projects.flatMap((project) => formulasForProject(project.id)),
   formulaVariables,
+  projectCustomVariables,
   dataMappings,
   testEmployees,
   employees,

@@ -2,6 +2,7 @@
 
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import {
+  AlertCircle,
   Calculator,
   CheckCircle2,
   ChevronUp,
@@ -16,6 +17,7 @@ import {
   Save,
   Search,
   Shield,
+  SlidersHorizontal,
   Trash2,
   TrendingUp,
   Users,
@@ -26,14 +28,16 @@ import { useEffect, useMemo, useState } from "react";
 import { useToast } from "@/components/providers";
 import { Badge, Button, ErrorState, LoadingBlock, SaveBar } from "@/components/ui";
 import { api } from "@/lib/api";
+import { ProjectParametersCard } from "@/components/formula/project-parameters-card";
 import { SmartFormulaEditor } from "@/components/formula/smart-formula-editor";
 import {
+  collectVariables,
   expressionToFriendlyText,
   parseExpressionText,
   tokenizeFriendlyText,
   variableCodeToName,
 } from "@/lib/formula-engine";
-import type { ExpressionNode, SalaryFormula } from "@/lib/types";
+import type { ExpressionNode, ProjectCustomVariable, SalaryFormula } from "@/lib/types";
 import { uid } from "@/lib/utils";
 
 interface LibraryComponentItem {
@@ -664,6 +668,12 @@ export function FormulaTab({ projectId, embedded = false }: { projectId: string;
 
   const formulasQuery = useQuery({ queryKey: ["formulas", projectId], queryFn: () => api.getFormulas(projectId) });
   const variablesQuery = useQuery({ queryKey: ["formula-variables"], queryFn: api.getFormulaVariables });
+  const customVariablesQuery = useQuery({
+    queryKey: ["project-custom-variables", projectId],
+    queryFn: () => api.getProjectCustomVariables(projectId),
+  });
+
+  const customVariables = useMemo(() => customVariablesQuery.data ?? [], [customVariablesQuery.data]);
 
   const [formulas, setFormulas] = useState<SalaryFormula[]>([]);
   const [rawTexts, setRawTexts] = useState<Record<string, string>>({});
@@ -746,8 +756,56 @@ export function FormulaTab({ projectId, embedded = false }: { projectId: string;
     };
   }, [draggedItem]);
 
-  const variables = useMemo(() => variablesQuery.data ?? [], [variablesQuery.data]);
+  const variables = useMemo(() => {
+    const base = variablesQuery.data ?? [];
+    const customMap = new Map(customVariables.map((c) => [c.code, c]));
+
+    const result = base.map((v) => {
+      const custom = customMap.get(v.code);
+      if (custom) {
+        return {
+          ...v,
+          value: custom.value,
+          sampleValue: custom.value ?? custom.defaultValue ?? v.sampleValue ?? 0,
+        };
+      }
+      return v;
+    });
+
+    const existingCodes = new Set(result.map((r) => r.code));
+    customVariables.forEach((c) => {
+      if (!existingCodes.has(c.code)) {
+        result.push({
+          code: c.code,
+          name: c.name,
+          group: "custom",
+          unit: c.unit,
+          description: c.description,
+          defaultValue: c.defaultValue,
+          sampleValue: c.value ?? c.defaultValue ?? 0,
+          value: c.value,
+          isCustom: true,
+        });
+      }
+    });
+
+    return result;
+  }, [variablesQuery.data, customVariables]);
+
   const variableNameMap = useMemo(() => new Map(variables.map((item) => [item.code, item.name])), [variables]);
+
+  const getMissingCustomParams = (formula: SalaryFormula) => {
+    const customMap = new Map(customVariables.map((c) => [c.code, c]));
+    const used = collectVariables(formula.expression);
+    const missing: ProjectCustomVariable[] = [];
+    used.forEach((code) => {
+      const c = customMap.get(code);
+      if (c && (c.value === null || c.value === undefined)) {
+        missing.push(c);
+      }
+    });
+    return missing;
+  };
 
   useEffect(() => {
     if (formulasQuery.data) {
@@ -944,6 +1002,9 @@ export function FormulaTab({ projectId, embedded = false }: { projectId: string;
         </div>
       )}
 
+      {/* Project Input Parameters Dedicated Banner & Grid */}
+      <ProjectParametersCard projectId={projectId} />
+
       {/* Main Workspace Layout Grid */}
       <div className="grid grid-cols-1 lg:grid-cols-12 gap-5 items-start">
         {/* Left Column: Components Library Sidebar (Compact Width, Sticky & Matching Chip Size) */}
@@ -991,10 +1052,11 @@ export function FormulaTab({ projectId, embedded = false }: { projectId: string;
                     draggable={!isAdded}
                     onDragStart={() => setDraggedItem(item)}
                     onDragEnd={() => setDraggedItem(null)}
-                    className={`w-full min-h-[34px] px-2.5 py-1.5 rounded-lg border text-xs font-semibold flex items-center justify-between gap-2 transition-all group ${isAdded
-                      ? "bg-secondary/40 border-border/30 text-muted-foreground opacity-50 cursor-not-allowed shadow-none"
-                      : "bg-card border-border/50 hover:border-emerald-500/50 hover:bg-emerald-500/5 text-foreground shadow-2xs cursor-grab active:scale-[0.99]"
-                      }`}
+                    className={`w-full min-h-[34px] px-2.5 py-1.5 rounded-lg border text-xs font-semibold flex items-center justify-between gap-2 transition-all group ${
+                      isAdded
+                        ? "bg-secondary/40 border-border/30 text-muted-foreground opacity-50 cursor-not-allowed shadow-none"
+                        : "bg-card border-border/50 hover:border-emerald-500/50 hover:bg-emerald-500/5 text-foreground shadow-2xs cursor-grab active:scale-[0.99]"
+                    }`}
                   >
                     <div className="flex items-center gap-2 min-w-0">
                       <GripVertical className="w-3.5 h-3.5 text-muted/60 shrink-0 cursor-grab" />
@@ -1040,10 +1102,11 @@ export function FormulaTab({ projectId, embedded = false }: { projectId: string;
                     draggable={!isAdded}
                     onDragStart={() => setDraggedItem(item)}
                     onDragEnd={() => setDraggedItem(null)}
-                    className={`w-full min-h-[34px] px-2.5 py-1.5 rounded-lg border text-xs font-semibold flex items-center justify-between gap-2 transition-all group ${isAdded
-                      ? "bg-secondary/40 border-border/30 text-muted-foreground opacity-50 cursor-not-allowed shadow-none"
-                      : "bg-card border-border/50 hover:border-rose-500/50 hover:bg-rose-500/5 text-foreground shadow-2xs cursor-grab active:scale-[0.99]"
-                      }`}
+                    className={`w-full min-h-[34px] px-2.5 py-1.5 rounded-lg border text-xs font-semibold flex items-center justify-between gap-2 transition-all group ${
+                      isAdded
+                        ? "bg-secondary/40 border-border/30 text-muted-foreground opacity-50 cursor-not-allowed shadow-none"
+                        : "bg-card border-border/50 hover:border-rose-500/50 hover:bg-rose-500/5 text-foreground shadow-2xs cursor-grab active:scale-[0.99]"
+                    }`}
                   >
                     <div className="flex items-center gap-2 min-w-0">
                       <GripVertical className="w-3.5 h-3.5 text-muted/60 shrink-0 cursor-grab" />
@@ -1072,6 +1135,56 @@ export function FormulaTab({ projectId, embedded = false }: { projectId: string;
               })}
             </div>
           </div>
+
+          {/* Group 3: PROJECT CUSTOM PARAMETERS */}
+          {customVariables.length > 0 && (
+            <div className="space-y-1.5 pt-2.5 border-t border-border">
+              <div className="flex items-center justify-between text-[11px] font-extrabold tracking-wider text-muted uppercase pb-0.5">
+                <span className="flex items-center gap-1">
+                  <SlidersHorizontal className="w-3 h-3 text-primary" />
+                  3. THAM SỐ DỰ ÁN ({customVariables.length})
+                </span>
+              </div>
+
+              <div className="space-y-1.5">
+                {customVariables.map((param) => {
+                  const hasValue = param.value !== null && param.value !== undefined;
+
+                  return (
+                    <div
+                      key={param.id || param.code}
+                      className="w-full min-h-[34px] px-2.5 py-1.5 rounded-lg border border-border/70 bg-card text-xs font-semibold flex items-center justify-between gap-2 shadow-2xs group hover:border-primary/40 transition-all"
+                      title={param.description || param.name}
+                    >
+                      <div className="flex items-center gap-1.5 min-w-0">
+                        <span
+                          className={`w-1.5 h-1.5 rounded-full shrink-0 ${
+                            hasValue ? "bg-emerald-500" : "bg-amber-500 animate-pulse"
+                          }`}
+                        />
+                        <span className="truncate block text-foreground">{param.name}</span>
+                      </div>
+
+                      <div className="flex items-center gap-1 shrink-0">
+                        {hasValue ? (
+                          <span className="text-[10px] font-mono text-emerald-600 dark:text-emerald-400 bg-emerald-500/10 border border-emerald-500/20 px-1.5 py-0.5 rounded font-bold">
+                            {typeof param.value === "number"
+                              ? param.value.toLocaleString("vi-VN")
+                              : param.value}{" "}
+                            {param.unit}
+                          </span>
+                        ) : (
+                          <span className="text-[10px] font-semibold text-amber-600 dark:text-amber-400 bg-amber-500/15 border border-amber-500/25 px-1.5 py-0.5 rounded">
+                            Chưa nhập
+                          </span>
+                        )}
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
+          )}
         </aside>
 
         {/* Right Column: Flow Canvas & Detailed Formula Cards */}
@@ -1257,6 +1370,15 @@ export function FormulaTab({ projectId, embedded = false }: { projectId: string;
                               Chưa lưu
                             </Badge>
                           )}
+                          {(() => {
+                            const missingParams = getMissingCustomParams(formula);
+                            if (missingParams.length === 0) return null;
+                            return (
+                              <span className="inline-flex items-center gap-1 text-[11px] font-semibold px-2 py-0.5 rounded-md bg-amber-500/15 text-amber-600 dark:text-amber-400 border border-amber-500/25">
+                                <AlertCircle className="w-3 h-3" /> Cần nhập: {missingParams.map((m) => m.name).join(", ")}
+                              </span>
+                            );
+                          })()}
                         </div>
 
                         <div className="flex items-center gap-1.5">

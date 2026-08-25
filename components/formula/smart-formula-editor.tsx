@@ -381,10 +381,22 @@ export function SmartFormulaEditor({
                     onClick={() => insertToken(v.name)}
                     className="px-2.5 py-1.5 rounded-lg bg-card hover:bg-primary/5 hover:border-primary/40 hover:text-primary border border-border text-left transition-all text-xs active:scale-[0.98] shadow-2xs flex items-center justify-between gap-1.5 group"
                   >
-                    <span className="font-semibold truncate group-hover:text-primary">{v.name}</span>
-                    <span className="font-mono text-[9.5px] text-muted-foreground/80 bg-secondary/80 px-1.5 py-0.5 rounded shrink-0">
-                      {v.code}
-                    </span>
+                    <div className="flex items-center gap-1.5 truncate">
+                      {v.group === "custom" || v.isCustom ? (
+                        <span className="w-1.5 h-1.5 rounded-full bg-indigo-500 shrink-0" title="Tham số đầu vào" />
+                      ) : null}
+                      <span className="font-semibold truncate group-hover:text-primary">{v.name}</span>
+                    </div>
+                    <div className="flex items-center gap-1 shrink-0">
+                      {v.group === "custom" || v.isCustom ? (
+                        <span className="text-[9px] font-semibold text-indigo-600 dark:text-indigo-400 bg-indigo-500/10 border border-indigo-500/20 px-1 rounded">
+                          Tham số
+                        </span>
+                      ) : null}
+                      <span className="font-mono text-[9.5px] text-muted-foreground/80 bg-secondary/80 px-1.5 py-0.5 rounded">
+                        {v.code}
+                      </span>
+                    </div>
                   </button>
                 ))
               )}

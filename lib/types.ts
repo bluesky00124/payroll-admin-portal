@@ -178,9 +178,26 @@ export interface SalaryFormula {
 export interface FormulaVariable {
   code: string;
   name: string;
-  group: "employee" | "attendance" | "policy" | "formula";
-  sampleValue: number;
+  group: "employee" | "attendance" | "policy" | "formula" | "custom";
+  sampleValue?: number;
+  defaultValue?: number;
+  value?: number | null;
   unit: string;
+  description?: string;
+  isCustom?: boolean;
+  required?: boolean;
+}
+
+export interface ProjectCustomVariable {
+  id: string;
+  projectId: string;
+  code: string;
+  name: string;
+  description?: string;
+  unit: string;
+  value: number | null;
+  defaultValue?: number;
+  updatedAt?: string;
 }
 
 export interface DataMapping {
@@ -689,6 +706,7 @@ export interface MockDatabase {
   taxConfigs: TaxConfigRecord[];
   employeePolicies: EmployeePolicyRecord[];
   projectEmployeeGroups: ProjectEmployeeGroup[];
+  projectCustomVariables?: ProjectCustomVariable[];
   activityLogs: ActivityLogItem[];
   payrollAttendanceSheets: PayrollAttendanceSheet[];
   payrollRuns: PayrollRun[];

@@ -15,6 +15,7 @@ import type {
   LeaveHistoryItem,
   LeaveRecord,
   Project,
+  ProjectCustomVariable,
   ProjectEmployeeGroup,
   ProjectOvertimeConfig,
   ProjectPolicy,
@@ -24,6 +25,7 @@ import type {
   TestRunResult,
   UnionFeeRecord,
 } from "@/lib/types";
+import { defaultCustomVariablesDefinitions } from "@/lib/mock-data";
 import { uid } from "@/lib/utils";
 
 const ok = <T,>(data: T, init?: ResponseInit) =>
@@ -223,6 +225,71 @@ export const handlers = [
     return ok(readMockDatabase().formulaVariables);
   }),
 
+  http.get("/api/projects/:projectId/custom-variables", async ({ params }) => {
+    await delay(180);
+    const id = projectId(params.projectId);
+    const db = readMockDatabase();
+    let vars = (db.projectCustomVariables ?? []).filter((item) => item.projectId === id);
+    if (vars.length === 0) {
+      vars = defaultCustomVariablesDefinitions.map((def) => ({
+        id: `${id}-${def.code}`,
+        projectId: id,
+        code: def.code,
+        name: def.name,
+        unit: def.unit,
+        description: def.description,
+        defaultValue: def.defaultValue,
+        value: null,
+        updatedAt: new Date().toISOString(),
+      }));
+      mutateMockDatabase((d) => {
+        if (!d.projectCustomVariables) d.projectCustomVariables = [];
+        d.projectCustomVariables.push(...vars);
+      });
+    }
+    return ok(vars);
+  }),
+
+  http.put("/api/projects/:projectId/custom-variables", async ({ params, request }) => {
+    await delay(280);
+    const id = projectId(params.projectId);
+    const payload = (await request.json()) as Array<{ code: string; value: number | null }>;
+    const now = new Date().toISOString();
+    let updatedVars: ProjectCustomVariable[] = [];
+
+    mutateMockDatabase((db) => {
+      if (!db.projectCustomVariables) db.projectCustomVariables = [];
+      const currentList = db.projectCustomVariables.filter((item) => item.projectId === id);
+
+      payload.forEach((item) => {
+        const existing = currentList.find((v) => v.code === item.code);
+        if (existing) {
+          existing.value = item.value;
+          existing.updatedAt = now;
+        } else {
+          const def = defaultCustomVariablesDefinitions.find((d) => d.code === item.code);
+          const newVar: ProjectCustomVariable = {
+            id: `${id}-${item.code}`,
+            projectId: id,
+            code: item.code,
+            name: def?.name ?? item.code,
+            unit: def?.unit ?? "",
+            description: def?.description,
+            defaultValue: def?.defaultValue,
+            value: item.value,
+            updatedAt: now,
+          };
+          const customList = db.projectCustomVariables ?? [];
+          db.projectCustomVariables = customList;
+          customList.push(newVar);
+        }
+      });
+      updatedVars = (db.projectCustomVariables ?? []).filter((item) => item.projectId === id);
+    });
+
+    return ok(updatedVars);
+  }),
+
   http.get("/api/projects/:projectId/formulas", async ({ params }) => {
     await delay(220);
     const id = projectId(params.projectId);
@@ -295,7 +362,15 @@ export const handlers = [
     const employee = database.testEmployees.find((item) => item.id === payload.employeeId);
     if (!employee) return fail(404, "EMPLOYEE_NOT_FOUND", "Không tìm thấy nhân viên kiểm thử.");
     const formulas = database.formulas.filter((item) => item.projectId === id && item.enabled).sort((a, b) => a.order - b.order);
-    const variables: Record<string, number> = Object.fromEntries(database.formulaVariables.map((item) => [item.code, item.sampleValue]));
+    const variables: Record<string, number> = Object.fromEntries(
+      database.formulaVariables.map((item) => [item.code, item.sampleValue ?? item.defaultValue ?? 0])
+    );
+    const customVars = (database.projectCustomVariables ?? []).filter((item) => item.projectId === id);
+    customVars.forEach((cv) => {
+      if (cv.value !== null && cv.value !== undefined) {
+        variables[cv.code] = cv.value;
+      }
+    });
     variables.LUONG_CO_BAN = employee.baseSalary;
     variables.NEN_TINH_OT = employee.baseSalary;
     variables.GIO_THUONG = employee.workHours;
