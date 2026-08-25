@@ -4,6 +4,7 @@ import * as DropdownMenu from "@radix-ui/react-dropdown-menu";
 import {
   Banknote,
   BriefcaseBusiness,
+  Calculator,
   ChevronRight,
   Menu,
   Moon,
@@ -20,7 +21,7 @@ import { useResetDemo, useTheme, useToast, useUserRole, type ThemePreset } from 
 import { Button, Modal } from "@/components/ui";
 
 const themeLabels: Record<ThemePreset, string> = {
-  corporate: "Corporate Teal (SOP)",
+  corporate: "Corporate Teal",
   emerald: "Emerald",
   graphite: "Graphite",
 };
@@ -48,6 +49,7 @@ export function AdminShell({
   const pathname = usePathname();
   const [collapsed, setCollapsed] = useState(false);
   const [confirmReset, setConfirmReset] = useState(false);
+  const [isPayrollMenuOpen, setIsPayrollMenuOpen] = useState(true);
   const { preset, setPreset, mode, toggleMode } = useTheme();
   const { role, setRole, roleLabel, roleSubtitle } = useUserRole();
   const resetDemo = useResetDemo();
@@ -62,6 +64,7 @@ export function AdminShell({
   const isEmployeesPage = pathname.startsWith("/employees");
   const isPayrollPage = pathname.startsWith("/payroll");
   const isProjectsPage = pathname.startsWith("/projects");
+  const hasActivePayrollItem = isProjectsPage || isEmployeesPage || isPayrollPage;
 
   return (
     <div className={`admin-layout ${collapsed ? "sidebar-collapsed" : ""}`}>
@@ -75,40 +78,54 @@ export function AdminShell({
         <nav aria-label="Menu chính" className="sidebar-nav-container">
           <ul className="sidebar-nav-list">
             <li className="sidebar-nav-item">
-              <Link
-                className={`sidebar-nav-button ${isProjectsPage ? "is-active" : ""}`}
-                href="/projects"
-                title="Dự án"
+              <button
+                type="button"
+                className={`sidebar-parent-button ${hasActivePayrollItem ? "has-active-child" : ""}`}
+                data-state={isPayrollMenuOpen ? "open" : "closed"}
+                onClick={() => setIsPayrollMenuOpen((prev) => !prev)}
+                title="Quản lý lương"
               >
                 <div className="nav-button-left">
-                  <BriefcaseBusiness className="nav-icon" />
-                  <span className="nav-label">Dự án</span>
+                  <Calculator className="nav-icon" />
+                  <span className="nav-label">Quản lý lương</span>
                 </div>
-              </Link>
-            </li>
-            <li className="sidebar-nav-item">
-              <Link
-                className={`sidebar-nav-button ${isEmployeesPage ? "is-active" : ""}`}
-                href="/employees"
-                title="Người lao động"
-              >
-                <div className="nav-button-left">
-                  <Users className="nav-icon" />
-                  <span className="nav-label">Người lao động</span>
-                </div>
-              </Link>
-            </li>
-            <li className="sidebar-nav-item">
-              <Link
-                className={`sidebar-nav-button ${isPayrollPage ? "is-active" : ""}`}
-                href="/payroll"
-                title="Bảng lương"
-              >
-                <div className="nav-button-left">
-                  <Banknote className="nav-icon" />
-                  <span className="nav-label">Bảng lương</span>
-                </div>
-              </Link>
+                <ChevronRight className="parent-chevron" />
+              </button>
+
+              {isPayrollMenuOpen && (
+                <ul className="sidebar-submenu-list">
+                  <li>
+                    <Link
+                      className={`sidebar-submenu-button ${isProjectsPage ? "is-active" : ""}`}
+                      href="/projects"
+                      title="Dự án"
+                    >
+                      <BriefcaseBusiness className="w-4 h-4 shrink-0" />
+                      <span className="nav-label">Dự án</span>
+                    </Link>
+                  </li>
+                  <li>
+                    <Link
+                      className={`sidebar-submenu-button ${isEmployeesPage ? "is-active" : ""}`}
+                      href="/employees"
+                      title="Người lao động"
+                    >
+                      <Users className="w-4 h-4 shrink-0" />
+                      <span className="nav-label">Người lao động</span>
+                    </Link>
+                  </li>
+                  <li>
+                    <Link
+                      className={`sidebar-submenu-button ${isPayrollPage ? "is-active" : ""}`}
+                      href="/payroll"
+                      title="Bảng lương"
+                    >
+                      <Banknote className="w-4 h-4 shrink-0" />
+                      <span className="nav-label">Bảng lương</span>
+                    </Link>
+                  </li>
+                </ul>
+              )}
             </li>
           </ul>
         </nav>
@@ -219,7 +236,7 @@ export function AdminShell({
               </DropdownMenu.Trigger>
               <DropdownMenu.Portal>
                 <DropdownMenu.Content className="dropdown-content" align="end">
-                  <DropdownMenu.Label>Đổi vai trò đăng nhập (RBAC)</DropdownMenu.Label>
+                  <DropdownMenu.Label>Đổi vai trò đăng nhập</DropdownMenu.Label>
                   <DropdownMenu.Item
                     className={role === "accountant" ? "selected" : ""}
                     onSelect={() => {
@@ -228,7 +245,7 @@ export function AdminShell({
                     }}
                   >
                     <div>
-                      <strong>Kế toán (C&B Admin)</strong>
+                      <strong>Kế toán C&B</strong>
                       <div className="text-xs text-muted">Import Excel, kiểm tra &amp; Xác nhận hợp lệ</div>
                     </div>
                   </DropdownMenu.Item>
@@ -240,7 +257,7 @@ export function AdminShell({
                     }}
                   >
                     <div>
-                      <strong>Chủ dự án (CDA/GSDA)</strong>
+                      <strong>Chủ dự án (CDA)</strong>
                       <div className="text-xs text-muted">Xác nhận, duyệt phản hồi &amp; giải trình chênh lệch</div>
                     </div>
                   </DropdownMenu.Item>

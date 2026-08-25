@@ -1,7 +1,7 @@
 import { seedDatabase } from "@/lib/mock-data";
 import type { MockDatabase } from "@/lib/types";
 
-const STORAGE_KEY = "payroll-admin-demo-db-v20";
+const STORAGE_KEY = "payroll-admin-demo-db-v21";
 
 const cloneSeed = () => structuredClone(seedDatabase);
 

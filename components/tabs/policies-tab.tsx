@@ -217,22 +217,18 @@ export function PoliciesTab({ projectId }: { projectId: string; embedded?: boole
 
   const assignedIds = useMemo(() => new Set(policies.map((item) => item.policyId)), [policies]);
 
-  const modalDefinitions = useMemo(
+  const availableDefinitions = useMemo(
     () =>
       definitions.filter(
         (definition) =>
           definition.id !== "pol-work-days" &&
           definition.code !== "STANDARD_WORK_DAYS" &&
+          !assignedIds.has(definition.id) &&
           `${definition.code} ${definition.name} ${definition.description ?? ""}`
             .toLocaleLowerCase("vi")
             .includes(modalSearch.toLocaleLowerCase("vi"))
       ),
-    [definitions, modalSearch]
-  );
-
-  const availableDefinitions = useMemo(
-    () => modalDefinitions.filter((definition) => !assignedIds.has(definition.id)),
-    [modalDefinitions, assignedIds]
+    [definitions, assignedIds, modalSearch]
   );
 
   // Sync server policies when loaded
@@ -587,7 +583,7 @@ export function PoliciesTab({ projectId }: { projectId: string; embedded?: boole
           }
         }}
         title="Thêm chế độ vào dự án"
-        description={`Chọn các chế độ từ danh mục hệ thống để bổ sung vào dự án (${modalDefinitions.length} chế độ danh mục).`}
+        description="Chọn các chế độ từ danh mục hệ thống để bổ sung vào dự án."
         size="lg"
         footer={
           <>
@@ -602,45 +598,58 @@ export function PoliciesTab({ projectId }: { projectId: string; embedded?: boole
           </>
         }
       >
-        <label className="search-field modal-search mb-4 w-full">
-          <Search />
-          <input
-            value={modalSearch}
-            onChange={(event) => setModalSearch(event.target.value)}
-            placeholder="Tìm tên hoặc mã chế độ..."
-          />
-        </label>
+        <div className="space-y-3">
+          <label className="search-field modal-search w-full">
+            <Search />
+            <input
+              value={modalSearch}
+              onChange={(event) => setModalSearch(event.target.value)}
+              placeholder="Tìm tên hoặc mã chế độ..."
+            />
+          </label>
 
-        {modalDefinitions.length === 0 ? (
-          <div className="py-8 text-center text-muted text-sm">
-            Không tìm thấy chế độ nào phù hợp với từ khóa tìm kiếm.
+          <div className="flex items-center justify-between text-xs px-1 text-muted">
+            <span>
+              Tổng số chế độ khả dụng: <strong className="text-foreground font-semibold">{availableDefinitions.length}</strong>
+            </span>
+            {selectedIds.length > 0 && (
+              <span className="text-primary font-semibold">
+                Đã chọn {selectedIds.length} chế độ
+              </span>
+            )}
           </div>
-        ) : (
-          <div className="policy-picker">
-            {modalDefinitions.map((definition) => {
-              const isAlreadyAssigned = assignedIds.has(definition.id);
-              const isSelected = selectedIds.includes(definition.id);
 
-              return (
-                <label
-                  key={definition.id}
-                  className={`policy-picker-item ${isAlreadyAssigned ? "disabled" : isSelected ? "selected" : ""}`}
-                >
-                  <input
-                    type="checkbox"
-                    disabled={isAlreadyAssigned}
-                    checked={isAlreadyAssigned || isSelected}
-                    onChange={() => !isAlreadyAssigned && toggleSelection(definition)}
-                  />
-                  <span>
-                    <strong>{definition.name}</strong>
-                    {definition.description && <small>{definition.description}</small>}
-                  </span>
-                </label>
-              );
-            })}
-          </div>
-        )}
+          {availableDefinitions.length === 0 ? (
+            <div className="py-8 text-center text-muted text-sm bg-secondary/30 rounded-lg border border-border/60">
+              {modalSearch
+                ? "Không tìm thấy chế độ nào phù hợp với từ khóa tìm kiếm."
+                : "Dự án đã được cấu hình tất cả các chế độ hiện có trong hệ thống."}
+            </div>
+          ) : (
+            <div className="policy-picker">
+              {availableDefinitions.map((definition) => {
+                const isSelected = selectedIds.includes(definition.id);
+
+                return (
+                  <label
+                    key={definition.id}
+                    className={`policy-picker-item ${isSelected ? "selected" : ""}`}
+                  >
+                    <input
+                      type="checkbox"
+                      checked={isSelected}
+                      onChange={() => toggleSelection(definition)}
+                    />
+                    <span>
+                      <strong>{definition.name}</strong>
+                      {definition.description && <small>{definition.description}</small>}
+                    </span>
+                  </label>
+                );
+              })}
+            </div>
+          )}
+        </div>
       </Modal>
 
       {/* Delete confirmation modal */}

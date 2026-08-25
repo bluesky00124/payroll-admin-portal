@@ -1230,7 +1230,7 @@ export function FormulaTab({ projectId, embedded = false }: { projectId: string;
                 </div>
                 <div>
                   <strong className="text-sm font-bold text-foreground block">
-                    Cấu trúc Dòng tiền Lương (Payroll Architecture)
+                    Cấu trúc Dòng tiền Lương
                   </strong>
                   <span className="text-[11px] text-muted-foreground">
                     Kéo thả các thành phần từ thư viện bên trái vào từng nhóm tương ứng

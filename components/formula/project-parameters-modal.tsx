@@ -240,24 +240,16 @@ export function ProjectParametersModal({
 
                 {/* Bottom: Value Input with Unit & Suggestion */}
                 <div className="space-y-1 pt-1">
-                  <div className="relative flex items-center">
+                  <div className="inline-cell-wrap !min-h-[36px]">
                     <input
                       type="number"
                       step="any"
-                      className={`w-full h-8.5 pl-3 pr-16 text-xs font-semibold rounded-lg border bg-card text-foreground focus:outline-none focus:ring-2 focus:ring-primary/20 transition-all ${
-                        !hasValue
-                          ? "border-amber-500/50 focus:border-amber-500"
-                          : isChanged
-                          ? "border-primary focus:border-primary"
-                          : "border-border focus:border-primary"
-                      }`}
-                      placeholder="Nhập giá trị số..."
+                      className="inline-cell-input no-spinner"
+                      placeholder="0"
                       value={draftVal}
                       onChange={(e) => handleChangeValue(v.code, e.target.value)}
                     />
-                    <span className="absolute right-3 text-[11px] font-medium text-muted pointer-events-none select-none">
-                      {v.unit}
-                    </span>
+                    {v.unit && <span className="inline-cell-unit">{v.unit}</span>}
                   </div>
 
                   {v.defaultValue !== undefined && v.defaultValue !== null && draftVal === "" && (

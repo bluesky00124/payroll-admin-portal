@@ -1,7 +1,7 @@
 "use client";
 
 import { useQuery } from "@tanstack/react-query";
-import { FunctionSquare, LoaderCircle, ScrollText } from "lucide-react";
+import { Factory, FunctionSquare, LoaderCircle, ScrollText } from "lucide-react";
 import { useState } from "react";
 import { AdminShell } from "@/components/admin-shell";
 import { FormulaTab } from "@/components/tabs/formula-tab";
@@ -39,16 +39,20 @@ export function ProjectDetail({ projectId }: { projectId: string }) {
   return (
     <AdminShell detailLabel={project.code}>
       {/* Read-only Project Header (Compact) */}
-      <header className="detail-header mb-4">
+      <header className="detail-header">
         <div>
           <div className="detail-code-row">
-            <span className="project-monogram">{project.code.slice(0, 2)}</span>
+            <span className="project-monogram">
+              <Factory className="w-4 h-4" />
+            </span>
             <div>
               <div className="title-with-status">
-                <h1>{project.code}</h1>
+                <h1>{project.name}</h1>
               </div>
-              <p>
-                {project.name} · {project.client}
+              <p className="mt-0.5">
+                <span className="font-mono font-bold text-primary text-xs bg-primary-soft px-1.5 py-0.5 rounded">
+                  {project.code}
+                </span>
               </p>
             </div>
           </div>

@@ -29,6 +29,8 @@ export interface Project {
   client: string;
   location: string;
   manager: string;
+  managerEmail?: string;
+  managerPhone?: string;
   employeeCount: number;
   status: ProjectStatus;
   payrollCycle: string;

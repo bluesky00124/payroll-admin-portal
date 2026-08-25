@@ -3,7 +3,6 @@
 import { useQuery } from "@tanstack/react-query";
 import {
   BriefcaseBusiness,
-  CalendarDays,
   ChevronLeft,
   ChevronRight,
   Search,
@@ -14,7 +13,6 @@ import { useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
 import { Button, EmptyState, ErrorState, LoadingBlock } from "@/components/ui";
 import { api } from "@/lib/api";
-import { formatDate } from "@/lib/utils";
 
 export function ProjectsList() {
   const router = useRouter();
@@ -61,8 +59,8 @@ export function ProjectsList() {
           </label>
           <div className="table-toolbar-meta">
             <span className="total-projects-pill">
-              <BriefcaseBusiness className="w-3.5 h-3.5" />
-              Tổng số dự án: <strong>{projectsQuery.data?.meta?.total ?? 0}</strong>
+              <span className="status-dot-pulse" />
+              <span>{projectsQuery.data?.meta?.total ?? 0} dự án</span>
             </span>
           </div>
         </div>
@@ -82,34 +80,48 @@ export function ProjectsList() {
                 onClick={() => router.push(`/projects/${project.id}`)}
                 style={{ cursor: "pointer" }}
               >
-                <div className="project-card-header">
-                  <span className="project-code-badge">{project.code}</span>
+                <div className="project-card-heading mb-3.5">
+                  <h3 className="project-card-title mb-1.5">{project.name}</h3>
+                  <div>
+                    <span className="project-code-badge">{project.code}</span>
+                  </div>
                 </div>
-
-                <h3 className="project-card-title">{project.name}</h3>
 
                 <div className="project-info-grid">
                   <div className="info-row">
                     <span className="info-label">
                       <UserRound className="info-icon" /> Chủ dự án:
                     </span>
-                    <span className="info-value manager-name">{project.manager}</span>
+                    <strong className="info-value truncate" title={project.manager}>
+                      {project.manager}
+                    </strong>
                   </div>
+
+                  {project.managerPhone && (
+                    <div className="info-row">
+                      <span className="info-label pl-5">SĐT:</span>
+                      <span className="info-value contact-value">{project.managerPhone}</span>
+                    </div>
+                  )}
+
+                  {project.managerEmail && (
+                    <div className="info-row">
+                      <span className="info-label pl-5">Email:</span>
+                      <span className="info-value contact-value break-all" title={project.managerEmail}>
+                        {project.managerEmail}
+                      </span>
+                    </div>
+                  )}
+
+                  <div className="info-divider" />
 
                   <div className="info-row">
                     <span className="info-label">
                       <UsersRound className="info-icon" /> Nhân viên đang làm việc:
                     </span>
-                    <span className="info-value employee-count">
+                    <strong className="info-value employee-count">
                       {project.employeeCount.toLocaleString("vi-VN")} nhân viên
-                    </span>
-                  </div>
-
-                  <div className="info-row">
-                    <span className="info-label">
-                      <CalendarDays className="info-icon" /> Ngày bắt đầu dự án:
-                    </span>
-                    <span className="info-value start-date">{formatDate(project.effectiveFrom)}</span>
+                    </strong>
                   </div>
                 </div>
               </div>
