@@ -213,7 +213,7 @@ export function UnionFeesSubtab({
         ) : (
           <div className="data-table-wrap">
             <div className="data-table-scroll">
-              <table className="data-table min-w-[1050px]">
+              <table className="data-table min-w-[950px]">
                 <thead>
                   <tr>
                     <th style={{ width: "45px" }} className="text-center">STT</th>
@@ -221,8 +221,7 @@ export function UnionFeesSubtab({
                     <th style={{ width: "120px" }}>NGÀY VÀO LÀM</th>
                     <th style={{ width: "125px" }}>NGÀY NGHỈ VIỆC</th>
                     <th style={{ width: "125px" }}>NGÀY THAM GIA</th>
-                    <th style={{ width: "120px" }}>HÌNH THỨC TRÍCH</th>
-                    <th style={{ width: "130px" }} className="text-right">MỨC TRÍCH NỘP</th>
+                    <th style={{ width: "140px" }} className="text-right">MỨC TRÍCH NỘP</th>
                     <th style={{ width: "160px" }} className="text-center">THAM GIA CÔNG ĐOÀN</th>
                     <th style={{ width: "60px" }} className="text-center">THAO TÁC</th>
                   </tr>
@@ -267,9 +266,6 @@ export function UnionFeesSubtab({
                           ) : (
                             <span className="text-muted text-xs">—</span>
                           )}
-                        </td>
-                        <td>
-                          {item.feeType === "percentage" ? "1%" : "Cố định"}
                         </td>
                         <td className="text-right font-mono">
                           {item.isParticipating ? (

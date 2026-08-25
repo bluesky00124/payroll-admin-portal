@@ -299,14 +299,14 @@ export function StandardWorkdaysSubtab({
                       </td>
                       <td>
                         {item.isOverridden ? (
-                          <StatusBadge tone="warning">Ghi đè riêng</StatusBadge>
+                          <StatusBadge tone="warning">Tùy biến riêng</StatusBadge>
                         ) : (
-                          <StatusBadge tone="neutral" dot={false}>Mặc định dự án</StatusBadge>
+                          <StatusBadge tone="success" dot={false}>Chuẩn dự án</StatusBadge>
                         )}
                       </td>
                       <td>
                         {item.reason ? (
-                          <span className="text-xs">{item.reason}</span>
+                          <span className="text-xs text-foreground font-medium">{item.reason}</span>
                         ) : (
                           <span className="text-muted text-xs">—</span>
                         )}
@@ -320,7 +320,7 @@ export function StandardWorkdaysSubtab({
                           items={[
                             {
                               key: "override",
-                              label: "Ghi đè ngày công",
+                              label: "Chỉnh sửa ngày công",
                               icon: <Pencil />,
                               onClick: () => openOverrideModal(item),
                             },
@@ -364,7 +364,7 @@ export function StandardWorkdaysSubtab({
         projectId={projectId}
         module="workdays"
         title="Nhật ký điều chỉnh Ngày công chuẩn"
-        description="Lịch sử ghi nhận các thao tác ghi đè ngày công cá nhân, khôi phục chuẩn và import file Excel"
+        description="Lịch sử ghi nhận các thao tác điều chỉnh ngày công cá nhân, khôi phục chuẩn và import file Excel"
       />
     </div>
 
@@ -372,7 +372,7 @@ export function StandardWorkdaysSubtab({
       <Modal
         open={overrideModalOpen}
         onOpenChange={setOverrideModalOpen}
-        title={`Ghi đè Ngày công chuẩn: ${editRecord?.employeeName}`}
+        title={`Chỉnh sửa Ngày công chuẩn: ${editRecord?.employeeName}`}
         description={`Mã NV: ${editRecord?.employeeCode} · Ngày công chuẩn mặc định của dự án: ${editRecord?.projectStandardDays} ngày`}
         size="md"
         footer={
@@ -387,12 +387,12 @@ export function StandardWorkdaysSubtab({
                     id: editRecord.id,
                     overrideDays: overrideValue,
                     isOverridden: true,
-                    reason: overrideReason || "Ghi đè ngày công chuẩn theo yêu cầu nghiệp vụ",
+                    reason: overrideReason || "Điều chỉnh ngày công chuẩn theo yêu cầu nghiệp vụ",
                   });
                 }
               }}
             >
-              <Check /> Lưu ghi đè
+              <Check /> Lưu thay đổi
             </Button>
           </>
         }
@@ -417,7 +417,7 @@ export function StandardWorkdaysSubtab({
           </label>
 
           <label className="form-field full-width">
-            <span>Lý do ghi đè (Bắt buộc ghi chú giải trình) *</span>
+            <span>Lý do điều chỉnh (Bắt buộc ghi chú giải trình) *</span>
             <textarea
               rows={3}
               value={overrideReason}
@@ -434,9 +434,9 @@ export function StandardWorkdaysSubtab({
         open={importModalOpen}
         onOpenChange={setImportModalOpen}
         title="Tải Lên Cập Nhật Ngày Công Chuẩn"
-        description="Tải lên tệp Excel danh sách ngày công chuẩn được ghi đè riêng cho từng nhân sự (theo ca kíp, bộ phận đặc thù)."
+        description="Tải lên tệp Excel danh sách ngày công chuẩn được điều chỉnh riêng cho từng nhân sự (theo ca kíp, bộ phận đặc thù)."
         sampleTemplateName="Mau_Ngay_Cong_Chuan.xlsx"
-        sampleTemplateDescription="Bảng kê gồm: Mã NV, Họ và tên, Ngày công chuẩn áp dụng riêng (VD: 24, 22, 26) và Lý do ghi đè."
+        sampleTemplateDescription="Bảng kê gồm: Mã NV, Họ và tên, Ngày công chuẩn áp dụng riêng (VD: 24, 22, 26) và Lý do điều chỉnh."
         onDownloadSample={() => notify("Đã tải xuống biểu mẫu Mau_Ngay_Cong_Chuan.xlsx")}
         columns={[
           {

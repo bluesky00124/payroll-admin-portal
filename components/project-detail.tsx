@@ -45,15 +45,13 @@ export function ProjectDetail({ projectId }: { projectId: string }) {
             <span className="project-monogram">
               <Factory className="w-4 h-4" />
             </span>
-            <div>
+            <div className="flex flex-col gap-0.5">
               <div className="title-with-status">
                 <h1>{project.name}</h1>
               </div>
-              <p className="mt-0.5">
-                <span className="font-mono font-bold text-primary text-xs bg-primary-soft px-1.5 py-0.5 rounded">
-                  {project.code}
-                </span>
-              </p>
+              <span className="font-mono font-bold text-primary text-xs tracking-wide">
+                {project.code}
+              </span>
             </div>
           </div>
         </div>

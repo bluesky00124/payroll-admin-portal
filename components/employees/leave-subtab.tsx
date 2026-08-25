@@ -260,12 +260,9 @@ export function LeaveSubtab({
                     <th style={{ width: "120px" }}>NGÀY VÀO LÀM</th>
                     <th style={{ width: "125px" }}>NGÀY NGHỈ VIỆC</th>
                     <th style={{ width: "140px" }}>THỜI ĐIỂM HƯỞNG</th>
-                    <th className="text-center" style={{ width: "160px" }}>
-                      KHẢ DỤNG HIỆN TẠI
-                    </th>
                     <th className="text-center" style={{ width: "135px" }}>TỔNG PHÉP NĂM</th>
                     <th className="text-center" style={{ width: "115px" }}>ĐÃ SỬ DỤNG</th>
-                    <th className="text-center" style={{ width: "130px" }}>CÒN LẠI CẢ NĂM</th>
+                    <th className="text-center" style={{ width: "140px" }}>PHÉP KHẢ DỤNG</th>
                     <th style={{ width: "60px" }} className="text-center">THAO TÁC</th>
                   </tr>
                 </thead>
@@ -284,7 +281,6 @@ export function LeaveSubtab({
                     const availDays = getAvailableDays(rec);
                     const accruedDays = getAccruedDays(rec);
                     const usedDays = getUsedDays(rec);
-                    const remDays = getRemainingDays(rec);
                     const totalEntitled = rec.totalEntitled ?? 12;
                     const seniority = rec.seniorityDays ?? 0;
 
@@ -334,37 +330,9 @@ export function LeaveSubtab({
                         </td>
                         <td className="text-center">
                           {isProbation ? (
-                            <div>
-                              <span className="text-xs text-muted font-semibold">Chưa có phép</span>
-                              <div className="text-[11px] text-muted">(0.0 ngày)</div>
-                            </div>
-                          ) : isResigned ? (
-                            <div>
-                              <strong className={availDays > 0 ? "text-amber-600 dark:text-amber-400 text-[13.5px]" : "text-muted text-[13px]"}>
-                                {formatLeaveNumber(availDays)} ngày tồn
-                              </strong>
-                              <div className="text-[11px] text-muted">
-                                {availDays > 0 ? "Quyết toán thôi việc" : "Đã quyết toán"}
-                              </div>
-                            </div>
-                          ) : (
-                            <div>
-                              <strong className={availDays > 0 ? "text-emerald-600 dark:text-emerald-400 text-[14px] font-bold" : "text-rose-600 dark:text-rose-400 text-[13.5px] font-bold"}>
-                                {formatLeaveNumber(availDays)} ngày
-                              </strong>
-                              <div className="text-[11px] text-muted">
-                                Lũy kế: {formatLeaveNumber(accruedDays)} ngày
-                              </div>
-                            </div>
-                          )}
-                        </td>
-                        <td className="text-center">
-                          {isProbation ? (
                             <span className="text-muted">—</span>
                           ) : isResigned ? (
-                            <span>
-                              {accruedDays} ngày <span className="text-[11px] text-muted">(thực tế)</span>
-                            </span>
+                            <span>{accruedDays} ngày</span>
                           ) : (
                             <span>
                               {totalEntitled} ngày {seniority > 0 ? `(+${seniority})` : ""}
@@ -382,12 +350,14 @@ export function LeaveSubtab({
                         </td>
                         <td className="text-center">
                           {isProbation ? (
-                            <span className="text-muted">—</span>
+                            <span className="text-muted font-medium text-xs">Chưa có phép</span>
                           ) : isResigned ? (
-                            <span className="text-muted font-medium">{formatLeaveNumber(remDays)} ngày</span>
+                            <span className={availDays > 0 ? "text-amber-600 dark:text-amber-400 font-semibold" : "text-muted font-medium"}>
+                              {formatLeaveNumber(availDays)} ngày tồn
+                            </span>
                           ) : (
-                            <strong className={remDays <= 0 ? "text-rose-600 dark:text-rose-400 font-bold" : "text-teal-700 dark:text-teal-400 font-bold"}>
-                              {formatLeaveNumber(remDays)} ngày
+                            <strong className={availDays > 0 ? "text-emerald-600 dark:text-emerald-400 font-bold" : "text-rose-600 dark:text-rose-400 font-bold"}>
+                              {formatLeaveNumber(availDays)} ngày
                             </strong>
                           )}
                         </td>

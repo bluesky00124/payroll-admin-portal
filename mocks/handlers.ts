@@ -939,14 +939,14 @@ export const handlers = [
           employeeCode: updated.employeeCode,
           employeeName: updated.employeeName,
           actionType: payload.isOverridden ? "override" : "restore",
-          actionLabel: payload.isOverridden ? "Ghi đè ngày công" : "Khôi phục chuẩn",
+          actionLabel: payload.isOverridden ? "Chỉnh sửa ngày công" : "Khôi phục chuẩn",
           details: payload.isOverridden
             ? `Ngày công chuẩn riêng: ${updated.projectStandardDays} ngày → ${payload.overrideDays} ngày`
             : `Khôi phục về chuẩn dự án (${updated.projectStandardDays} ngày)`,
           oldValue: updated.projectStandardDays,
           newValue: payload.overrideDays ?? updated.projectStandardDays,
           changedBy: "Kế toán tiền lương",
-          reason: payload.reason || (payload.isOverridden ? "Ghi đè ngày công chuẩn riêng" : "Hoàn tác về chuẩn dự án"),
+          reason: payload.reason || (payload.isOverridden ? "Điều chỉnh ngày công chuẩn riêng" : "Hoàn tác về chuẩn dự án"),
           createdAt: new Date().toISOString(),
         };
         db.activityLogs = [logItem, ...(db.activityLogs ?? [])];
