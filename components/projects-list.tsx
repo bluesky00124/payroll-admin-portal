@@ -59,6 +59,12 @@ export function ProjectsList() {
               aria-label="Tìm dự án"
             />
           </label>
+          <div className="table-toolbar-meta">
+            <span className="total-projects-pill">
+              <BriefcaseBusiness className="w-3.5 h-3.5" />
+              Tổng số dự án: <strong>{projectsQuery.data?.meta?.total ?? 0}</strong>
+            </span>
+          </div>
         </div>
 
         {projectsQuery.isLoading ? (
@@ -101,7 +107,7 @@ export function ProjectsList() {
 
                   <div className="info-row">
                     <span className="info-label">
-                      <CalendarDays className="info-icon" /> Ngày start dự án:
+                      <CalendarDays className="info-icon" /> Ngày bắt đầu dự án:
                     </span>
                     <span className="info-value start-date">{formatDate(project.effectiveFrom)}</span>
                   </div>

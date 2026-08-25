@@ -8,7 +8,7 @@ export function OverviewTab({ project }: { project: Project; embedded?: boolean 
     <div className="project-info-panel">
       <div className="info-panel-grid">
         <div className="info-panel-item">
-          <span className="info-panel-label">Chủ dự án (Owner)</span>
+          <span className="info-panel-label">Chủ dự án</span>
           <strong className="info-panel-value">{project.manager}</strong>
         </div>
 
@@ -18,7 +18,7 @@ export function OverviewTab({ project }: { project: Project; embedded?: boolean 
         </div>
 
         <div className="info-panel-item">
-          <span className="info-panel-label">Ngày start dự án</span>
+          <span className="info-panel-label">Ngày bắt đầu dự án</span>
           <strong className="info-panel-value">{formatDate(project.effectiveFrom)}</strong>
         </div>
 
@@ -30,8 +30,10 @@ export function OverviewTab({ project }: { project: Project; embedded?: boolean 
         </div>
 
         <div className="info-panel-item">
-          <span className="info-panel-label">Ngày thanh toán lương</span>
-          <strong className="info-panel-value">Cuối tháng (Chuyển khoản)</strong>
+          <span className="info-panel-label">Nhân viên đang làm việc</span>
+          <strong className="info-panel-value">
+            {project.employeeCount?.toLocaleString("vi-VN") ?? 0} nhân viên
+          </strong>
         </div>
       </div>
     </div>

@@ -53,12 +53,6 @@ export function ProjectDetail({ projectId }: { projectId: string }) {
             </div>
           </div>
         </div>
-        <div className="detail-meta">
-          <div className="bg-secondary/60 px-3 py-1.5 rounded-lg border border-border/40">
-            <span>Hiệu lực từ:</span>
-            <strong>{formatDate(project.effectiveFrom)}</strong>
-          </div>
-        </div>
       </header>
 
       {/* Read-only Project Information Overview Grid */}
