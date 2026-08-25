@@ -541,7 +541,8 @@ export function FormulaVisualExpression({
     }
     const text = rawText || "";
     if (!text.trim()) return null;
-    const tokens = tokenizeFriendlyText(text);
+    const customNames = variableNameMap ? Array.from(variableNameMap.values()) : undefined;
+    const tokens = tokenizeFriendlyText(text, customNames);
     return tokens.map((tok, idx) => {
       if (tok.type === "operator") {
         return (

@@ -168,6 +168,18 @@ export const vietnameseNameToCode: [RegExp, string][] = [
 ];
 
 export const knownVariableNames: string[] = [
+  "Đơn giá khoán sản lượng",
+  "Đơn giá khoán",
+  "Hệ số hoàn thành tối thiểu",
+  "Hệ số hoàn thành",
+  "Mức thưởng nóng dự án",
+  "Mức thưởng nóng",
+  "Thưởng nóng dự án",
+  "Thưởng nóng",
+  "Đơn giá ca đêm đặc biệt",
+  "Đơn giá ca đêm",
+  "Tỷ lệ trích quỹ dự án",
+  "Tỷ lệ trích quỹ",
   "Lương cơ bản",
   "Nền tính tăng ca",
   "Giờ chuẩn tháng",
@@ -224,9 +236,16 @@ export interface TokenRange {
   name: string;
 }
 
-export function findVariableRanges(text: string): TokenRange[] {
+export function findVariableRanges(text: string, customNames?: string[]): TokenRange[] {
   const ranges: TokenRange[] = [];
-  const sortedNames = [...knownVariableNames].sort((a, b) => b.length - a.length);
+  const nameSet = new Set<string>([
+    ...knownVariableNames,
+    ...(customNames || []),
+    ...Object.values(variableCodeToName),
+  ]);
+  const sortedNames = Array.from(nameSet)
+    .filter(Boolean)
+    .sort((a, b) => b.length - a.length);
 
   sortedNames.forEach((name) => {
     let pos = text.indexOf(name);
@@ -251,9 +270,9 @@ export interface VisualToken {
   text: string;
 }
 
-export function tokenizeFriendlyText(text: string): VisualToken[] {
+export function tokenizeFriendlyText(text: string, customNames?: string[]): VisualToken[] {
   if (!text || !text.trim()) return [];
-  const ranges = findVariableRanges(text);
+  const ranges = findVariableRanges(text, customNames);
   ranges.sort((a, b) => a.start - b.start);
 
   const tokens: VisualToken[] = [];
@@ -423,10 +442,15 @@ export function parseExpressionTextResult(
 
   if (aliases) {
     [...aliases.entries()]
-      .filter(([label]) => label.trim().length > 0)
-      .sort(([left], [right]) => right.length - left.length)
-      .forEach(([label, code]) => {
-        cleaned = cleaned.replace(new RegExp(escapeRegExp(label), "gi"), code);
+      .filter(([k, v]) => Boolean(k?.trim()) && Boolean(v?.trim()))
+      .forEach(([key, val]) => {
+        if (/^[A-Z0-9_]+$/.test(key) && !/^[A-Z0-9_]+$/.test(val)) {
+          cleaned = cleaned.replace(new RegExp(escapeRegExp(val), "gi"), key);
+        } else if (/^[A-Z0-9_]+$/.test(val) && !/^[A-Z0-9_]+$/.test(key)) {
+          cleaned = cleaned.replace(new RegExp(escapeRegExp(key), "gi"), val);
+        } else {
+          cleaned = cleaned.replace(new RegExp(escapeRegExp(key), "gi"), val);
+        }
       });
   }
 

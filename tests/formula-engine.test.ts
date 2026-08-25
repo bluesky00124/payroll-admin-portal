@@ -5,6 +5,7 @@ import {
   evaluateExpression,
   expressionToText,
   parseExpressionTextResult,
+  tokenizeFriendlyText,
   validateFormulas,
 } from "@/lib/formula-engine";
 import type { ExpressionNode, FormulaVariable, SalaryFormula } from "@/lib/types";
@@ -66,5 +67,28 @@ describe("formula engine", () => {
     expect(parsed.errors).toEqual([]);
     expect(parsed.expression).not.toBeNull();
     expect(expressionToText(parsed.expression!)).toBe("LUONG_CO_BAN * 52 / 100 + 1.5");
+  });
+
+  it("gom các tham số đầu vào dài thành đúng 1 token duy nhất (không bị tách từ)", () => {
+    const tokens = tokenizeFriendlyText(
+      "Lương cơ bản / Giờ chuẩn tháng * Giờ công thường * Hệ số hoàn thành tối thiểu + Đơn giá khoán sản lượng"
+    );
+
+    const varTokens = tokens.filter((t) => t.type === "variable").map((t) => t.text);
+    expect(varTokens).toEqual([
+      "Lương cơ bản",
+      "Giờ chuẩn tháng",
+      "Giờ công thường",
+      "Hệ số hoàn thành tối thiểu",
+      "Đơn giá khoán sản lượng",
+    ]);
+
+    const parsed = parseExpressionTextResult(
+      "Lương cơ bản / Giờ chuẩn tháng * Giờ công thường * Hệ số hoàn thành tối thiểu + Đơn giá khoán sản lượng"
+    );
+    expect(parsed.errors).toEqual([]);
+    expect(expressionToText(parsed.expression!)).toBe(
+      "LUONG_CO_BAN / GIO_CHUAN * GIO_THUONG * HE_SO_HOAN_THANH_MIN + DON_GIA_KHOAN"
+    );
   });
 });

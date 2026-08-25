@@ -45,10 +45,14 @@ export function SmartFormulaEditor({
 
   const canvasRef = useRef<HTMLDivElement>(null);
 
+  const customNames = useMemo(() => {
+    return variables.map((v) => v.name);
+  }, [variables]);
+
   // Tokenize the current formula text
   const tokens = useMemo(() => {
-    return tokenizeFriendlyText(rawText);
-  }, [rawText]);
+    return tokenizeFriendlyText(rawText, customNames);
+  }, [rawText, customNames]);
 
   // Syntax validation
   const validationResult = useMemo(() => {
