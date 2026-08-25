@@ -16,6 +16,32 @@ export function evaluateExpression(
     return value;
   }
 
+  if (node.type === "if") {
+    const conditionVal = evaluateExpression(node.condition, variables);
+    return conditionVal !== 0
+      ? evaluateExpression(node.thenBranch, variables)
+      : evaluateExpression(node.elseBranch, variables);
+  }
+
+  if (node.type === "comparison") {
+    const left = evaluateExpression(node.left, variables);
+    const right = evaluateExpression(node.right, variables);
+    switch (node.operator) {
+      case ">":
+        return left > right ? 1 : 0;
+      case "<":
+        return left < right ? 1 : 0;
+      case ">=":
+        return left >= right ? 1 : 0;
+      case "<=":
+        return left <= right ? 1 : 0;
+      case "==":
+        return left === right ? 1 : 0;
+      case "!=":
+        return left !== right ? 1 : 0;
+    }
+  }
+
   const left = evaluateExpression(node.left, variables);
   const right = evaluateExpression(node.right, variables);
   switch (node.operator) {
@@ -42,6 +68,13 @@ export function applyRounding(value: number, rule: RoundingRule): number {
 export function collectVariables(node: ExpressionNode): string[] {
   if (node.type === "variable") return [node.variableCode];
   if (node.type === "constant") return [];
+  if (node.type === "if") {
+    return [
+      ...collectVariables(node.condition),
+      ...collectVariables(node.thenBranch),
+      ...collectVariables(node.elseBranch),
+    ];
+  }
   return [...collectVariables(node.left), ...collectVariables(node.right)];
 }
 
@@ -238,6 +271,19 @@ export interface TokenRange {
 
 export function findVariableRanges(text: string, customNames?: string[]): TokenRange[] {
   const ranges: TokenRange[] = [];
+
+  // 1. Bracketed variables like [Lương cơ bản]
+  const bracketRegex = /\[\s*([^\]]+?)\s*\]/g;
+  let match: RegExpExecArray | null;
+  while ((match = bracketRegex.exec(text)) !== null) {
+    ranges.push({
+      start: match.index,
+      end: match.index + match[0].length,
+      name: match[1].trim(),
+    });
+  }
+
+  // 2. Known / custom variable names
   const nameSet = new Set<string>([
     ...knownVariableNames,
     ...(customNames || []),
@@ -264,9 +310,29 @@ export function findVariableRanges(text: string, customNames?: string[]): TokenR
   return ranges.sort((a, b) => a.start - b.start);
 }
 
+export function findVariableAtCursor(
+  text: string,
+  cursor: number,
+  customNames?: string[]
+): { range: TokenRange; action: "backspace" | "delete" | "inside" } | null {
+  const ranges = findVariableRanges(text, customNames);
+  for (const r of ranges) {
+    if (cursor === r.end) {
+      return { range: r, action: "backspace" };
+    }
+    if (cursor === r.start) {
+      return { range: r, action: "delete" };
+    }
+    if (cursor > r.start && cursor < r.end) {
+      return { range: r, action: "inside" };
+    }
+  }
+  return null;
+}
+
 export interface VisualToken {
   id: string;
-  type: "variable" | "operator" | "number" | "unknown";
+  type: "variable" | "operator" | "number" | "function" | "unknown";
   text: string;
 }
 
@@ -280,14 +346,21 @@ export function tokenizeFriendlyText(text: string, customNames?: string[]): Visu
   let idCounter = 1;
 
   const pushNonVarText = (segment: string) => {
-    const rawTokens = segment.split(/([+\-*/×÷()]|\s+)/);
+    const rawTokens = segment.split(/(>=|<=|==|!=|<>|[+\-*/×÷(),;><=]|\s+)/);
     for (const raw of rawTokens) {
       if (!raw || /^\s+$/.test(raw)) continue;
-      if (["+", "-", "*", "/", "×", "÷", "(", ")"].includes(raw)) {
+      const upper = raw.toUpperCase();
+      if (upper === "IF") {
+        tokens.push({
+          id: `tok-${idCounter++}`,
+          type: "function",
+          text: "IF",
+        });
+      } else if (["+", "-", "*", "/", "×", "÷", "(", ")", ",", ";", ">=", "<=", "==", "!=", "<>", ">", "<", "="].includes(raw)) {
         tokens.push({
           id: `tok-${idCounter++}`,
           type: "operator",
-          text: raw === "*" ? "×" : raw === "/" ? "÷" : raw === "-" ? "−" : raw,
+          text: raw === "*" ? "×" : raw === "/" ? "÷" : raw === "-" ? "−" : raw === "=" ? "==" : raw === "<>" ? "!=" : raw,
         });
       } else if (/^(\d+(\.\d*)?|\.\d+)%?$/.test(raw)) {
         tokens.push({
@@ -332,23 +405,46 @@ export function tokenizeFriendlyText(text: string, customNames?: string[]): Visu
 
 export function tokensToFriendlyText(tokens: VisualToken[]): string {
   return tokens
-    .map((t) => (t.type === "operator" ? (t.text === "×" ? "*" : t.text === "÷" ? "/" : t.text) : t.text))
+    .map((t) => {
+      if (t.type === "operator") {
+        return t.text === "×" ? "*" : t.text === "÷" ? "/" : t.text === "−" ? "-" : t.text;
+      }
+      if (t.type === "variable") {
+        return t.text.startsWith("[") && t.text.endsWith("]") ? t.text : `[${t.text}]`;
+      }
+      return t.text;
+    })
     .join(" ");
 }
 
 function expressionPrecedence(node: ExpressionNode): number {
-  if (node.type !== "binary") return 3;
-  return node.operator === "+" || node.operator === "-" ? 1 : 2;
+  if (node.type === "if") return 0;
+  if (node.type === "comparison") return 1;
+  if (node.type !== "binary") return 4;
+  return node.operator === "+" || node.operator === "-" ? 2 : 3;
 }
 
 function formatExpression(
   node: ExpressionNode,
   variableLabel: (code: string) => string,
-  parentOperator?: "+" | "-" | "*" | "/",
+  parentOperator?: string,
   isRightChild = false,
 ): string {
   if (node.type === "constant") return String(node.value);
   if (node.type === "variable") return variableLabel(node.variableCode);
+
+  if (node.type === "if") {
+    const cond = formatExpression(node.condition, variableLabel);
+    const thenB = formatExpression(node.thenBranch, variableLabel);
+    const elseB = formatExpression(node.elseBranch, variableLabel);
+    return `IF( ${cond}, ${thenB}, ${elseB} )`;
+  }
+
+  if (node.type === "comparison") {
+    const left = formatExpression(node.left, variableLabel);
+    const right = formatExpression(node.right, variableLabel);
+    return `${left} ${node.operator} ${right}`;
+  }
 
   const left = formatExpression(node.left, variableLabel, node.operator, false);
   const right = formatExpression(node.right, variableLabel, node.operator, true);
@@ -356,7 +452,7 @@ function formatExpression(
 
   if (!parentOperator) return formatted;
   const currentPrecedence = expressionPrecedence(node);
-  const parentPrecedence = parentOperator === "+" || parentOperator === "-" ? 1 : 2;
+  const parentPrecedence = parentOperator === "+" || parentOperator === "-" ? 2 : parentOperator === "*" || parentOperator === "/" ? 3 : 1;
   const needsParentheses =
     currentPrecedence < parentPrecedence ||
     (isRightChild && currentPrecedence === parentPrecedence && (parentOperator === "-" || parentOperator === "/" || parentOperator !== node.operator));
@@ -369,7 +465,10 @@ export function expressionToText(node: ExpressionNode): string {
 }
 
 export function expressionToFriendlyText(node: ExpressionNode, variableNameMap?: Map<string, string>): string {
-  return formatExpression(node, (code) => variableNameMap?.get(code) ?? variableCodeToName[code] ?? code);
+  return formatExpression(node, (code) => {
+    const label = variableNameMap?.get(code) ?? variableCodeToName[code] ?? code;
+    return `[${label}]`;
+  });
 }
 
 export function validateFormulas(
@@ -421,7 +520,8 @@ export interface ExpressionParseResult {
 }
 
 type ParserToken =
-  | { type: "operator"; value: "+" | "-" | "*" | "/" | "(" | ")" }
+  | { type: "operator"; value: "+" | "-" | "*" | "/" | "(" | ")" | "," | ";" | ">" | "<" | ">=" | "<=" | "==" | "!=" }
+  | { type: "function"; name: "IF" }
   | { type: "number"; value: number; raw: string }
   | { type: "variable"; code: string };
 
@@ -433,7 +533,10 @@ export function parseExpressionTextResult(
   text: string,
   aliases?: ReadonlyMap<string, string>,
 ): ExpressionParseResult {
-  let cleaned = text.replace(/×/g, "*").replace(/÷/g, "/").trim();
+  let cleaned = text.replace(/^=\s*/, "").replace(/×/g, "*").replace(/÷/g, "/").trim();
+  // Strip bracketed variable names [Tên biến] -> Tên biến and @mention prefix
+  cleaned = cleaned.replace(/\[\s*([^\]]+?)\s*\]/g, " $1 ");
+  cleaned = cleaned.replace(/@([a-zA-Z0-9_À-ỹ]+)/g, " $1 ");
   const errors: string[] = [];
 
   if (!cleaned) {
@@ -469,14 +572,52 @@ export function parseExpressionTextResult(
       i++;
       continue;
     }
-    if ("+-*/()".includes(c)) {
-      tokens.push({ type: "operator", value: c as "+" | "-" | "*" | "/" | "(" | ")" });
+
+    // Two-character operators
+    const twoChars = cleaned.slice(i, i + 2);
+    if (twoChars === ">=" || twoChars === "<=" || twoChars === "==" || twoChars === "!=") {
+      tokens.push({ type: "operator", value: twoChars as ">=" | "<=" | "==" | "!=" });
+      i += 2;
+      continue;
+    }
+    if (twoChars === "<>") {
+      tokens.push({ type: "operator", value: "!=" });
+      i += 2;
+      continue;
+    }
+    if (twoChars === "=>") {
+      tokens.push({ type: "operator", value: ">=" });
+      i += 2;
+      continue;
+    }
+    if (twoChars === "=<") {
+      tokens.push({ type: "operator", value: "<=" });
+      i += 2;
+      continue;
+    }
+
+    // Single-character operators
+    if ("+-*/(),;><".includes(c)) {
+      tokens.push({ type: "operator", value: c as "+" | "-" | "*" | "/" | "(" | ")" | "," | ";" | ">" | "<" });
       i++;
-    } else if (/\d/.test(c) || (c === "." && /\d/.test(cleaned[i + 1] ?? ""))) {
+      continue;
+    }
+
+    if (c === "=") {
+      tokens.push({ type: "operator", value: "==" });
+      i++;
+      continue;
+    }
+
+    if (/\d/.test(c) || (c === "." && /\d/.test(cleaned[i + 1] ?? ""))) {
       let j = i;
       while (j < cleaned.length && /[\d.]/.test(cleaned[j])) j++;
       const raw = cleaned.slice(i, j);
-      const val = Number(raw);
+      let val = Number(raw);
+      if (cleaned[j] === "%") {
+        val = val / 100;
+        j++;
+      }
       if (!Number.isFinite(val) || (raw.match(/\./g)?.length ?? 0) > 1) {
         errors.push(`Số “${raw}” không hợp lệ.`);
       } else {
@@ -486,7 +627,12 @@ export function parseExpressionTextResult(
     } else if (/[a-zA-Z_À-ỹ]/.test(c)) {
       let j = i;
       while (j < cleaned.length && /[a-zA-Z0-9_À-ỹ]/.test(cleaned[j])) j++;
-      tokens.push({ type: "variable", code: cleaned.slice(i, j) });
+      const word = cleaned.slice(i, j);
+      if (word.toUpperCase() === "IF") {
+        tokens.push({ type: "function", name: "IF" });
+      } else {
+        tokens.push({ type: "variable", code: word });
+      }
       i = j;
     } else {
       errors.push(`Ký tự “${c}” không được hỗ trợ.`);
@@ -503,6 +649,88 @@ export function parseExpressionTextResult(
   function peekOperator(value?: string): boolean {
     const token = tokens[idx];
     return token?.type === "operator" && (value === undefined || token.value === value);
+  }
+
+  function parseRoot(): ExpressionNode | null {
+    return parseIfOrComparison();
+  }
+
+  function parseIfOrComparison(): ExpressionNode | null {
+    const current = tokens[idx];
+    if (current?.type === "function" && current.name === "IF") {
+      return parseIf();
+    }
+    return parseComparison();
+  }
+
+  function parseIf(): ExpressionNode | null {
+    const current = tokens[idx];
+    if (!current || current.type !== "function" || current.name !== "IF") {
+      return null;
+    }
+    idx++; // consume IF
+
+    if (!peekOperator("(")) {
+      errors.push("Hàm IF cần dấu mở ngoặc “(”.");
+      return null;
+    }
+    idx++; // consume (
+
+    const condition = parseIfOrComparison();
+    if (!condition) {
+      errors.push("Thiếu biểu thức điều kiện trong hàm IF.");
+      return null;
+    }
+
+    if (!peekOperator(",") && !peekOperator(";")) {
+      errors.push("Thiếu dấu phân cách “,” sau điều kiện hàm IF.");
+      return null;
+    }
+    idx++; // consume , or ;
+
+    const thenBranch = parseIfOrComparison();
+    if (!thenBranch) {
+      errors.push("Thiếu giá trị khi điều kiện đúng trong hàm IF.");
+      return null;
+    }
+
+    if (!peekOperator(",") && !peekOperator(";")) {
+      errors.push("Thiếu dấu phân cách “,” sau giá trị đúng trong hàm IF.");
+      return null;
+    }
+    idx++; // consume , or ;
+
+    const elseBranch = parseIfOrComparison();
+    if (!elseBranch) {
+      errors.push("Thiếu giá trị khi điều kiện sai trong hàm IF.");
+      return null;
+    }
+
+    if (!peekOperator(")")) {
+      errors.push("Thiếu dấu đóng ngoặc “)” kết thúc hàm IF.");
+      return null;
+    }
+    idx++; // consume )
+
+    return { type: "if", condition, thenBranch, elseBranch };
+  }
+
+  function parseComparison(): ExpressionNode | null {
+    let left = parseExpr();
+    if (!left) return null;
+
+    const token = tokens[idx];
+    if (token?.type === "operator" && [">", "<", ">=", "<=", "==", "!="].includes(token.value)) {
+      const op = token.value as ">" | "<" | ">=" | "<=" | "==" | "!=";
+      idx++;
+      const right = parseExpr();
+      if (!right) {
+        errors.push(`Thiếu biểu thức so sánh sau “${op}”.`);
+        return null;
+      }
+      return { type: "comparison", operator: op, left, right };
+    }
+    return left;
   }
 
   function parseExpr(): ExpressionNode | null {
@@ -541,9 +769,14 @@ export function parseExpressionTextResult(
     if (idx >= tokens.length) return null;
     const tok = tokens[idx];
 
+    // IF function call
+    if (tok.type === "function" && tok.name === "IF") {
+      return parseIf();
+    }
+
     if (tok.type === "operator" && tok.value === "(") {
       idx++;
-      const sub = parseExpr();
+      const sub = parseIfOrComparison();
       if (!peekOperator(")")) {
         errors.push("Thiếu dấu đóng ngoặc “)”.");
         return null;
@@ -572,13 +805,17 @@ export function parseExpressionTextResult(
     return null;
   }
 
-  const expression = parseExpr();
+  const expression = parseRoot();
   if (!expression && errors.length === 0) {
     errors.push("Biểu thức chưa hoàn chỉnh.");
   }
   if (idx < tokens.length) {
     const token = tokens[idx];
-    const label = token.type === "operator" ? token.value : token.type === "variable" ? token.code : token.raw;
+    let label = "";
+    if (token.type === "operator") label = token.value;
+    else if (token.type === "variable") label = token.code;
+    else if (token.type === "function") label = token.name;
+    else label = token.raw;
     errors.push(`Không thể xử lý phần “${label}” trong biểu thức.`);
   }
 

@@ -4,6 +4,7 @@ import {
   collectVariables,
   evaluateExpression,
   expressionToText,
+  findVariableAtCursor,
   parseExpressionTextResult,
   tokenizeFriendlyText,
   validateFormulas,
@@ -91,4 +92,79 @@ describe("formula engine", () => {
       "LUONG_CO_BAN / GIO_CHUAN * GIO_THUONG * HE_SO_HOAN_THANH_MIN + DON_GIA_KHOAN"
     );
   });
+
+  it("parse và đánh giá hàm IF điều kiện cơ bản chuẩn Excel", () => {
+    const formulaText = "= IF(Giờ công thường >= 208, 1000000, 500000)";
+    const parsed = parseExpressionTextResult(formulaText);
+    expect(parsed.errors).toEqual([]);
+    expect(parsed.expression).not.toBeNull();
+    expect(parsed.expression?.type).toBe("if");
+
+    // Test true branch (208 >= 208)
+    const resultTrue = evaluateExpression(parsed.expression!, { GIO_THUONG: 208 });
+    expect(resultTrue).toBe(1_000_000);
+
+    // Test false branch (200 < 208)
+    const resultFalse = evaluateExpression(parsed.expression!, { GIO_THUONG: 200 });
+    expect(resultFalse).toBe(500_000);
+  });
+
+  it("parse và đánh giá hàm IF lồng nhau và toán tử so sánh", () => {
+    const nestedText = "IF(GIO_THUONG >= 208, 1000000, IF(GIO_THUONG >= 190, 500000, 0))";
+    const parsed = parseExpressionTextResult(nestedText);
+    expect(parsed.errors).toEqual([]);
+    expect(parsed.expression).not.toBeNull();
+
+    expect(evaluateExpression(parsed.expression!, { GIO_THUONG: 210 })).toBe(1_000_000);
+    expect(evaluateExpression(parsed.expression!, { GIO_THUONG: 195 })).toBe(500_000);
+    expect(evaluateExpression(parsed.expression!, { GIO_THUONG: 180 })).toBe(0);
+  });
+
+  it("parse IF với toán tử % và dấu chấm phẩy ;", () => {
+    const formulaWithPercent = "IF(LUONG_CO_BAN > 10000000; LUONG_CO_BAN * 10%; LUONG_CO_BAN * 5%)";
+    const parsed = parseExpressionTextResult(formulaWithPercent);
+    expect(parsed.errors).toEqual([]);
+    expect(parsed.expression).not.toBeNull();
+
+    expect(evaluateExpression(parsed.expression!, { LUONG_CO_BAN: 12_000_000 })).toBe(1_200_000);
+    expect(evaluateExpression(parsed.expression!, { LUONG_CO_BAN: 8_000_000 })).toBe(400_000);
+  });
+
+  it("parse công thức với biến đóng ngoặc vuông [Tên biến] và @mention", () => {
+    const formulaWithBrackets = "= IF( [Giờ công thường] >= 208, [Lương cơ bản] + 1000000, @LUONG_CO_BAN )";
+    const parsed = parseExpressionTextResult(formulaWithBrackets);
+    expect(parsed.errors).toEqual([]);
+    expect(parsed.expression).not.toBeNull();
+
+    const result = evaluateExpression(parsed.expression!, {
+      GIO_THUONG: 210,
+      LUONG_CO_BAN: 7_000_000,
+    });
+    expect(result).toBe(8_000_000);
+  });
+
+  it("findVariableAtCursor phát hiện đúng vị trí biến khi xóa (atomic deletion)", () => {
+    const text = "IF( [Giờ công thường] >= 208, 1000000, 0 )";
+    // [Giờ công thường] starts at index 4 and ends at index 21
+    const variableStart = 4;
+    const variableEnd = 21;
+
+    // Cursor right at the end of [Giờ công thường] (index 21) -> Backspace should target this variable
+    const atEnd = findVariableAtCursor(text, variableEnd);
+    expect(atEnd).not.toBeNull();
+    expect(atEnd?.action).toBe("backspace");
+    expect(atEnd?.range.start).toBe(variableStart);
+    expect(atEnd?.range.end).toBe(variableEnd);
+
+    // Cursor right at start (index 4) -> Delete should target this variable
+    const atStart = findVariableAtCursor(text, variableStart);
+    expect(atStart).not.toBeNull();
+    expect(atStart?.action).toBe("delete");
+
+    // Cursor in the middle (index 10) -> inside
+    const inside = findVariableAtCursor(text, 10);
+    expect(inside).not.toBeNull();
+    expect(inside?.action).toBe("inside");
+  });
 });
+

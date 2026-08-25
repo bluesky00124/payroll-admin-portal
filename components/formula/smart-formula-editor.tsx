@@ -1,26 +1,18 @@
 "use client";
 
 import {
-  AlertCircle,
-  Calculator,
-  CheckCircle2,
+  Check,
   Delete,
-  Plus,
-  RotateCcw,
   Search,
-  Sparkles,
-  Trash2,
   Variable,
-  Wand2,
   X,
 } from "lucide-react";
-import React, { useMemo, useRef, useState } from "react";
+import React, { useEffect, useMemo, useRef, useState } from "react";
 import { Badge } from "@/components/ui";
 import {
+  findVariableAtCursor,
   parseExpressionTextResult,
-  tokenizeFriendlyText,
-  tokensToFriendlyText,
-  type VisualToken,
+  variableCodeToName,
 } from "@/lib/formula-engine";
 import type { FormulaVariable, SalaryFormula } from "@/lib/types";
 import { OperatorSymbol } from "@/components/tabs/formula-tab";
@@ -40,177 +32,38 @@ export function SmartFormulaEditor({
   variableNameMap,
   onChange,
 }: SmartFormulaEditorProps) {
-  const [cursorIndex, setCursorIndex] = useState<number | null>(null);
+  const textareaRef = useRef<HTMLTextAreaElement>(null);
+  const mentionDropdownRef = useRef<HTMLDivElement>(null);
+
   const [varSearch, setVarSearch] = useState<string>("");
 
-  const canvasRef = useRef<HTMLDivElement>(null);
+  // Mention State for @ autocomplete
+  const [mentionState, setMentionState] = useState<{
+    isOpen: boolean;
+    query: string;
+    atIndex: number;
+    selectedIndex: number;
+  }>({
+    isOpen: false,
+    query: "",
+    atIndex: -1,
+    selectedIndex: 0,
+  });
 
   const customNames = useMemo(() => {
     return variables.map((v) => v.name);
   }, [variables]);
-
-  // Tokenize the current formula text
-  const tokens = useMemo(() => {
-    return tokenizeFriendlyText(rawText, customNames);
-  }, [rawText, customNames]);
 
   // Syntax validation
   const validationResult = useMemo(() => {
     return parseExpressionTextResult(rawText, variableNameMap);
   }, [rawText, variableNameMap]);
 
-  const isEmpty = tokens.length === 0 || !rawText.trim();
+  const isEmpty = !rawText.trim();
   const isValid = !isEmpty && validationResult.errors.length === 0 && validationResult.expression !== null;
   const hasError = !isEmpty && (!isValid || validationResult.errors.length > 0);
 
-  // Insert token or text with Smart Number Merging
-  const insertToken = (tokenString: string, forceNew = false) => {
-    const currentTokens = [...tokens];
-    const targetIdx =
-      cursorIndex !== null && cursorIndex >= 0 && cursorIndex <= currentTokens.length
-        ? cursorIndex
-        : currentTokens.length;
-
-    const isDigitOrDec = /^[0-9]$/.test(tokenString) || tokenString === "00" || tokenString === "000" || tokenString === ".";
-    const isPercent = tokenString === "%";
-
-    // SMART MERGING: If inserting a digit / decimal right after an existing number token, merge it!
-    if (!forceNew && (isDigitOrDec || isPercent) && targetIdx > 0 && currentTokens[targetIdx - 1]?.type === "number") {
-      const prevTok = { ...currentTokens[targetIdx - 1] };
-
-      if (tokenString === ".") {
-        if (!prevTok.text.includes(".")) {
-          prevTok.text += ".";
-        }
-      } else if (tokenString === "%") {
-        if (!prevTok.text.endsWith("%")) {
-          prevTok.text += "%";
-        }
-      } else {
-        // Digits
-        if (prevTok.text === "0" && tokenString !== ".") {
-          prevTok.text = tokenString;
-        } else {
-          prevTok.text += tokenString;
-        }
-      }
-
-      currentTokens[targetIdx - 1] = prevTok;
-      const newRawText = tokensToFriendlyText(currentTokens);
-      onChange(newRawText);
-      // Cursor remains at targetIdx (right after this number token)
-      return;
-    }
-
-    // Otherwise create a new token
-    const isOperator = ["+", "-", "*", "/", "×", "÷", "(", ")"].includes(tokenString);
-    const isNumber = /^\d+(\.\d*)?%?$/.test(tokenString) || /^\.\d+%?$/.test(tokenString);
-
-    const newToken: VisualToken = {
-      id: `tok-${Date.now()}-${Math.random().toString(36).slice(2, 6)}`,
-      type: isOperator ? "operator" : isNumber ? "number" : "variable",
-      text: tokenString === "*" ? "×" : tokenString === "/" ? "÷" : tokenString,
-    };
-
-    currentTokens.splice(targetIdx, 0, newToken);
-    const newRawText = tokensToFriendlyText(currentTokens);
-    onChange(newRawText);
-    setCursorIndex(targetIdx + 1);
-  };
-
-
-  // Remove token at specific index
-  const removeToken = (indexToRemove: number) => {
-    const nextTokens = tokens.filter((_, idx) => idx !== indexToRemove);
-    const newRawText = tokensToFriendlyText(nextTokens);
-    onChange(newRawText);
-    if (cursorIndex !== null && cursorIndex > indexToRemove) {
-      setCursorIndex(Math.max(0, cursorIndex - 1));
-    }
-  };
-
-  // Smart Backspace: trims last character of number or removes whole token
-  const handleBackspace = () => {
-    if (tokens.length === 0) return;
-    const currentTokens = [...tokens];
-    const targetIdx = cursorIndex !== null && cursorIndex > 0 ? cursorIndex - 1 : currentTokens.length - 1;
-
-    if (targetIdx < 0 || targetIdx >= currentTokens.length) return;
-
-    const targetTok = currentTokens[targetIdx];
-    if (targetTok.type === "number" && targetTok.text.length > 1) {
-      // Remove just the last character from multi-digit number
-      const updatedTok = { ...targetTok, text: targetTok.text.slice(0, -1) };
-      currentTokens[targetIdx] = updatedTok;
-      onChange(tokensToFriendlyText(currentTokens));
-    } else {
-      // Remove entire token
-      currentTokens.splice(targetIdx, 1);
-      onChange(tokensToFriendlyText(currentTokens));
-      setCursorIndex(Math.max(0, targetIdx));
-    }
-  };
-
-  // Keyboard navigation & typing on canvas
-  const handleCanvasKeyDown = (e: React.KeyboardEvent<HTMLDivElement>) => {
-    if (/^[0-9]$/.test(e.key) || e.key === ".") {
-      e.preventDefault();
-      insertToken(e.key);
-      return;
-    }
-
-    if (["+", "-", "*", "/", "(", ")"].includes(e.key)) {
-      e.preventDefault();
-      insertToken(e.key);
-      return;
-    }
-
-    if (e.key === "Backspace") {
-      e.preventDefault();
-      handleBackspace();
-      return;
-    }
-
-    if (e.key === "Delete") {
-      e.preventDefault();
-      if (cursorIndex !== null && cursorIndex < tokens.length) {
-        removeToken(cursorIndex);
-      }
-      return;
-    }
-
-    if (e.key === "ArrowLeft") {
-      e.preventDefault();
-      setCursorIndex(Math.max(0, (cursorIndex ?? tokens.length) - 1));
-      return;
-    }
-
-    if (e.key === "ArrowRight") {
-      e.preventDefault();
-      setCursorIndex(Math.min(tokens.length, (cursorIndex ?? tokens.length) + 1));
-      return;
-    }
-
-    if (e.key === "Home") {
-      e.preventDefault();
-      setCursorIndex(0);
-      return;
-    }
-
-    if (e.key === "End") {
-      e.preventDefault();
-      setCursorIndex(tokens.length);
-      return;
-    }
-  };
-
-  // Clear all
-  const handleClearAll = () => {
-    onChange("");
-    setCursorIndex(null);
-  };
-
-  // All available variables (excluding self output variable to prevent self loop)
+  // All available variables (excluding the formula's output variable itself)
   const availableVariables = useMemo(() => {
     const list = variables.filter((v) => v.code !== formula.outputVariable);
     if (!varSearch.trim()) return list;
@@ -220,117 +73,306 @@ export function SmartFormulaEditor({
     );
   }, [variables, formula.outputVariable, varSearch]);
 
+  // Filtered variables for @ mention popup
+  const mentionFilteredVariables = useMemo(() => {
+    const list = variables.filter((v) => v.code !== formula.outputVariable);
+    if (!mentionState.query.trim()) return list.slice(0, 8);
+    const query = mentionState.query.toLowerCase().trim();
+    return list
+      .filter(
+        (v) =>
+          v.name.toLowerCase().includes(query) ||
+          v.code.toLowerCase().includes(query)
+      )
+      .slice(0, 8);
+  }, [variables, formula.outputVariable, mentionState.query]);
+
+  // Reset selectedIndex when filtered list changes
+  useEffect(() => {
+    if (mentionState.selectedIndex >= mentionFilteredVariables.length) {
+      setMentionState((prev) => ({
+        ...prev,
+        selectedIndex: Math.max(0, mentionFilteredVariables.length - 1),
+      }));
+    }
+  }, [mentionFilteredVariables.length, mentionState.selectedIndex]);
+
+  // Helper to set cursor position on next animation frame
+  const setSelectionRangeAsync = (start: number, end: number) => {
+    requestAnimationFrame(() => {
+      if (textareaRef.current) {
+        textareaRef.current.focus();
+        textareaRef.current.setSelectionRange(start, end);
+      }
+    });
+  };
+
+  // Insert text at current cursor in textarea
+  const insertAtCursor = (textToInsert: string) => {
+    const textarea = textareaRef.current;
+    if (!textarea) {
+      onChange(rawText + textToInsert);
+      return;
+    }
+
+    const start = textarea.selectionStart ?? rawText.length;
+    const end = textarea.selectionEnd ?? rawText.length;
+    const before = rawText.slice(0, start);
+    const after = rawText.slice(end);
+    const updated = before + textToInsert + after;
+
+    onChange(updated);
+    const newCursor = start + textToInsert.length;
+    setSelectionRangeAsync(newCursor, newCursor);
+  };
+
+  // Select a variable from @ mention dropdown
+  const selectMentionVariable = (v: FormulaVariable) => {
+    if (mentionState.atIndex < 0) return;
+
+    const before = rawText.slice(0, mentionState.atIndex);
+    const after = rawText.slice(mentionState.atIndex + 1 + mentionState.query.length);
+    const formatted = `[${v.name}] `;
+    const updated = before + formatted + after;
+
+    onChange(updated);
+    setMentionState({
+      isOpen: false,
+      query: "",
+      atIndex: -1,
+      selectedIndex: 0,
+    });
+
+    const newCursor = before.length + formatted.length;
+    setSelectionRangeAsync(newCursor, newCursor);
+  };
+
+  // Handle keydown in textarea (Atomic deletion & Mention keyboard navigation)
+  const handleKeyDown = (e: React.KeyboardEvent<HTMLTextAreaElement>) => {
+    const textarea = textareaRef.current;
+    if (!textarea) return;
+
+    // 1. Navigation when Mention Dropdown is open
+    if (mentionState.isOpen && mentionFilteredVariables.length > 0) {
+      if (e.key === "ArrowDown") {
+        e.preventDefault();
+        setMentionState((prev) => ({
+          ...prev,
+          selectedIndex: (prev.selectedIndex + 1) % mentionFilteredVariables.length,
+        }));
+        return;
+      }
+
+      if (e.key === "ArrowUp") {
+        e.preventDefault();
+        setMentionState((prev) => ({
+          ...prev,
+          selectedIndex:
+            (prev.selectedIndex - 1 + mentionFilteredVariables.length) %
+            mentionFilteredVariables.length,
+        }));
+        return;
+      }
+
+      if (e.key === "Enter" || e.key === "Tab") {
+        e.preventDefault();
+        const selected = mentionFilteredVariables[mentionState.selectedIndex];
+        if (selected) {
+          selectMentionVariable(selected);
+        }
+        return;
+      }
+
+      if (e.key === "Escape") {
+        e.preventDefault();
+        setMentionState((prev) => ({ ...prev, isOpen: false }));
+        return;
+      }
+    }
+
+    const { selectionStart, selectionEnd } = textarea;
+
+    // 2. Atomic Backspace: Delete whole variable token at once
+    if (e.key === "Backspace" && selectionStart === selectionEnd && selectionStart > 0) {
+      const match = findVariableAtCursor(rawText, selectionStart, customNames);
+      if (match && (match.action === "backspace" || match.action === "inside")) {
+        e.preventDefault();
+        const before = rawText.slice(0, match.range.start);
+        const after = rawText.slice(match.range.end);
+        const updated = before + after;
+        onChange(updated);
+        setSelectionRangeAsync(match.range.start, match.range.start);
+        return;
+      }
+    }
+
+    // 3. Atomic Delete: Delete whole variable token at once
+    if (e.key === "Delete" && selectionStart === selectionEnd && selectionStart < rawText.length) {
+      const match = findVariableAtCursor(rawText, selectionStart, customNames);
+      if (match && match.action === "delete") {
+        e.preventDefault();
+        const before = rawText.slice(0, match.range.start);
+        const after = rawText.slice(match.range.end);
+        const updated = before + after;
+        onChange(updated);
+        setSelectionRangeAsync(match.range.start, match.range.start);
+        return;
+      }
+    }
+  };
+
+  // Handle textarea text change and @ trigger detection
+  const handleTextChange = (e: React.ChangeEvent<HTMLTextAreaElement>) => {
+    const nextText = e.target.value;
+    const cursor = e.target.selectionStart ?? nextText.length;
+
+    onChange(nextText);
+
+    // Detect if cursor is right after an '@' mention query
+    const textBeforeCursor = nextText.slice(0, cursor);
+    const lastAtIndex = textBeforeCursor.lastIndexOf("@");
+
+    if (lastAtIndex !== -1) {
+      const query = textBeforeCursor.slice(lastAtIndex + 1);
+      // Ensure query does not contain line breaks or operator separators
+      if (!/[\r\n+\-*/()[\];,><=]/.test(query) && query.length <= 30) {
+        setMentionState({
+          isOpen: true,
+          query,
+          atIndex: lastAtIndex,
+          selectedIndex: 0,
+        });
+        return;
+      }
+    }
+
+    if (mentionState.isOpen) {
+      setMentionState((prev) => ({ ...prev, isOpen: false }));
+    }
+  };
+
+  // Clear all
+  const handleClearAll = () => {
+    onChange("");
+    setMentionState({ isOpen: false, query: "", atIndex: -1, selectedIndex: 0 });
+    setSelectionRangeAsync(0, 0);
+  };
+
   return (
-    <div className="smart-formula-editor space-y-3">
-      {/* 1. Header with Quick Tips */}
-      <div className="flex flex-wrap items-center justify-between gap-2 pb-0.5">
-        <div className="flex items-center gap-2">
-          <span className="text-xs font-bold text-foreground flex items-center gap-1.5">
-            <Wand2 className="w-3.5 h-3.5 text-primary" />
-            Biểu thức tính toán:
-          </span>
-        </div>
-
-        <div className="text-[11px] text-muted-foreground">
-          Gõ phím thật, bấm máy tính, hoặc chọn biến số bên dưới
-        </div>
-      </div>
-
-      {/* 2. Main Formula Editor Canvas with Compact, Fixed-width Tokens */}
-      <div
-        ref={canvasRef}
-        tabIndex={0}
-        onKeyDown={handleCanvasKeyDown}
-        className={`smart-formula-canvas relative justify-between focus:outline-none ${
-          hasError ? "invalid" : ""
-        }`}
-        onClick={() => {
-          if (cursorIndex === null) setCursorIndex(tokens.length);
-        }}
-      >
-        {tokens.length === 0 ? (
-          <div className="smart-canvas-empty">
-            <span className="text-muted-foreground text-xs italic">
-              Chưa có phần tử nào. Bạn có thể gõ trực tiếp bằng bàn phím máy tính hoặc bấm chọn biến/số bên dưới.
-            </span>
-          </div>
-        ) : (
-          <div className="flex flex-wrap items-center gap-1.5 flex-1 pr-10">
-            {tokens.map((tok, idx) => {
-              const isSelected = cursorIndex === idx;
-
-              if (tok.type === "operator") {
-                return (
-                  <div key={tok.id} className="inline-flex items-center gap-1">
-                    {isSelected && <span className="smart-token-caret" />}
-                    <span
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        setCursorIndex(idx + 1);
-                      }}
-                      className="smart-pill-operator cursor-pointer"
-                      title={`Toán tử ${tok.text}`}
-                    >
-                      <OperatorSymbol op={tok.text} className="w-3.5 h-3.5" />
-                    </span>
-                  </div>
-                );
-              }
-
-              if (tok.type === "number") {
-                return (
-                  <div key={tok.id} className="inline-flex items-center gap-1">
-                    {isSelected && <span className="smart-token-caret" />}
-                    <span
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        setCursorIndex(idx + 1);
-                      }}
-                      className="smart-pill-number cursor-pointer"
-                      title="Hằng số"
-                    >
-                      <span className="font-mono leading-none">{tok.text}</span>
-                    </span>
-                  </div>
-                );
-              }
-
-              return (
-                <div key={tok.id} className="inline-flex items-center gap-1">
-                  {isSelected && <span className="smart-token-caret" />}
-                  <span
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      setCursorIndex(idx + 1);
-                    }}
-                    className="smart-pill smart-pill-neutral cursor-pointer"
-                    title={tok.text}
-                  >
-                    <span className="leading-none">{tok.text}</span>
-                  </span>
-                </div>
-              );
-            })}
-
-            {cursorIndex === tokens.length && <span className="smart-token-caret" />}
-          </div>
-        )}
-
-        {/* Quick Clear Button vertically centered at right of canvas */}
-        {tokens.length > 0 && (
-          <button
-            type="button"
-            onClick={handleClearAll}
-            className="absolute right-2.5 top-1/2 -translate-y-1/2 p-1.5 rounded-md text-muted hover:text-destructive hover:bg-destructive/10 transition-colors flex items-center justify-center"
-            title="Xóa toàn bộ biểu thức"
-            aria-label="Xóa toàn bộ biểu thức"
+    <div className="smart-formula-editor space-y-2.5">
+      {/* 1. Header: Formula Bar label on left, clean hint on right */}
+      <div className="flex items-center justify-between gap-2 pb-0.5">
+        <span className="text-xs font-bold text-foreground flex items-center gap-1.5">
+          <span
+            style={{ backgroundColor: "var(--primary, #038b8c)", color: "#ffffff" }}
+            className="px-1.5 py-0.5 rounded font-mono font-bold text-[10px] tracking-tight"
           >
-            <Delete className="w-4 h-4" />
-          </button>
+            fx
+          </span>
+          Biểu thức tính toán:
+        </span>
+
+        <span className="text-[11px] text-muted-foreground hidden sm:inline">
+          Gõ <code className="font-bold text-primary">@</code> để chèn biến
+        </span>
+      </div>
+
+      {/* 2. Main Freeform Excel Formula Input with Floating @ Mention Dropdown */}
+      <div className="relative">
+        <div
+          className={`relative rounded-xl border bg-card shadow-2xs transition-all ${hasError
+            ? "border-rose-500 ring-2 ring-rose-500/20"
+            : "border-input focus-within:border-primary focus-within:ring-2 focus-within:ring-primary/20"
+            }`}
+        >
+          <textarea
+            ref={textareaRef}
+            rows={3}
+            value={rawText}
+            onChange={handleTextChange}
+            onKeyDown={handleKeyDown}
+            placeholder="Gõ @ để chèn biến"
+            className="w-full px-3.5 pr-10 py-2.5 !border-0 !outline-none !shadow-none !ring-0 focus:!ring-0 focus:!border-0 !bg-transparent font-mono text-sm leading-relaxed text-foreground placeholder:text-muted-foreground/60 placeholder:text-xs placeholder:font-sans resize-y min-h-[72px]"
+          />
+
+          {rawText && (
+            <button
+              type="button"
+              onClick={handleClearAll}
+              className="absolute right-2.5 top-2.5 p-1.5 rounded-md text-muted hover:text-destructive hover:bg-destructive/10 transition-colors"
+              title="Xóa toàn bộ công thức"
+              aria-label="Xóa toàn bộ"
+            >
+              <Delete className="w-4 h-4" />
+            </button>
+          )}
+        </div>
+
+        {/* Floating @ Mention Autocomplete Popup */}
+        {mentionState.isOpen && (
+          <div
+            ref={mentionDropdownRef}
+            className="absolute left-6 top-full mt-1.5 z-50 w-72 max-w-[90vw] rounded-xl bg-card border border-border shadow-xl overflow-hidden animate-in fade-in zoom-in-95 duration-150"
+          >
+            <div className="px-3 py-2 bg-secondary/70 border-b border-border/80 flex items-center justify-between text-[11px] font-semibold text-foreground">
+              <span className="flex items-center gap-1.5">
+                <Variable className="w-3.5 h-3.5 text-primary" />
+                <span>Chèn biến số (@)</span>
+              </span>
+              <span className="text-[10px] text-muted-foreground font-mono">
+                {mentionFilteredVariables.length} kết quả
+              </span>
+            </div>
+
+            <div className="max-h-56 overflow-y-auto p-1 space-y-0.5">
+              {mentionFilteredVariables.length === 0 ? (
+                <div className="p-3 text-center text-xs text-muted-foreground italic">
+                  Không tìm thấy biến khớp &ldquo;{mentionState.query}&rdquo;
+                </div>
+              ) : (
+                mentionFilteredVariables.map((v, idx) => {
+                  const isSelected = idx === mentionState.selectedIndex;
+                  return (
+                    <button
+                      key={v.code}
+                      type="button"
+                      onMouseDown={(e) => {
+                        e.preventDefault();
+                        selectMentionVariable(v);
+                      }}
+                      className={`w-full text-left px-2.5 py-1.5 rounded-lg text-xs transition-colors flex items-center justify-between gap-2 ${isSelected
+                        ? "bg-primary text-white font-medium"
+                        : "hover:bg-secondary text-foreground"
+                        }`}
+                    >
+                      <div className="flex items-center gap-1.5 truncate">
+                        <span
+                          className={`w-1.5 h-1.5 rounded-full shrink-0 ${isSelected ? "bg-white" : "bg-primary"
+                            }`}
+                        />
+                        <span className="font-semibold truncate">{v.name}</span>
+                      </div>
+                      <span
+                        className={`text-[10px] font-mono shrink-0 ${isSelected ? "text-white/80" : "text-muted-foreground"
+                          }`}
+                      >
+                        {v.code}
+                      </span>
+                    </button>
+                  );
+                })
+              )}
+            </div>
+
+            <div className="px-2.5 py-1.5 bg-secondary/40 border-t border-border/60 text-[10px] text-muted-foreground flex items-center justify-between">
+              <span>↑ ↓ duyệt • Enter / Tab chọn</span>
+              <span>Esc đóng</span>
+            </div>
+          </div>
         )}
       </div>
 
-      {/* Live Validation Alert under canvas */}
+      {/* Live Validation Alert under input */}
       {hasError && (
         <div className="flex items-center gap-1.5 px-1 text-[11.5px] text-rose-600 dark:text-rose-400 font-medium">
           <span className="w-1.5 h-1.5 rounded-full bg-rose-500 shrink-0" />
@@ -345,7 +387,7 @@ export function SmartFormulaEditor({
           <div className="md:col-span-7 flex flex-col space-y-2.5">
             <div className="flex items-center justify-between pb-0.5 shrink-0">
               <strong className="text-xs font-bold text-foreground">
-                Danh mục biến số sẵn có
+                Danh mục biến số
               </strong>
             </div>
 
@@ -382,17 +424,17 @@ export function SmartFormulaEditor({
                     key={v.code}
                     type="button"
                     onMouseDown={(e) => e.preventDefault()}
-                    onClick={() => insertToken(v.name)}
+                    onClick={() => insertAtCursor(`[${v.name}] `)}
                     className="px-2.5 py-1.5 rounded-lg bg-card hover:bg-primary/5 hover:border-primary/40 hover:text-primary border border-border text-left transition-all text-xs active:scale-[0.98] shadow-2xs flex items-center justify-between gap-1.5 group"
                   >
                     <div className="flex items-center gap-1.5 truncate">
                       {v.group === "custom" || v.isCustom ? (
-                        <span className="w-1.5 h-1.5 rounded-full bg-indigo-500 shrink-0" title="Tham số đầu vào" />
+                        <span className="w-1.5 h-1.5 rounded-full bg-primary shrink-0" title="Tham số đầu vào" />
                       ) : null}
                       <span className="font-semibold truncate group-hover:text-primary">{v.name}</span>
                     </div>
                     {v.group === "custom" || v.isCustom ? (
-                      <span className="text-[9px] font-semibold text-indigo-600 dark:text-indigo-400 bg-indigo-500/10 border border-indigo-500/20 px-1 rounded shrink-0">
+                      <span className="text-[9px] font-semibold text-primary bg-primary/10 border border-primary/20 px-1 rounded shrink-0">
                         Tham số
                       </span>
                     ) : null}
@@ -417,7 +459,7 @@ export function SmartFormulaEditor({
                 <button
                   type="button"
                   onMouseDown={(e) => e.preventDefault()}
-                  onClick={() => insertToken("(")}
+                  onClick={() => insertAtCursor(" ( ")}
                   className="h-8 rounded-lg font-mono border border-border/80 bg-secondary/60 hover:bg-primary hover:text-white hover:border-primary text-foreground shadow-2xs transition-all active:scale-95 flex items-center justify-center font-bold text-sm"
                   title="Mở ngoặc"
                 >
@@ -426,7 +468,7 @@ export function SmartFormulaEditor({
                 <button
                   type="button"
                   onMouseDown={(e) => e.preventDefault()}
-                  onClick={() => insertToken(")")}
+                  onClick={() => insertAtCursor(" ) ")}
                   className="h-8 rounded-lg font-mono border border-border/80 bg-secondary/60 hover:bg-primary hover:text-white hover:border-primary text-foreground shadow-2xs transition-all active:scale-95 flex items-center justify-center font-bold text-sm"
                   title="Đóng ngoặc"
                 >
@@ -435,7 +477,7 @@ export function SmartFormulaEditor({
                 <button
                   type="button"
                   onMouseDown={(e) => e.preventDefault()}
-                  onClick={() => insertToken("%")}
+                  onClick={() => insertAtCursor("%")}
                   className="h-8 rounded-lg font-mono border border-border/80 bg-secondary/60 hover:bg-primary hover:text-white hover:border-primary text-foreground shadow-2xs transition-all active:scale-95 flex items-center justify-center font-bold text-sm"
                   title="Phần trăm (%)"
                 >
@@ -444,9 +486,9 @@ export function SmartFormulaEditor({
                 <button
                   type="button"
                   onMouseDown={(e) => e.preventDefault()}
-                  onClick={() => insertToken("/")}
+                  onClick={() => insertAtCursor(" / ")}
                   className="h-8 rounded-lg border border-primary/30 bg-primary/10 hover:bg-primary hover:text-white text-primary dark:bg-primary/20 dark:hover:bg-primary dark:text-primary-foreground shadow-2xs transition-all active:scale-95 flex items-center justify-center"
-                  title="Toán tử chia (÷)"
+                  title="Toán tử chia (/)"
                 >
                   <OperatorSymbol op="/" className="w-3.5 h-3.5" />
                 </button>
@@ -459,8 +501,8 @@ export function SmartFormulaEditor({
                     key={num}
                     type="button"
                     onMouseDown={(e) => e.preventDefault()}
-                    onClick={() => insertToken(num)}
-                    className="h-8 rounded-lg bg-card hover:bg-amber-500/15 hover:text-amber-600 hover:border-amber-500/40 font-mono font-bold text-xs border border-border text-foreground shadow-2xs transition-all active:scale-95 flex items-center justify-center"
+                    onClick={() => insertAtCursor(num)}
+                    className="h-8 rounded-lg bg-card hover:bg-primary/10 hover:text-primary hover:border-primary/40 font-mono font-bold text-xs border border-border text-foreground shadow-2xs transition-all active:scale-95 flex items-center justify-center"
                   >
                     {num}
                   </button>
@@ -468,9 +510,9 @@ export function SmartFormulaEditor({
                 <button
                   type="button"
                   onMouseDown={(e) => e.preventDefault()}
-                  onClick={() => insertToken("*")}
+                  onClick={() => insertAtCursor(" * ")}
                   className="h-8 rounded-lg border border-primary/30 bg-primary/10 hover:bg-primary hover:text-white text-primary dark:bg-primary/20 dark:hover:bg-primary dark:text-primary-foreground shadow-2xs transition-all active:scale-95 flex items-center justify-center"
-                  title="Toán tử nhân (×)"
+                  title="Toán tử nhân (*)"
                 >
                   <OperatorSymbol op="*" className="w-3.5 h-3.5" />
                 </button>
@@ -483,8 +525,8 @@ export function SmartFormulaEditor({
                     key={num}
                     type="button"
                     onMouseDown={(e) => e.preventDefault()}
-                    onClick={() => insertToken(num)}
-                    className="h-8 rounded-lg bg-card hover:bg-amber-500/15 hover:text-amber-600 hover:border-amber-500/40 font-mono font-bold text-xs border border-border text-foreground shadow-2xs transition-all active:scale-95 flex items-center justify-center"
+                    onClick={() => insertAtCursor(num)}
+                    className="h-8 rounded-lg bg-card hover:bg-primary/10 hover:text-primary hover:border-primary/40 font-mono font-bold text-xs border border-border text-foreground shadow-2xs transition-all active:scale-95 flex items-center justify-center"
                   >
                     {num}
                   </button>
@@ -492,9 +534,9 @@ export function SmartFormulaEditor({
                 <button
                   type="button"
                   onMouseDown={(e) => e.preventDefault()}
-                  onClick={() => insertToken("-")}
+                  onClick={() => insertAtCursor(" - ")}
                   className="h-8 rounded-lg border border-primary/30 bg-primary/10 hover:bg-primary hover:text-white text-primary dark:bg-primary/20 dark:hover:bg-primary dark:text-primary-foreground shadow-2xs transition-all active:scale-95 flex items-center justify-center"
-                  title="Toán tử trừ (−)"
+                  title="Toán tử trừ (-)"
                 >
                   <OperatorSymbol op="-" className="w-3.5 h-3.5" />
                 </button>
@@ -507,8 +549,8 @@ export function SmartFormulaEditor({
                     key={num}
                     type="button"
                     onMouseDown={(e) => e.preventDefault()}
-                    onClick={() => insertToken(num)}
-                    className="h-8 rounded-lg bg-card hover:bg-amber-500/15 hover:text-amber-600 hover:border-amber-500/40 font-mono font-bold text-xs border border-border text-foreground shadow-2xs transition-all active:scale-95 flex items-center justify-center"
+                    onClick={() => insertAtCursor(num)}
+                    className="h-8 rounded-lg bg-card hover:bg-primary/10 hover:text-primary hover:border-primary/40 font-mono font-bold text-xs border border-border text-foreground shadow-2xs transition-all active:scale-95 flex items-center justify-center"
                   >
                     {num}
                   </button>
@@ -516,7 +558,7 @@ export function SmartFormulaEditor({
                 <button
                   type="button"
                   onMouseDown={(e) => e.preventDefault()}
-                  onClick={() => insertToken("+")}
+                  onClick={() => insertAtCursor(" + ")}
                   className="h-8 rounded-lg border border-primary/30 bg-primary/10 hover:bg-primary hover:text-white text-primary dark:bg-primary/20 dark:hover:bg-primary dark:text-primary-foreground shadow-2xs transition-all active:scale-95 flex items-center justify-center"
                   title="Toán tử cộng (+)"
                 >
@@ -531,8 +573,8 @@ export function SmartFormulaEditor({
                     key={num}
                     type="button"
                     onMouseDown={(e) => e.preventDefault()}
-                    onClick={() => insertToken(num)}
-                    className="h-8 rounded-lg bg-card hover:bg-amber-500/15 hover:text-amber-600 hover:border-amber-500/40 font-mono font-bold text-xs border border-border text-foreground shadow-2xs transition-all active:scale-95 flex items-center justify-center"
+                    onClick={() => insertAtCursor(num)}
+                    className="h-8 rounded-lg bg-card hover:bg-primary/10 hover:text-primary hover:border-primary/40 font-mono font-bold text-xs border border-border text-foreground shadow-2xs transition-all active:scale-95 flex items-center justify-center"
                   >
                     {num}
                   </button>

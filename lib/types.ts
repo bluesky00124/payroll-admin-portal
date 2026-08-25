@@ -148,6 +148,7 @@ export interface ProjectOvertimeConfig {
 }
 
 export type BinaryOperator = "+" | "-" | "*" | "/";
+export type ComparisonOperator = ">" | "<" | ">=" | "<=" | "==" | "!=";
 
 export type ExpressionNode =
   | { type: "variable"; variableCode: string }
@@ -157,6 +158,18 @@ export type ExpressionNode =
       operator: BinaryOperator;
       left: ExpressionNode;
       right: ExpressionNode;
+    }
+  | {
+      type: "comparison";
+      operator: ComparisonOperator;
+      left: ExpressionNode;
+      right: ExpressionNode;
+    }
+  | {
+      type: "if";
+      condition: ExpressionNode;
+      thenBranch: ExpressionNode;
+      elseBranch: ExpressionNode;
     };
 
 export interface RoundingRule {

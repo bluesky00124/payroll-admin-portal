@@ -118,12 +118,12 @@ const libraryComponents: LibraryComponentItem[] = [
   {
     id: "lib-3b",
     code: "VAR_ATTEND_BONUS",
-    name: "Thưởng chuyên cần",
+    name: "Thưởng chuyên cần (Theo điều kiện IF)",
     outputVariable: "THUONG_CHUYEN_CAN",
     category: "income",
-    defaultFormulaText: "THUONG_CHUYEN_CAN_CO_DINH",
+    defaultFormulaText: "IF( GIO_THUONG >= GIO_CHUAN, 1000000, 500000 )",
     iconName: "bonus",
-    tagText: "Chuyên cần",
+    tagText: "Hàm IF",
     badgeStyle: "bg-primary/10 text-primary border-primary/20",
     cardStyle: "bg-card border-border hover:border-primary/50",
   },
@@ -464,6 +464,38 @@ function renderVisualExpressionNode(
     ];
   }
 
+  if (node.type === "if") {
+    const condElements = renderVisualExpressionNode(node.condition, variableNameMap);
+    const thenElements = renderVisualExpressionNode(node.thenBranch, variableNameMap);
+    const elseElements = renderVisualExpressionNode(node.elseBranch, variableNameMap);
+    return [
+      <span key={`if-kw-${Math.random()}`} className="formula-op-pill font-bold" style={{ backgroundColor: "#038b8c", color: "#ffffff" }}>IF</span>,
+      <span key={`if-open-${Math.random()}`} className="formula-paren-pill">(</span>,
+      ...condElements,
+      <span key={`if-c1-${Math.random()}`} className="formula-paren-pill font-bold">,</span>,
+      ...thenElements,
+      <span key={`if-c2-${Math.random()}`} className="formula-paren-pill font-bold">,</span>,
+      ...elseElements,
+      <span key={`if-close-${Math.random()}`} className="formula-paren-pill">)</span>,
+    ];
+  }
+
+  if (node.type === "comparison") {
+    const leftElements = renderVisualExpressionNode(node.left, variableNameMap);
+    const rightElements = renderVisualExpressionNode(node.right, variableNameMap);
+    return [
+      ...leftElements,
+      <span
+        key={`cmp-${node.operator}-${Math.random()}`}
+        className="formula-op-pill font-mono font-bold"
+        title={`So sánh ${node.operator}`}
+      >
+        {node.operator}
+      </span>,
+      ...rightElements,
+    ];
+  }
+
   if (node.type === "binary") {
     const currentPrecedence = node.operator === "+" || node.operator === "-" ? 1 : 2;
     const parentPrecedence =
@@ -493,7 +525,6 @@ function renderVisualExpressionNode(
       <span
         key={`op-${node.operator}-${Math.random()}`}
         className="formula-op-pill"
-        style={{ backgroundColor: "#038b8c", color: "#ffffff" }}
         title={`Toán tử ${node.operator === "*" ? "nhân (×)" : node.operator === "/" ? "chia (÷)" : node.operator === "+" ? "cộng (+)" : "trừ (−)"}`}
       >
         <OperatorSymbol op={node.operator} />
@@ -544,12 +575,23 @@ export function FormulaVisualExpression({
     const customNames = variableNameMap ? Array.from(variableNameMap.values()) : undefined;
     const tokens = tokenizeFriendlyText(text, customNames);
     return tokens.map((tok, idx) => {
+      if (tok.type === "function") {
+        return (
+          <span
+            key={`fn-${idx}`}
+            className="formula-op-pill font-bold"
+            title="Hàm IF"
+          >
+            {tok.text}
+          </span>
+        );
+      }
+
       if (tok.type === "operator") {
         return (
           <span
             key={`op-${idx}`}
             className="formula-op-pill"
-            style={{ backgroundColor: "#038b8c", color: "#ffffff" }}
             title={`Toán tử ${tok.text}`}
           >
             <OperatorSymbol op={tok.text} />
