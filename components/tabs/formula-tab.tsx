@@ -457,7 +457,7 @@ function renderVisualExpressionNode(
       <span
         key={`var-${node.variableCode}-${Math.random()}`}
         className="formula-var-pill"
-        title={`${label} (${node.variableCode})`}
+        title={label}
       >
         {label}
       </span>,

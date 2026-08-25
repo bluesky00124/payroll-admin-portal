@@ -387,16 +387,11 @@ export function SmartFormulaEditor({
                       ) : null}
                       <span className="font-semibold truncate group-hover:text-primary">{v.name}</span>
                     </div>
-                    <div className="flex items-center gap-1 shrink-0">
-                      {v.group === "custom" || v.isCustom ? (
-                        <span className="text-[9px] font-semibold text-indigo-600 dark:text-indigo-400 bg-indigo-500/10 border border-indigo-500/20 px-1 rounded">
-                          Tham số
-                        </span>
-                      ) : null}
-                      <span className="font-mono text-[9.5px] text-muted-foreground/80 bg-secondary/80 px-1.5 py-0.5 rounded">
-                        {v.code}
+                    {v.group === "custom" || v.isCustom ? (
+                      <span className="text-[9px] font-semibold text-indigo-600 dark:text-indigo-400 bg-indigo-500/10 border border-indigo-500/20 px-1 rounded shrink-0">
+                        Tham số
                       </span>
-                    </div>
+                    ) : null}
                   </button>
                 ))
               )}

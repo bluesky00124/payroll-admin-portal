@@ -223,7 +223,7 @@ export function ProjectParametersCard({
                   : "bg-amber-500/5 border-amber-500/30 hover:border-amber-500/50"
               }`}
             >
-              {/* Top: Name & Code */}
+              {/* Top: Name & Status */}
               <div className="space-y-0.5">
                 <div className="flex items-start justify-between gap-1">
                   <span className="text-xs font-bold text-foreground leading-tight line-clamp-1" title={v.name}>
@@ -236,19 +236,18 @@ export function ProjectParametersCard({
                   )}
                 </div>
 
-                <div className="flex items-center justify-between text-[10px] font-mono text-muted">
-                  <span className="truncate">{v.code}</span>
-                  {v.defaultValue !== undefined && v.defaultValue !== null && draftVal === "" && (
+                {v.defaultValue !== undefined && v.defaultValue !== null && draftVal === "" && (
+                  <div className="pt-0.5">
                     <button
                       type="button"
                       onClick={() => handleChangeValue(v.code, String(v.defaultValue))}
-                      className="text-primary hover:underline font-sans cursor-pointer text-[10px]"
+                      className="text-primary hover:underline font-sans cursor-pointer text-[10.5px]"
                       title={`Gợi ý: ${v.defaultValue}`}
                     >
-                      Mẫu: {v.defaultValue.toLocaleString("vi-VN")}
+                      Mẫu gợi ý: {v.defaultValue.toLocaleString("vi-VN")} {v.unit}
                     </button>
-                  )}
-                </div>
+                  </div>
+                )}
               </div>
 
               {/* Description preview if present */}
