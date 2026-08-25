@@ -8,7 +8,7 @@ import { Badge, Button, EmptyState, ErrorState, LoadingBlock, Modal, StatusBadge
 import { api } from "@/lib/api";
 import { type PolicyDefinition, type ProjectEmployeeGroup, type ProjectPolicy, type TargetRole } from "@/lib/types";
 import { ManageEmployeeGroupsModal } from "@/components/policies/manage-employee-groups-modal";
-import { cn, formatCurrency } from "@/lib/utils";
+import { cn, formatCurrency, formatDate } from "@/lib/utils";
 
 export function calculateAutoFillValues(
   policyId: string,
@@ -259,6 +259,18 @@ export function PoliciesTab({ projectId }: { projectId: string; embedded?: boole
     }
   }, [policies, definitions, definitionMap, editingRowId, projectGroups]);
 
+  const [effectiveDatesMap, setEffectiveDatesMap] = useState<Record<string, string>>({});
+
+  useEffect(() => {
+    if (policies) {
+      const map: Record<string, string> = {};
+      policies.forEach((p) => {
+        map[p.id] = p.effectiveFrom || "2026-08-01";
+      });
+      setEffectiveDatesMap(map);
+    }
+  }, [policies]);
+
   const visiblePolicies = policies.filter((policy) => {
     const definition = definitionMap.get(policy.policyId);
     return (
@@ -285,9 +297,12 @@ export function PoliciesTab({ projectId }: { projectId: string; embedded?: boole
       if (!targetVals) return policy;
 
       const mainValues = targetVals.chinh_thuc ?? policy.values;
+      const newEffectiveFrom = effectiveDatesMap[policy.id] || policy.effectiveFrom || "2026-08-01";
+
       return api.updateProjectPolicy(projectId, policy.id, {
         values: mainValues,
         targetValues: targetVals,
+        effectiveFrom: newEffectiveFrom,
       });
     },
     onSuccess: (_, policy) => {
@@ -462,6 +477,7 @@ export function PoliciesTab({ projectId }: { projectId: string; embedded?: boole
                       </div>
                     </th>
                   ))}
+                  <th style={{ width: "145px" }} className="text-center">Ngày áp dụng</th>
                   <th style={{ width: "80px" }} className="text-center">Thao tác</th>
                 </tr>
               </thead>
@@ -507,6 +523,29 @@ export function PoliciesTab({ projectId }: { projectId: string; embedded?: boole
                           </td>
                         );
                       })}
+
+                      {/* Effective Date Column */}
+                      <td className="text-center">
+                        {isEditingThisRow ? (
+                          <div className="inline-cell-wrap" style={{ maxWidth: "140px", margin: "0 auto" }}>
+                            <input
+                              type="date"
+                              className="inline-cell-input text-xs font-mono"
+                              value={effectiveDatesMap[policy.id] || policy.effectiveFrom || ""}
+                              onChange={(e) => {
+                                setEffectiveDatesMap((prev) => ({
+                                  ...prev,
+                                  [policy.id]: e.target.value,
+                                }));
+                              }}
+                            />
+                          </div>
+                        ) : (
+                          <span className="font-mono text-xs text-foreground font-medium">
+                            {formatDate(effectiveDatesMap[policy.id] || policy.effectiveFrom) || "—"}
+                          </span>
+                        )}
+                      </td>
 
                       {/* Action Column */}
                       <td className="text-center">

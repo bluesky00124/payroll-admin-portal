@@ -463,6 +463,7 @@ export interface EmployeePolicyRecord {
   totalAllowance: number;
   customPolicyCount: number;
   policies: EmployeePolicyItem[];
+  effectiveFrom?: string;
   updatedAt?: string;
   updatedBy?: string;
 }

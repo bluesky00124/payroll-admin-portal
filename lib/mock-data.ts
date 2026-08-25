@@ -2672,6 +2672,7 @@ const employeePolicies: EmployeePolicyRecord[] = employees.map((emp, index) => {
     totalAllowance,
     customPolicyCount,
     policies: items,
+    effectiveFrom: "2026-08-01",
     updatedAt: "2026-08-01 09:00",
     updatedBy: "Kế toán C&B",
   };

@@ -1358,6 +1358,7 @@ export const handlers = [
       policies: EmployeePolicyItem[];
       baseSalary?: number;
       insuranceSalary?: number;
+      effectiveFrom?: string;
     };
     let updated: EmployeePolicyRecord | undefined;
     mutateMockDatabase((db) => {
@@ -1409,6 +1410,7 @@ export const handlers = [
           totalAllowance,
           customPolicyCount,
           policies: newPolicies,
+          effectiveFrom: payload.effectiveFrom ?? cur.effectiveFrom ?? "2026-08-01",
           updatedAt: nowStr,
           updatedBy: "Kế toán tiền lương",
         };

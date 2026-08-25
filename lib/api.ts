@@ -166,7 +166,7 @@ export const api = {
   },
   getEmployeePolicyDetail: (employeeId: string) =>
     request<EmployeePolicyRecord>(`/api/employee-policies/${employeeId}`).then((item) => item.data),
-  updateEmployeePolicies: (employeeId: string, payload: { policies: EmployeePolicyItem[]; baseSalary?: number; insuranceSalary?: number }) =>
+  updateEmployeePolicies: (employeeId: string, payload: { policies: EmployeePolicyItem[]; baseSalary?: number; insuranceSalary?: number; effectiveFrom?: string }) =>
     request<EmployeePolicyRecord>(`/api/employee-policies/${employeeId}`, { method: "PUT", body: JSON.stringify(payload) }).then((item) => item.data),
   batchImportEmployeePolicies: (payload: { projectId: string; items: Array<{ employeeCode: string; policyCode: string; amount: number; isEnabled?: boolean; reason?: string }> }) =>
     request<EmployeePolicyRecord[]>("/api/employee-policies/batch-import", { method: "POST", body: JSON.stringify(payload) }).then((item) => item.data),

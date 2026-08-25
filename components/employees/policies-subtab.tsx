@@ -63,6 +63,7 @@ export function EmployeePoliciesSubtab({
   const [formPolicies, setFormPolicies] = useState<EmployeePolicyItem[]>([]);
   const [formBaseSalary, setFormBaseSalary] = useState<number>(6300000);
   const [formInsuranceSalary, setFormInsuranceSalary] = useState<number>(6300000);
+  const [formEffectiveFrom, setFormEffectiveFrom] = useState<string>("2026-08-01");
 
   // Detail Modal state
   const [detailRecord, setDetailRecord] = useState<EmployeePolicyRecord | null>(null);
@@ -135,6 +136,7 @@ export function EmployeePoliciesSubtab({
     setFormPolicies(JSON.parse(JSON.stringify(rec.policies || [])));
     setFormBaseSalary(rec.baseSalary || 6300000);
     setFormInsuranceSalary(rec.insuranceSalary || 6300000);
+    setFormEffectiveFrom(rec.effectiveFrom || (rec.updatedAt ? rec.updatedAt.slice(0, 10) : "2026-08-01"));
     setModalOpen(true);
   };
 
@@ -192,6 +194,7 @@ export function EmployeePoliciesSubtab({
         policies: formPolicies,
         baseSalary: formBaseSalary,
         insuranceSalary: formInsuranceSalary,
+        effectiveFrom: formEffectiveFrom,
       });
     },
     onSuccess: () => {
@@ -386,7 +389,7 @@ export function EmployeePoliciesSubtab({
                     <th className="text-right" style={{ width: "135px" }}>LƯƠNG CƠ BẢN</th>
                     <th style={{ minWidth: "290px" }}>CÁC KHOẢN PHỤ CẤP ÁP DỤNG</th>
                     <th className="text-right" style={{ width: "145px" }}>TỔNG PHỤ CẤP</th>
-                    <th style={{ width: "140px" }}>NGÀY CẬP NHẬT</th>
+                    <th style={{ width: "135px" }} className="text-center">NGÀY ÁP DỤNG</th>
                     <th style={{ width: "60px" }} className="text-center">THAO TÁC</th>
                   </tr>
                 </thead>
@@ -467,12 +470,9 @@ export function EmployeePoliciesSubtab({
                         <td className="text-right font-mono font-bold text-primary">
                           {formatCurrency(item.totalAllowance)}
                         </td>
-                        <td>
-                          <span className="text-xs font-semibold font-mono text-foreground block">
-                            {item.updatedAt ? formatDate(item.updatedAt) : "—"}
-                          </span>
-                          <span className="text-[11px] text-muted-foreground block truncate">
-                            {item.updatedBy || "Kế toán C&B"}
+                        <td className="text-center font-mono text-xs">
+                          <span className="font-semibold text-foreground">
+                            {item.effectiveFrom ? formatDate(item.effectiveFrom) : item.updatedAt ? formatDate(item.updatedAt) : "01/08/2026"}
                           </span>
                         </td>
                         <td className="text-center">
@@ -570,12 +570,21 @@ export function EmployeePoliciesSubtab({
 
           {/* Policy List Groupings */}
           <div className="space-y-3 max-h-[55vh] overflow-y-auto pr-1">
-            {/* Group 1: Lương cơ sở */}
+            {/* Group 1: Lương cơ sở & Ngày áp dụng */}
             <div className="p-3.5 rounded-lg border border-border bg-card">
               <h4 className="text-xs font-bold uppercase tracking-wider text-foreground mb-3 flex items-center gap-1.5">
-                <Coins className="w-4 h-4 text-primary" /> Mức Lương cơ sở thỏa thuận
+                <Coins className="w-4 h-4 text-primary" /> Mức Lương cơ sở &amp; Ngày áp dụng
               </h4>
-              <div className="grid grid-cols-2 gap-3">
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                <label className="form-field">
+                  <span className="font-semibold text-foreground text-xs">Ngày áp dụng *</span>
+                  <input
+                    type="date"
+                    value={formEffectiveFrom}
+                    onChange={(e) => setFormEffectiveFrom(e.target.value)}
+                    required
+                  />
+                </label>
                 <label className="form-field">
                   <span className="font-semibold text-foreground text-xs">Mức Lương cơ bản (VNĐ) *</span>
                   <input
