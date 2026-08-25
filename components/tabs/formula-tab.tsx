@@ -28,7 +28,7 @@ import { useEffect, useMemo, useState } from "react";
 import { useToast } from "@/components/providers";
 import { Badge, Button, ErrorState, LoadingBlock, SaveBar } from "@/components/ui";
 import { api } from "@/lib/api";
-import { ProjectParametersCard } from "@/components/formula/project-parameters-card";
+import { ProjectParametersModal } from "@/components/formula/project-parameters-modal";
 import { SmartFormulaEditor } from "@/components/formula/smart-formula-editor";
 import {
   collectVariables,
@@ -674,6 +674,11 @@ export function FormulaTab({ projectId, embedded = false }: { projectId: string;
   });
 
   const customVariables = useMemo(() => customVariablesQuery.data ?? [], [customVariablesQuery.data]);
+  const [isParamsModalOpen, setIsParamsModalOpen] = useState(false);
+
+  const missingParamsCount = useMemo(() => {
+    return customVariables.filter((v) => v.value === null || v.value === undefined).length;
+  }, [customVariables]);
 
   const [formulas, setFormulas] = useState<SalaryFormula[]>([]);
   const [rawTexts, setRawTexts] = useState<Record<string, string>>({});
@@ -964,6 +969,24 @@ export function FormulaTab({ projectId, embedded = false }: { projectId: string;
         </div>
 
         <div className="heading-actions">
+          <Button
+            type="button"
+            variant="secondary"
+            onClick={() => setIsParamsModalOpen(true)}
+            className="h-9 gap-1.5 shadow-2xs text-xs font-semibold"
+          >
+            <SlidersHorizontal className="w-4 h-4 text-primary" />
+            Tham số dự án
+            {missingParamsCount > 0 ? (
+              <span className="ml-1 px-1.5 py-0.5 rounded-full bg-amber-500/15 text-amber-600 dark:text-amber-400 text-[10px] font-bold border border-amber-500/25 animate-pulse">
+                Thiếu {missingParamsCount}
+              </span>
+            ) : customVariables.length > 0 ? (
+              <span className="ml-1 px-1.5 py-0.5 rounded-full bg-emerald-500/15 text-emerald-600 dark:text-emerald-400 text-[10px] font-bold border border-emerald-500/25">
+                {customVariables.length}
+              </span>
+            ) : null}
+          </Button>
           <Button variant="secondary" onClick={cancel} disabled={!dirty}>
             Hủy bỏ
           </Button>
@@ -1001,9 +1024,6 @@ export function FormulaTab({ projectId, embedded = false }: { projectId: string;
           </button>
         </div>
       )}
-
-      {/* Project Input Parameters Dedicated Banner & Grid */}
-      <ProjectParametersCard projectId={projectId} />
 
       {/* Main Workspace Layout Grid */}
       <div className="grid grid-cols-1 lg:grid-cols-12 gap-5 items-start">
@@ -1144,6 +1164,13 @@ export function FormulaTab({ projectId, embedded = false }: { projectId: string;
                   <SlidersHorizontal className="w-3 h-3 text-primary" />
                   3. THAM SỐ DỰ ÁN ({customVariables.length})
                 </span>
+                <button
+                  type="button"
+                  onClick={() => setIsParamsModalOpen(true)}
+                  className="text-primary hover:underline lowercase text-[10.5px] font-normal"
+                >
+                  Cài đặt
+                </button>
               </div>
 
               <div className="space-y-1.5">
@@ -1153,8 +1180,9 @@ export function FormulaTab({ projectId, embedded = false }: { projectId: string;
                   return (
                     <div
                       key={param.id || param.code}
-                      className="w-full min-h-[34px] px-2.5 py-1.5 rounded-lg border border-border/70 bg-card text-xs font-semibold flex items-center justify-between gap-2 shadow-2xs group hover:border-primary/40 transition-all"
-                      title={param.description || param.name}
+                      onClick={() => setIsParamsModalOpen(true)}
+                      className="w-full min-h-[34px] px-2.5 py-1.5 rounded-lg border border-border/70 bg-card text-xs font-semibold flex items-center justify-between gap-2 shadow-2xs group hover:border-primary/40 cursor-pointer transition-all"
+                      title={`${param.description || param.name} - Bấm để chỉnh sửa`}
                     >
                       <div className="flex items-center gap-1.5 min-w-0">
                         <span
@@ -1162,7 +1190,9 @@ export function FormulaTab({ projectId, embedded = false }: { projectId: string;
                             hasValue ? "bg-emerald-500" : "bg-amber-500 animate-pulse"
                           }`}
                         />
-                        <span className="truncate block text-foreground">{param.name}</span>
+                        <span className="truncate block text-foreground group-hover:text-primary transition-colors">
+                          {param.name}
+                        </span>
                       </div>
 
                       <div className="flex items-center gap-1 shrink-0">
@@ -1440,6 +1470,12 @@ export function FormulaTab({ projectId, embedded = false }: { projectId: string;
         </section>
       </div>
 
+      {/* Project Parameters Dedicated Modal */}
+      <ProjectParametersModal
+        projectId={projectId}
+        isOpen={isParamsModalOpen}
+        onClose={() => setIsParamsModalOpen(false)}
+      />
 
       <SaveBar visible={dirty} saving={saveMutation.isPending} onSave={() => saveMutation.mutate()} onCancel={cancel} />
     </div>
