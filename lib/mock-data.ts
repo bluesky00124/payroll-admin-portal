@@ -7,7 +7,6 @@ import type {
   EmployeePolicyItem,
   EmployeePolicyRecord,
   ExpressionNode,
-  FormulaVariable,
   InsuranceChangeRecord,
   InsuranceRecord,
   LeaveRecord,
@@ -28,6 +27,10 @@ import type {
   OtherDeductionRecord,
   OtherIncomeRecord,
 } from "@/lib/types";
+import {
+  payrollFormulaVariables,
+  payrollProjectParameterDefinitions,
+} from "@/lib/payroll-component-library";
 import { payrollSeed } from "@/lib/payroll-seed";
 
 const projects: Project[] = [
@@ -1302,119 +1305,35 @@ const overtimeTypes: OvertimeType[] = [
 const variable = (variableCode: string): ExpressionNode => ({ type: "variable", variableCode });
 const constant = (value: number): ExpressionNode => ({ type: "constant", value });
 const binary = (operator: "+" | "-" | "*" | "/", left: ExpressionNode, right: ExpressionNode): ExpressionNode => ({ type: "binary", operator, left, right });
+const comparison = (
+  operator: ">" | "<" | ">=" | "<=" | "==" | "!=",
+  left: ExpressionNode,
+  right: ExpressionNode,
+): ExpressionNode => ({ type: "comparison", operator, left, right });
+const conditional = (
+  condition: ExpressionNode,
+  thenBranch: ExpressionNode,
+  elseBranch: ExpressionNode,
+): ExpressionNode => ({ type: "if", condition, thenBranch, elseBranch });
 
 function formulasForProject(projectId: string): SalaryFormula[] {
   return [
-    { id: `${projectId}-f1`, projectId, code: "REGULAR_PAY", name: "Lương theo giờ công", outputVariable: "LUONG_NGAY_CONG", category: "income", order: 1, expression: binary("*", binary("/", variable("LUONG_CO_BAN"), variable("GIO_CHUAN")), variable("GIO_THUONG")), rounding: { mode: "nearest", precision: 1 }, enabled: true },
-    { id: `${projectId}-f2`, projectId, code: "OT_150_PAY", name: "Lương tăng ca 150%", outputVariable: "LUONG_OT_150", category: "income", order: 2, expression: binary("*", binary("*", binary("/", variable("NEN_TINH_OT"), variable("GIO_CHUAN")), constant(1.5)), variable("GIO_OT_150")), rounding: { mode: "nearest", precision: 1 }, enabled: true },
-    { id: `${projectId}-f3`, projectId, code: "GROSS_INCOME", name: "Tổng thu nhập", outputVariable: "TONG_THU_NHAP", category: "aggregate", order: 3, expression: binary("+", binary("+", variable("LUONG_NGAY_CONG"), variable("LUONG_OT_150")), variable("TONG_PHU_CAP")), rounding: { mode: "nearest", precision: 1 }, enabled: true },
-    { id: `${projectId}-f4`, projectId, code: "TOTAL_DEDUCTION", name: "Tổng khấu trừ", outputVariable: "TONG_KHAU_TRU", category: "deduction", order: 4, expression: binary("+", variable("BAO_HIEM_NV"), variable("KHAU_TRU_KHAC")), rounding: { mode: "nearest", precision: 1 }, enabled: true },
-    { id: `${projectId}-f5`, projectId, code: "NET_PAY", name: "Thực lãnh", outputVariable: "THUC_LANH", category: "net", order: 5, expression: binary("-", variable("TONG_THU_NHAP"), variable("TONG_KHAU_TRU")), rounding: { mode: "nearest", precision: 1000 }, enabled: true },
+    { id: `${projectId}-f1`, projectId, code: "REGULAR_PAY", name: "Lương theo ngày công thực tế", outputVariable: "LUONG_NGAY_CONG", category: "income", order: 1, expression: binary("*", binary("/", variable("LUONG_CO_BAN"), variable("NGAY_CONG_CHUAN")), variable("NGAY_CONG_THUC_TE")), rounding: { mode: "nearest", precision: 1 }, enabled: true },
+    { id: `${projectId}-f2`, projectId, code: "OT_WEEKDAY_DAY_150", name: "Tăng ca ngày thường (150%)", outputVariable: "LUONG_OT_NGAY_THUONG", category: "income", order: 2, expression: binary("*", binary("*", binary("/", variable("MUC_LUONG_TINH_OT"), variable("GIO_QUY_DOI_THANG")), constant(1.5)), variable("GIO_OT_NGAY_THUONG")), rounding: { mode: "nearest", precision: 1 }, enabled: true },
+    { id: `${projectId}-f3`, projectId, code: "GROSS_INCOME", name: "Tổng thu nhập", outputVariable: "TONG_THU_NHAP", category: "aggregate", order: 3, expression: binary("+", variable("LUONG_NGAY_CONG"), variable("LUONG_OT_NGAY_THUONG")), rounding: { mode: "nearest", precision: 1 }, enabled: true },
+    { id: `${projectId}-f4`, projectId, code: "MANDATORY_INSURANCE", name: "Bảo hiểm bắt buộc người lao động", outputVariable: "BAO_HIEM_NLD", category: "deduction", order: 4, expression: conditional(comparison(">=", variable("NGAY_KHONG_LUONG"), constant(14)), constant(0), binary("/", binary("*", variable("LUONG_DONG_BH"), variable("TY_LE_BH_NLD")), constant(100))), rounding: { mode: "nearest", precision: 1 }, enabled: true },
+    { id: `${projectId}-f5`, projectId, code: "UNION_FEE", name: "Đoàn phí công đoàn", outputVariable: "DOAN_PHI_CONG_DOAN", category: "deduction", order: 5, expression: variable("MUC_DOAN_PHI"), rounding: { mode: "nearest", precision: 1 }, enabled: true },
+    { id: `${projectId}-f6`, projectId, code: "TOTAL_DEDUCTION", name: "Tổng khấu trừ", outputVariable: "TONG_KHAU_TRU", category: "deduction", order: 6, expression: binary("+", variable("BAO_HIEM_NLD"), variable("DOAN_PHI_CONG_DOAN")), rounding: { mode: "nearest", precision: 1 }, enabled: true },
+    { id: `${projectId}-f7`, projectId, code: "NET_PAY", name: "Thực lãnh", outputVariable: "THUC_LANH", category: "net", order: 7, expression: binary("-", variable("TONG_THU_NHAP"), variable("TONG_KHAU_TRU")), rounding: { mode: "nearest", precision: 1000 }, enabled: true },
   ];
 }
 
-const formulaVariables: FormulaVariable[] = [
-  { code: "LUONG_CO_BAN", name: "Lương cơ bản", group: "employee", sampleValue: 6500000, unit: "VNĐ" },
-  { code: "NEN_TINH_OT", name: "Nền tính tăng ca", group: "policy", sampleValue: 6500000, unit: "VNĐ" },
-  { code: "GIO_CHUAN", name: "Giờ chuẩn tháng", group: "attendance", sampleValue: 208, unit: "giờ" },
-  { code: "GIO_THUONG", name: "Giờ công thường", group: "attendance", sampleValue: 184, unit: "giờ" },
-  { code: "GIO_OT_150", name: "Giờ tăng ca 150%", group: "attendance", sampleValue: 12, unit: "giờ" },
-  { code: "TONG_PHU_CAP", name: "Tổng phụ cấp", group: "policy", sampleValue: 750000, unit: "VNĐ" },
-  { code: "BAO_HIEM_NV", name: "Bảo hiểm nhân viên", group: "policy", sampleValue: 682500, unit: "VNĐ" },
-  { code: "KHAU_TRU_KHAC", name: "Khấu trừ khác", group: "policy", sampleValue: 23400, unit: "VNĐ" },
-  // Custom Variables (Tham số đầu vào dự án do Backend trả về - Chưa có giá trị cố định)
-  {
-    code: "DON_GIA_KHOAN",
-    name: "Đơn giá khoán sản lượng",
-    group: "custom",
-    unit: "VNĐ/sp",
-    description: "Đơn giá khoán tính trên mỗi đơn vị sản lượng hoàn thành của dự án",
-    isCustom: true,
-    sampleValue: 35000,
-    defaultValue: 35000,
-  },
-  {
-    code: "HE_SO_HOAN_THANH_MIN",
-    name: "Hệ số hoàn thành tối thiểu",
-    group: "custom",
-    unit: "%",
-    description: "Tỷ lệ % KPI tối thiểu để được xét nhận thưởng năng suất",
-    isCustom: true,
-    sampleValue: 80,
-    defaultValue: 80,
-  },
-  {
-    code: "MUC_THUONG_NONG_DU_AN",
-    name: "Mức thưởng nóng dự án",
-    group: "custom",
-    unit: "VNĐ",
-    description: "Khoản thưởng đột xuất bổ sung trong kỳ của dự án",
-    isCustom: true,
-    sampleValue: 1500000,
-    defaultValue: 1500000,
-  },
-  {
-    code: "DON_GIA_CA_DEM_DAC_BIET",
-    name: "Đơn giá ca đêm đặc biệt",
-    group: "custom",
-    unit: "VNĐ/giờ",
-    description: "Đơn giá phụ cấp riêng cho ca làm việc ban đêm trong các đợt cao điểm",
-    isCustom: true,
-    sampleValue: 45000,
-    defaultValue: 45000,
-  },
-  {
-    code: "TY_LE_TRICH_QUY_DU_AN",
-    name: "Tỷ lệ trích quỹ dự án",
-    group: "custom",
-    unit: "%",
-    description: "Tỷ lệ trích nộp quỹ hoạt động nội bộ của dự án",
-    isCustom: true,
-    sampleValue: 1.5,
-    defaultValue: 1.5,
-  },
-];
+const formulaVariables = payrollFormulaVariables;
 
-export const defaultCustomVariablesDefinitions = [
-  {
-    code: "DON_GIA_KHOAN",
-    name: "Đơn giá khoán sản lượng",
-    unit: "VNĐ/sp",
-    description: "Đơn giá khoán tính trên mỗi đơn vị sản lượng hoàn thành của dự án",
-    defaultValue: 35000,
-  },
-  {
-    code: "HE_SO_HOAN_THANH_MIN",
-    name: "Hệ số hoàn thành tối thiểu",
-    unit: "%",
-    description: "Tỷ lệ % KPI tối thiểu để được xét nhận thưởng năng suất",
-    defaultValue: 80,
-  },
-  {
-    code: "MUC_THUONG_NONG_DU_AN",
-    name: "Mức thưởng nóng dự án",
-    unit: "VNĐ",
-    description: "Khoản thưởng đột xuất bổ sung trong kỳ của dự án",
-    defaultValue: 1500000,
-  },
-  {
-    code: "DON_GIA_CA_DEM_DAC_BIET",
-    name: "Đơn giá ca đêm đặc biệt",
-    unit: "VNĐ/giờ",
-    description: "Đơn giá phụ cấp riêng cho ca làm việc ban đêm trong các đợt cao điểm",
-    defaultValue: 45000,
-  },
-  {
-    code: "TY_LE_TRICH_QUY_DU_AN",
-    name: "Tỷ lệ trích quỹ dự án",
-    unit: "%",
-    description: "Tỷ lệ trích nộp quỹ hoạt động nội bộ của dự án",
-    defaultValue: 1.5,
-  },
-];
+export const defaultCustomVariablesDefinitions = payrollProjectParameterDefinitions;
 
-const projectCustomVariables: ProjectCustomVariable[] = projects.flatMap((project, pIndex) =>
-  defaultCustomVariablesDefinitions.map((def, vIndex) => ({
+const projectCustomVariables: ProjectCustomVariable[] = projects.flatMap((project) =>
+  defaultCustomVariablesDefinitions.map((def) => ({
     id: `${project.id}-${def.code}`,
     projectId: project.id,
     code: def.code,
@@ -1422,8 +1341,8 @@ const projectCustomVariables: ProjectCustomVariable[] = projects.flatMap((projec
     unit: def.unit,
     description: def.description,
     defaultValue: def.defaultValue,
-    // Set value for some variables on first project, while leaving others null so user can input and test
-    value: pIndex === 0 && vIndex < 3 ? def.defaultValue ?? null : null,
+    // The supplied policy belongs to SWM-DN; other projects must confirm their own values.
+    value: project.code === "SWM-DN" ? def.defaultValue ?? null : null,
     updatedAt: "2026-08-20T10:00:00Z",
   }))
 );
@@ -1734,7 +1653,7 @@ const employees: Employee[] = [
     joinDate: "2022-09-01",
     status: "active",
     groupId: "grp-mgmt-prj-sec",
-    groupName: "Đội trưởng mục tiêu",
+    groupName: "Tổ trưởng",
   },
   {
     id: "emp-sec-002",
@@ -1750,7 +1669,7 @@ const employees: Employee[] = [
     joinDate: "2023-10-15",
     status: "active",
     groupId: "grp-off-prj-sec",
-    groupName: "Nhân viên bảo vệ chính thức",
+    groupName: "Công nhân",
   },
 
   // PRJ-TECHPARK
@@ -2820,8 +2739,8 @@ const projectEmployeeGroups: ProjectEmployeeGroup[] = [
     id: "grp-mgmt-prj-sec",
     projectId: "prj-security",
     code: "shift_leader",
-    name: "Đội trưởng mục tiêu",
-    description: "Chỉ huy và phân ca trực bảo vệ",
+    name: "Tổ trưởng",
+    description: "Tổ trưởng quản lý và phân công công việc",
     colorTone: "info",
     isDefault: false,
     sortOrder: 1,
@@ -2831,8 +2750,8 @@ const projectEmployeeGroups: ProjectEmployeeGroup[] = [
     id: "grp-off-prj-sec",
     projectId: "prj-security",
     code: "chinh_thuc",
-    name: "Nhân viên bảo vệ chính thức",
-    description: "Bảo vệ mục tiêu cố định",
+    name: "Công nhân",
+    description: "Công nhân làm việc chính thức",
     colorTone: "success",
     isDefault: true,
     sortOrder: 2,
@@ -3525,7 +3444,7 @@ export const otherIncomes: OtherIncomeRecord[] = [
 ];
 
 export const seedDatabase: MockDatabase = {
-  schemaVersion: 18,
+  schemaVersion: 19,
   projects,
   policyDefinitions,
   projectPolicies,

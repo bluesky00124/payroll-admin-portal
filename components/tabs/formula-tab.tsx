@@ -6,21 +6,15 @@ import {
   Calculator,
   CheckCircle2,
   ChevronUp,
-  Clock,
-  Coins,
   GripVertical,
-  Home,
   Layers,
   Minus,
   Pencil,
   Plus,
   Save,
   Search,
-  Shield,
   SlidersHorizontal,
   Trash2,
-  TrendingUp,
-  Users,
   Wand2,
   X,
 } from "lucide-react";
@@ -37,255 +31,12 @@ import {
   tokenizeFriendlyText,
   variableCodeToName,
 } from "@/lib/formula-engine";
+import {
+  salaryComponentLibrary,
+  type SalaryComponentDefinition,
+} from "@/lib/payroll-component-library";
 import type { ExpressionNode, ProjectCustomVariable, SalaryFormula } from "@/lib/types";
 import { uid } from "@/lib/utils";
-
-interface LibraryComponentItem {
-  id: string;
-  code: string;
-  name: string;
-  outputVariable: string;
-  category: "income" | "deduction";
-  defaultFormulaText: string;
-  iconName: "basic" | "ot" | "bonus" | "housing" | "tax" | "insurance" | "union";
-  tagText: string;
-  badgeStyle: string;
-  cardStyle: string;
-}
-
-const libraryComponents: LibraryComponentItem[] = [
-  // Earnings (Thu nhập & Phụ cấp)
-  {
-    id: "lib-1",
-    code: "VAR_BASE_01",
-    name: "Lương cơ bản",
-    outputVariable: "LUONG_CO_BAN",
-    category: "income",
-    defaultFormulaText: "LUONG_CO_BAN / GIO_CHUAN * GIO_THUONG",
-    iconName: "basic",
-    tagText: "Cố định",
-    badgeStyle: "bg-primary/10 text-primary border-primary/20",
-    cardStyle: "bg-card border-border hover:border-primary/50",
-  },
-  {
-    id: "lib-2",
-    code: "CALC_OT_150",
-    name: "Lương tăng ca 150% (Ngày thường)",
-    outputVariable: "LUONG_OT_150",
-    category: "income",
-    defaultFormulaText: "NEN_TINH_OT / GIO_CHUAN * 1.5 * GIO_OT_150",
-    iconName: "ot",
-    tagText: "OT 150%",
-    badgeStyle: "bg-primary/10 text-primary border-primary/20",
-    cardStyle: "bg-card border-border hover:border-primary/50",
-  },
-  {
-    id: "lib-2b",
-    code: "CALC_OT_200",
-    name: "Lương tăng ca 200% (Cuối tuần)",
-    outputVariable: "LUONG_OT_200",
-    category: "income",
-    defaultFormulaText: "NEN_TINH_OT / GIO_CHUAN * 2.0 * GIO_OT_200",
-    iconName: "ot",
-    tagText: "OT 200%",
-    badgeStyle: "bg-primary/10 text-primary border-primary/20",
-    cardStyle: "bg-card border-border hover:border-primary/50",
-  },
-  {
-    id: "lib-2c",
-    code: "CALC_OT_300",
-    name: "Lương tăng ca 300% (Ngày lễ, tết)",
-    outputVariable: "LUONG_OT_300",
-    category: "income",
-    defaultFormulaText: "NEN_TINH_OT / GIO_CHUAN * 3.0 * GIO_OT_300",
-    iconName: "ot",
-    tagText: "OT 300%",
-    badgeStyle: "bg-primary/10 text-primary border-primary/20",
-    cardStyle: "bg-card border-border hover:border-primary/50",
-  },
-  {
-    id: "lib-3",
-    code: "VAR_BONUS_KPI",
-    name: "Thưởng hiệu suất KPI",
-    outputVariable: "THUONG_KPI",
-    category: "income",
-    defaultFormulaText: "THUONG_DANG_KY * TY_LE_HOAN_THANH",
-    iconName: "bonus",
-    tagText: "Thưởng KPI",
-    badgeStyle: "bg-primary/10 text-primary border-primary/20",
-    cardStyle: "bg-card border-border hover:border-primary/50",
-  },
-  {
-    id: "lib-3b",
-    code: "VAR_ATTEND_BONUS",
-    name: "Thưởng chuyên cần (Theo điều kiện IF)",
-    outputVariable: "THUONG_CHUYEN_CAN",
-    category: "income",
-    defaultFormulaText: "IF( GIO_THUONG >= GIO_CHUAN, 1000000, 500000 )",
-    iconName: "bonus",
-    tagText: "Hàm IF",
-    badgeStyle: "bg-primary/10 text-primary border-primary/20",
-    cardStyle: "bg-card border-border hover:border-primary/50",
-  },
-  {
-    id: "lib-4",
-    code: "ALLOW_HOUSE_01",
-    name: "Phụ cấp nhà ở",
-    outputVariable: "PC_NHA_O_CONG",
-    category: "income",
-    defaultFormulaText: "PC_NHA_O / GIO_CHUAN * GIO_THUONG",
-    iconName: "housing",
-    tagText: "Phụ cấp",
-    badgeStyle: "bg-primary/10 text-primary border-primary/20",
-    cardStyle: "bg-card border-border hover:border-primary/50",
-  },
-  {
-    id: "lib-5",
-    code: "ALLOW_TRAVEL_01",
-    name: "Phụ cấp đi lại & xăng xe",
-    outputVariable: "PC_DI_LAI_CONG",
-    category: "income",
-    defaultFormulaText: "PC_DI_LAI / GIO_CHUAN * GIO_THUONG",
-    iconName: "housing",
-    tagText: "Phụ cấp",
-    badgeStyle: "bg-primary/10 text-primary border-primary/20",
-    cardStyle: "bg-card border-border hover:border-primary/50",
-  },
-  {
-    id: "lib-5b",
-    code: "ALLOW_MEAL_01",
-    name: "Phụ cấp ăn trưa / cơm ca",
-    outputVariable: "PC_AN_TRUA",
-    category: "income",
-    defaultFormulaText: "PC_AN_TRUA_NGAY * GIO_THUONG / 8",
-    iconName: "housing",
-    tagText: "Ăn trưa",
-    badgeStyle: "bg-primary/10 text-primary border-primary/20",
-    cardStyle: "bg-card border-border hover:border-primary/50",
-  },
-  {
-    id: "lib-5c",
-    code: "ALLOW_PHONE_01",
-    name: "Phụ cấp điện thoại & trang phục",
-    outputVariable: "PC_DIEN_THOAI",
-    category: "income",
-    defaultFormulaText: "PC_DIEN_THOAI_CO_DINH",
-    iconName: "housing",
-    tagText: "Phụ cấp",
-    badgeStyle: "bg-primary/10 text-primary border-primary/20",
-    cardStyle: "bg-card border-border hover:border-primary/50",
-  },
-  {
-    id: "lib-5d",
-    code: "ALLOW_RESP_01",
-    name: "Phụ cấp trách nhiệm / công việc",
-    outputVariable: "PC_TRACH_NHIEM",
-    category: "income",
-    defaultFormulaText: "PC_TRACH_NHIEM_CO_DINH",
-    iconName: "housing",
-    tagText: "Trách nhiệm",
-    badgeStyle: "bg-primary/10 text-primary border-primary/20",
-    cardStyle: "bg-card border-border hover:border-primary/50",
-  },
-
-  // Deductions (Khấu trừ & Trích nộp)
-  {
-    id: "lib-6",
-    code: "TAX_PIT_TIERS",
-    name: "Thuế thu nhập cá nhân (TNCN)",
-    outputVariable: "THUE_TNCN",
-    category: "deduction",
-    defaultFormulaText: "THU_NHAP_CHIU_THUE * 0.05",
-    iconName: "tax",
-    tagText: "Thuế TNCN",
-    badgeStyle: "bg-destructive/10 text-destructive border-destructive/20",
-    cardStyle: "bg-card border-border hover:border-destructive/50",
-  },
-  {
-    id: "lib-7",
-    code: "DED_SOC_INS",
-    name: "Bảo hiểm bắt buộc trích nộp (10.5%)",
-    outputVariable: "BAO_HIEM_NV",
-    category: "deduction",
-    defaultFormulaText: "LUONG_DONG_BH * 0.105",
-    iconName: "insurance",
-    tagText: "Bảo hiểm 10.5%",
-    badgeStyle: "bg-destructive/10 text-destructive border-destructive/20",
-    cardStyle: "bg-card border-border hover:border-destructive/50",
-  },
-  {
-    id: "lib-7b",
-    code: "DED_BHXH",
-    name: "Bảo hiểm xã hội (BHXH 8%)",
-    outputVariable: "BAO_HIEM_XH",
-    category: "deduction",
-    defaultFormulaText: "LUONG_DONG_BH * 0.08",
-    iconName: "insurance",
-    tagText: "BHXH 8%",
-    badgeStyle: "bg-destructive/10 text-destructive border-destructive/20",
-    cardStyle: "bg-card border-border hover:border-destructive/50",
-  },
-  {
-    id: "lib-7c",
-    code: "DED_BHYT",
-    name: "Bảo hiểm y tế (BHYT 1.5%)",
-    outputVariable: "BAO_HIEM_YT",
-    category: "deduction",
-    defaultFormulaText: "LUONG_DONG_BH * 0.015",
-    iconName: "insurance",
-    tagText: "BHYT 1.5%",
-    badgeStyle: "bg-destructive/10 text-destructive border-destructive/20",
-    cardStyle: "bg-card border-border hover:border-destructive/50",
-  },
-  {
-    id: "lib-7d",
-    code: "DED_BHTN",
-    name: "Bảo hiểm thất nghiệp (BHTN 1%)",
-    outputVariable: "BAO_HIEM_TN",
-    category: "deduction",
-    defaultFormulaText: "LUONG_DONG_BH * 0.01",
-    iconName: "insurance",
-    tagText: "BHTN 1%",
-    badgeStyle: "bg-destructive/10 text-destructive border-destructive/20",
-    cardStyle: "bg-card border-border hover:border-destructive/50",
-  },
-  {
-    id: "lib-8",
-    code: "DED_UNION_FEE",
-    name: "Kinh phí Công đoàn người lao động (1%)",
-    outputVariable: "CONG_DOAN_NV",
-    category: "deduction",
-    defaultFormulaText: "LUONG_CO_BAN * 0.01",
-    iconName: "union",
-    tagText: "Đoàn phí 1%",
-    badgeStyle: "bg-destructive/10 text-destructive border-destructive/20",
-    cardStyle: "bg-card border-border hover:border-destructive/50",
-  },
-  {
-    id: "lib-9",
-    code: "DED_ADVANCE",
-    name: "Tạm ứng lương trong tháng",
-    outputVariable: "TAM_UNG_LUONG",
-    category: "deduction",
-    defaultFormulaText: "SO_TIEN_TAM_UNG",
-    iconName: "tax",
-    tagText: "Tạm ứng",
-    badgeStyle: "bg-destructive/10 text-destructive border-destructive/20",
-    cardStyle: "bg-card border-border hover:border-destructive/50",
-  },
-  {
-    id: "lib-10",
-    code: "DED_LATE",
-    name: "Khấu trừ đi trễ / về sớm",
-    outputVariable: "KHAU_TRU_DI_TRE",
-    category: "deduction",
-    defaultFormulaText: "SO_PHUT_DI_TRE * DON_GIA_DI_TRE",
-    iconName: "tax",
-    tagText: "Kỷ luật",
-    badgeStyle: "bg-destructive/10 text-destructive border-destructive/20",
-    cardStyle: "bg-card border-border hover:border-destructive/50",
-  },
-];
 
 const categoryLabels: Record<SalaryFormula["category"], string> = {
   income: "Thu nhập",
@@ -294,59 +45,6 @@ const categoryLabels: Record<SalaryFormula["category"], string> = {
   net: "Kết quả thực nhận",
   attendance: "Chấm công",
 };
-
-function ComponentIcon({ name, className = "w-4 h-4" }: { name: string; className?: string }) {
-  switch (name) {
-    case "basic":
-      return <Plus className={className} />;
-    case "ot":
-      return <Clock className={className} />;
-    case "bonus":
-      return <TrendingUp className={className} />;
-    case "housing":
-      return <Home className={className} />;
-    case "tax":
-      return <Minus className={className} />;
-    case "insurance":
-      return <Shield className={className} />;
-    case "union":
-      return <Users className={className} />;
-    default:
-      return <Coins className={className} />;
-  }
-}
-
-function getVietnameseLabel(code: string, variableNameMap?: Map<string, string>): string {
-  if (!code) return "";
-  if (variableNameMap && variableNameMap.has(code)) {
-    return variableNameMap.get(code)!;
-  }
-  const knownDict: Record<string, string> = {
-    LUONG_CO_BAN: "Lương cơ bản",
-    NEN_TINH_OT: "Nền tính tăng ca",
-    GIO_CHUAN: "Giờ chuẩn tháng",
-    GIO_THUONG: "Giờ công thường",
-    GIO_OT_150: "Giờ tăng ca 150%",
-    TONG_PHU_CAP: "Tổng phụ cấp",
-    BAO_HIEM_NV: "Bảo hiểm nhân viên",
-    KHAU_TRU_KHAC: "Khấu trừ khác",
-    LUONG_NGAY_CONG: "Lương theo giờ công",
-    LUONG_OT_150: "Lương tăng ca 150%",
-    TONG_THU_NHAP: "Tổng thu nhập",
-    TONG_KHAU_TRU: "Tổng khấu trừ",
-    THUC_LANH: "Tổng thực lãnh",
-    VAR_BASE_SCALE: "Hệ số lương cơ bản",
-    VAR_BASE_01: "Lương cơ bản",
-    CALC_OT_RATES: "Lương tăng ca",
-    VAR_BONUS_KPI: "Thưởng hiệu suất KPI",
-    ALLOW_HOUSE_01: "Phụ cấp nhà ở",
-    ALLOW_TRAVEL_01: "Phụ cấp đi lại & xăng xe",
-    TAX_PIT_TIERS: "Thuế TNCN",
-    DED_SOC_INS: "Bảo hiểm bắt buộc",
-    DED_UNION_FEE: "Kinh phí Công đoàn",
-  };
-  return knownDict[code] ?? code;
-}
 
 export function OperatorSymbol({
   op,
@@ -566,7 +264,7 @@ export function FormulaVisualExpression({
   rawText?: string;
   variableNameMap?: Map<string, string>;
 }) {
-  const elements = useMemo(() => {
+  const elements = (() => {
     if (formula?.expression) {
       return renderVisualExpressionNode(formula.expression, variableNameMap);
     }
@@ -626,7 +324,7 @@ export function FormulaVisualExpression({
         </span>
       );
     });
-  }, [formula?.expression, rawText, variableNameMap]);
+  })();
 
   if (!elements || elements.length === 0) {
     return <span className="text-muted text-xs italic">Chưa thiết lập công thức</span>;
@@ -635,77 +333,7 @@ export function FormulaVisualExpression({
   return <div className="flex flex-wrap items-center gap-1.5 inline-flex">{elements}</div>;
 }
 
-function getSuggestedVariables(formula: SalaryFormula, variablesCatalog: { code: string; name: string }[]) {
-  const code = (formula.code || formula.outputVariable || "").toUpperCase();
-
-  if (code.includes("BASE") || code.includes("LUONG_CO_BAN") || code.includes("BASIC")) {
-    return [
-      { code: "LUONG_CO_BAN", name: "Lương cơ bản" },
-      { code: "GIO_CHUAN", name: "Giờ chuẩn tháng" },
-      { code: "GIO_THUONG", name: "Giờ công thường" },
-      { code: "VAR_BASE_SCALE", name: "Hệ số lương" },
-    ];
-  }
-
-  if (code.includes("OT") || code.includes("OVERTIME") || code.includes("TANG_CA")) {
-    return [
-      { code: "NEN_TINH_OT", name: "Nền tính tăng ca" },
-      { code: "GIO_CHUAN", name: "Giờ chuẩn tháng" },
-      { code: "GIO_OT_150", name: "Giờ tăng ca 150%" },
-      { code: "LUONG_CO_BAN", name: "Lương cơ bản" },
-    ];
-  }
-
-  if (code.includes("KPI") || code.includes("BONUS") || code.includes("THUONG")) {
-    return [
-      { code: "THUONG_DANG_KY", name: "Thưởng đăng ký" },
-      { code: "TY_LE_HOAN_THANH", name: "Tỷ lệ hoàn thành" },
-      { code: "LUONG_CO_BAN", name: "Lương cơ bản" },
-    ];
-  }
-
-  if (code.includes("HOUSE") || code.includes("NHA_O") || code.includes("TRAVEL") || code.includes("DI_LAI") || code.includes("ALLOW")) {
-    return [
-      { code: "PC_DINH_MUC", name: "Mức phụ cấp" },
-      { code: "GIO_CHUAN", name: "Giờ chuẩn tháng" },
-      { code: "GIO_THUONG", name: "Giờ công thường" },
-    ];
-  }
-
-  if (code.includes("INS") || code.includes("BH") || code.includes("BAO_HIEM")) {
-    return [
-      { code: "LUONG_DONG_BH", name: "Lương đóng bảo hiểm" },
-      { code: "0.105", name: "10.5%" },
-      { code: "LUONG_CO_BAN", name: "Lương cơ bản" },
-    ];
-  }
-
-  if (code.includes("TAX") || code.includes("PIT") || code.includes("THUE")) {
-    return [
-      { code: "THU_NHAP_CHIU_THUE", name: "Thu nhập chịu thuế" },
-      { code: "TONG_THU_NHAP", name: "Tổng thu nhập" },
-      { code: "GIAM_TRU_GIA_CANH", name: "Giảm trừ gia cảnh" },
-    ];
-  }
-
-  if (code.includes("UNION") || code.includes("CONG_DOAN")) {
-    return [
-      { code: "LUONG_CO_BAN", name: "Lương cơ bản" },
-      { code: "0.01", name: "1%" },
-    ];
-  }
-
-  return variablesCatalog.length > 0
-    ? variablesCatalog.slice(0, 5).map((v) => ({ code: v.code, name: v.name }))
-    : [
-      { code: "LUONG_CO_BAN", name: "Lương cơ bản" },
-      { code: "GIO_CHUAN", name: "Giờ chuẩn tháng" },
-      { code: "GIO_THUONG", name: "Giờ công thường" },
-    ];
-}
-
-
-export function FormulaTab({ projectId, embedded = false }: { projectId: string; embedded?: boolean }) {
+export function FormulaTab({ projectId }: { projectId: string; embedded?: boolean }) {
   const { notify } = useToast();
   const queryClient = useQueryClient();
 
@@ -743,7 +371,7 @@ export function FormulaTab({ projectId, embedded = false }: { projectId: string;
   const [validation, setValidation] = useState<{ valid: boolean; errors: string[] } | null>(null);
 
   // Dragged component state
-  const [draggedItem, setDraggedItem] = useState<LibraryComponentItem | null>(null);
+  const [draggedItem, setDraggedItem] = useState<SalaryComponentDefinition | null>(null);
 
   // Auto-scroll the page smoothly when dragging near top or bottom edges
   useEffect(() => {
@@ -868,14 +496,18 @@ export function FormulaTab({ projectId, embedded = false }: { projectId: string;
 
   // Derived sections
   const grossComponents = useMemo(() => formulas.filter((f) => f.category === "income"), [formulas]);
-  const deductionComponents = useMemo(() => formulas.filter((f) => f.category === "deduction"), [formulas]);
+  const deductionComponents = useMemo(
+    () => formulas.filter((f) => f.category === "deduction" && f.code !== "TOTAL_DEDUCTION"),
+    [formulas],
+  );
 
   const filteredLibrary = useMemo(() => {
     const q = filterSearch.toLowerCase().trim();
-    if (!q) return libraryComponents;
-    return libraryComponents.filter(
+    if (!q) return salaryComponentLibrary;
+    return salaryComponentLibrary.filter(
       (item) =>
         item.name.toLowerCase().includes(q) ||
+        item.description.toLowerCase().includes(q) ||
         item.code.toLowerCase().includes(q) ||
         item.outputVariable.toLowerCase().includes(q)
     );
@@ -914,7 +546,7 @@ export function FormulaTab({ projectId, embedded = false }: { projectId: string;
   }, [formulas, rawTexts, formulasQuery.data, variableNameMap]);
 
   // Add component to structure
-  const addComponentToStructure = (item: LibraryComponentItem) => {
+  const addComponentToStructure = (item: SalaryComponentDefinition) => {
     if (existingOutputCodes.has(item.outputVariable.toUpperCase())) {
       notify(`Mục "${item.name}" đã có trong cấu trúc.`, "warning");
       return;
@@ -1071,7 +703,7 @@ export function FormulaTab({ projectId, embedded = false }: { projectId: string;
       {/* Main Workspace Layout Grid */}
       <div className="grid grid-cols-1 lg:grid-cols-12 gap-5 items-start">
         {/* Left Column: Components Library Sidebar (Compact Width, Sticky & Matching Chip Size) */}
-        <aside className="lg:col-span-4 xl:col-span-3 content-card p-3.5 space-y-3.5 lg:sticky lg:top-4 lg:max-h-[calc(100vh-32px)] lg:overflow-y-auto">
+        <aside className="lg:col-span-4 content-card p-3.5 space-y-3.5 lg:sticky lg:top-4 lg:max-h-[calc(100vh-32px)] lg:overflow-y-auto">
           <div className="flex items-center justify-between pb-2.5 border-b border-border">
             <strong className="text-xs font-bold text-foreground flex items-center gap-1.5">
               <Layers className="w-4 h-4 text-primary" /> Thư viện Thành phần Lương
@@ -1115,6 +747,7 @@ export function FormulaTab({ projectId, embedded = false }: { projectId: string;
                     draggable={!isAdded}
                     onDragStart={() => setDraggedItem(item)}
                     onDragEnd={() => setDraggedItem(null)}
+                    title={item.description}
                     className={`w-full min-h-[34px] px-2.5 py-1.5 rounded-lg border text-xs font-semibold flex items-center justify-between gap-2 transition-all group ${
                       isAdded
                         ? "bg-secondary/40 border-border/30 text-muted-foreground opacity-50 cursor-not-allowed shadow-none"
@@ -1165,6 +798,7 @@ export function FormulaTab({ projectId, embedded = false }: { projectId: string;
                     draggable={!isAdded}
                     onDragStart={() => setDraggedItem(item)}
                     onDragEnd={() => setDraggedItem(null)}
+                    title={item.description}
                     className={`w-full min-h-[34px] px-2.5 py-1.5 rounded-lg border text-xs font-semibold flex items-center justify-between gap-2 transition-all group ${
                       isAdded
                         ? "bg-secondary/40 border-border/30 text-muted-foreground opacity-50 cursor-not-allowed shadow-none"
@@ -1221,10 +855,11 @@ export function FormulaTab({ projectId, embedded = false }: { projectId: string;
                   const hasValue = param.value !== null && param.value !== undefined;
 
                   return (
-                    <div
+                    <button
+                      type="button"
                       key={param.id || param.code}
                       onClick={() => setIsParamsModalOpen(true)}
-                      className="w-full min-h-[34px] px-2.5 py-1.5 rounded-lg border border-border/70 bg-card text-xs font-semibold flex items-center justify-between gap-2 shadow-2xs group hover:border-primary/40 cursor-pointer transition-all"
+                      className="w-full min-h-[34px] px-2.5 py-1.5 rounded-lg border border-border/70 bg-card text-left text-xs font-semibold flex items-center justify-between gap-2 shadow-2xs group hover:border-primary/40 cursor-pointer transition-all"
                       title={`${param.description || param.name} - Bấm để chỉnh sửa`}
                     >
                       <div className="flex items-center gap-1.5 min-w-0">
@@ -1252,7 +887,7 @@ export function FormulaTab({ projectId, embedded = false }: { projectId: string;
                           </span>
                         )}
                       </div>
-                    </div>
+                    </button>
                   );
                 })}
               </div>
@@ -1261,7 +896,7 @@ export function FormulaTab({ projectId, embedded = false }: { projectId: string;
         </aside>
 
         {/* Right Column: Flow Canvas & Detailed Formula Cards */}
-        <section className="lg:col-span-8 xl:col-span-9 space-y-5">
+        <section className="lg:col-span-8 space-y-5">
           {/* 1. Unified Payroll Flow Architecture Pipeline (Balanced 2-Column Format) */}
           <div className="content-card overflow-hidden !p-0 border border-border shadow-xs">
             {/* Header with Title and Pipeline Equation Badge */}

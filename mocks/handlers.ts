@@ -374,9 +374,10 @@ export const handlers = [
       }
     });
     variables.LUONG_CO_BAN = employee.baseSalary;
-    variables.NEN_TINH_OT = employee.baseSalary;
-    variables.GIO_THUONG = employee.workHours;
-    variables.GIO_OT_150 = employee.overtimeHours;
+    variables.LUONG_DONG_BH = employee.baseSalary;
+    variables.MUC_LUONG_TINH_OT = employee.baseSalary;
+    variables.NGAY_CONG_THUC_TE = employee.workHours / 8;
+    variables.GIO_OT_NGAY_THUONG = employee.overtimeHours;
     const breakdown = formulas.map((formula) => {
       const amount = applyRounding(evaluateExpression(formula.expression, variables), formula.rounding);
       variables[formula.outputVariable] = amount;
@@ -743,7 +744,11 @@ export const handlers = [
   http.patch("/api/dependents/:id/attachment", async ({ params, request }) => {
     await delay(250);
     const id = String(params.id);
-    const payload = (await request.json()) as { attachmentType: string; attachmentName: string; attachmentUrl?: string };
+    const payload = (await request.json()) as {
+      attachmentType: NonNullable<Dependent["attachmentType"]>;
+      attachmentName: string;
+      attachmentUrl?: string;
+    };
 
     let updatedItem: Dependent | undefined;
     mutateMockDatabase((db) => {
@@ -751,7 +756,7 @@ export const handlers = [
       if (idx >= 0) {
         db.dependents[idx] = {
           ...db.dependents[idx],
-          attachmentType: payload.attachmentType as any,
+          attachmentType: payload.attachmentType,
           attachmentName: payload.attachmentName,
           attachmentUrl: payload.attachmentUrl ?? db.dependents[idx].attachmentUrl,
         };

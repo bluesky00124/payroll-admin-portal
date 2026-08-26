@@ -1,18 +1,15 @@
 "use client";
 
 import {
-  Check,
   Delete,
   Search,
   Variable,
   X,
 } from "lucide-react";
 import React, { useEffect, useMemo, useRef, useState } from "react";
-import { Badge } from "@/components/ui";
 import {
   findVariableAtCursor,
   parseExpressionTextResult,
-  variableCodeToName,
 } from "@/lib/formula-engine";
 import type { FormulaVariable, SalaryFormula } from "@/lib/types";
 import { OperatorSymbol } from "@/components/tabs/formula-tab";
