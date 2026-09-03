@@ -15,7 +15,7 @@ interface ThemeContextValue {
   toggleMode: () => void;
 }
 
-const ThemeContext = createContext<ThemeContextValue | null>(null);
+export const ThemeContext = createContext<ThemeContextValue | null>(null);
 
 export function useTheme() {
   const context = useContext(ThemeContext);
@@ -23,10 +23,10 @@ export function useTheme() {
   return context;
 }
 
-type ToastTone = "success" | "warning" | "error";
-interface ToastItem { id: number; message: string; tone: ToastTone }
-interface ToastContextValue { notify: (message: string, tone?: ToastTone) => void }
-const ToastContext = createContext<ToastContextValue | null>(null);
+export type ToastTone = "success" | "warning" | "error";
+export interface ToastItem { id: number; message: string; tone: ToastTone }
+export interface ToastContextValue { notify: (message: string, tone?: ToastTone) => void }
+export const ToastContext = createContext<ToastContextValue | null>(null);
 
 export function useToast() {
   const context = useContext(ToastContext);
@@ -36,14 +36,14 @@ export function useToast() {
 
 export type UserRole = "accountant" | "bcsx" | "project_owner" | "payment_accountant";
 
-interface UserRoleContextValue {
+export interface UserRoleContextValue {
   role: UserRole;
   setRole: (role: UserRole) => void;
   roleLabel: string;
   roleSubtitle: string;
 }
 
-const UserRoleContext = createContext<UserRoleContextValue | null>(null);
+export const UserRoleContext = createContext<UserRoleContextValue | null>(null);
 
 export function useUserRole() {
   const context = useContext(UserRoleContext);

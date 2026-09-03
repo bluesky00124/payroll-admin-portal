@@ -3,9 +3,16 @@
 import * as Dialog from "@radix-ui/react-dialog";
 import * as DropdownMenu from "@radix-ui/react-dropdown-menu";
 import { AlertCircle, Calendar, Check, ChevronDown, ChevronLeft, ChevronRight, ChevronsLeft, ChevronsRight, Inbox, LoaderCircle, MoreVertical, Save, Search, X } from "lucide-react";
-import { type ButtonHTMLAttributes, type ReactNode, useEffect, useMemo, useRef, useState } from "react";
+import { createContext, type ButtonHTMLAttributes, type ReactNode, useContext, useEffect, useMemo, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import { cn, formatMonthYear } from "@/lib/utils";
+
+export const PortalContainerContext = createContext<HTMLElement | null>(null);
+
+export function usePortalContainer() {
+  const container = useContext(PortalContainerContext);
+  return container || (typeof document !== "undefined" ? document.body : null);
+}
 
 export function Button({
   className,
@@ -37,10 +44,31 @@ export function Badge({ children, tone = "neutral" }: { children: ReactNode; ton
   return <span className={`badge badge-${tone}`}>{children}</span>;
 }
 
-export function Modal({ open, onOpenChange, title, description, children, footer, size = "md" }: { open: boolean; onOpenChange: (open: boolean) => void; title: string; description?: string; children: ReactNode; footer?: ReactNode; size?: "sm" | "md" | "lg" | "xl" }) {
+export function Modal({
+  open,
+  onOpenChange,
+  title,
+  description,
+  children,
+  footer,
+  size = "md",
+  container,
+}: {
+  open: boolean;
+  onOpenChange: (open: boolean) => void;
+  title: string;
+  description?: string;
+  children: ReactNode;
+  footer?: ReactNode;
+  size?: "sm" | "md" | "lg" | "xl";
+  container?: HTMLElement | null;
+}) {
+  const contextContainer = usePortalContainer();
+  const targetContainer = container !== undefined ? container : contextContainer;
+
   return (
     <Dialog.Root open={open} onOpenChange={onOpenChange}>
-      <Dialog.Portal>
+      <Dialog.Portal container={targetContainer ?? undefined}>
         <Dialog.Overlay className="dialog-overlay" />
         <Dialog.Content className={`dialog-content dialog-${size}`}>
           <div className="dialog-header">
@@ -615,6 +643,8 @@ export function TableRowActions({
     };
   }, [open]);
 
+  const portalContainer = usePortalContainer();
+
   if (!items || items.length === 0) return null;
 
   return (
@@ -634,6 +664,7 @@ export function TableRowActions({
       {open &&
         coords &&
         typeof document !== "undefined" &&
+        portalContainer &&
         createPortal(
           <div
             ref={dropdownRef}
@@ -663,7 +694,7 @@ export function TableRowActions({
               </button>
             ))}
           </div>,
-          document.body
+          portalContainer || document.body
         )}
     </>
   );
@@ -791,6 +822,8 @@ export function SearchableSelect({
     };
   }, [open]);
 
+  const portalContainer = usePortalContainer();
+
   return (
     <div className={cn("searchable-select-wrap", className)}>
       <button
@@ -811,6 +844,7 @@ export function SearchableSelect({
       {open &&
         coords &&
         typeof document !== "undefined" &&
+        portalContainer &&
         createPortal(
           <div
             ref={popoverRef}
@@ -881,7 +915,7 @@ export function SearchableSelect({
               )}
             </div>
           </div>,
-          document.body
+          portalContainer || document.body
         )}
     </div>
   );

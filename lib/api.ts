@@ -31,6 +31,8 @@ import type {
   OtherIncomeRecord,
 } from "@/lib/types";
 
+import { handlers } from "@/mocks/handlers";
+
 export class ApiRequestError extends Error {
   constructor(
     message: string,
@@ -43,10 +45,43 @@ export class ApiRequestError extends Error {
 }
 
 async function request<T>(url: string, init?: RequestInit): Promise<{ data: T; meta?: PaginationMeta }> {
+  // 1. Chạy trực tiếp qua MSW handlers in-memory nếu đang ở môi trường nhúng / không có API server
+  try {
+    const baseOrigin =
+      typeof window !== "undefined" && window.location && window.location.origin && window.location.origin !== "null"
+        ? window.location.origin
+        : "http://localhost";
+    const fullUrl = url.startsWith("http") ? url : new URL(url, baseOrigin).href;
+    const req = new Request(fullUrl, init);
+    for (const handler of handlers) {
+      const result = await handler.run({ request: req });
+      if (result && result.response) {
+        const payload = (await result.response.json()) as ApiResponse<T>;
+        if (!result.response.ok || payload.error) {
+          throw new ApiRequestError(
+            payload.error?.message ?? "Yêu cầu thất bại",
+            payload.error?.code ?? "UNKNOWN_ERROR",
+            result.response.status,
+            payload.error?.fields
+          );
+        }
+        return { data: payload.data, meta: payload.meta };
+      }
+    }
+  } catch (err) {
+    if (err instanceof ApiRequestError) throw err;
+    // Nếu có lỗi parse trong in-memory handler, fallback tiếp tục thử fetch
+  }
+
+  // 2. Fallback fetch thông thường
   const response = await fetch(url, {
     ...init,
     headers: { "Content-Type": "application/json", ...init?.headers },
   });
+  const contentType = response.headers.get("content-type") || "";
+  if (!contentType.includes("application/json")) {
+    throw new ApiRequestError(`API endpoint không tồn tại (Status: ${response.status})`, "NOT_FOUND", response.status);
+  }
   const payload = (await response.json()) as ApiResponse<T>;
   if (!response.ok || payload.error) {
     throw new ApiRequestError(payload.error?.message ?? "Yêu cầu thất bại", payload.error?.code ?? "UNKNOWN_ERROR", response.status, payload.error?.fields);

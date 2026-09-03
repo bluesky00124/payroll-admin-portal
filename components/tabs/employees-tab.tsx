@@ -76,8 +76,7 @@ export function EmployeesTab({
       {/* Top Header & Project Filter (Shown when not embedded or standalone) */}
       <div className="tab-heading mb-4">
         <div>
-          <span className="section-kicker">QUẢN TRỊ NHÂN SỰ &amp; DỮ LIỆU TÍNH LƯƠNG</span>
-          <h2>Người lao động theo dự án</h2>
+          <h1>Người lao động theo dự án</h1>
         </div>
 
         {!embedded && (

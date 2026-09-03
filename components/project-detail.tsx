@@ -11,37 +11,44 @@ import { ErrorState, LoadingBlock } from "@/components/ui";
 import { api } from "@/lib/api";
 import { formatDate } from "@/lib/utils";
 
+import Link from "next/link";
+import { ArrowLeft } from "lucide-react";
+
 type TabId = "policies" | "formulas";
 
-export function ProjectDetail({ projectId }: { projectId: string }) {
+export function ProjectDetail({ projectId, embedded = false }: { projectId: string; embedded?: boolean }) {
   const [activeTab, setActiveTab] = useState<TabId>("policies");
   const projectQuery = useQuery({ queryKey: ["project", projectId], queryFn: () => api.getProject(projectId) });
 
-  if (projectQuery.isLoading)
-    return (
-      <AdminShell detailLabel="Đang tải…">
-        <LoadingBlock rows={7} />
-      </AdminShell>
-    );
+  if (projectQuery.isLoading) {
+    const loadingEl = <LoadingBlock rows={7} />;
+    return embedded ? loadingEl : <AdminShell detailLabel="Đang tải…">{loadingEl}</AdminShell>;
+  }
 
-  if (projectQuery.isError || !projectQuery.data)
-    return (
-      <AdminShell detailLabel="Không tìm thấy">
-        <ErrorState
-          message={(projectQuery.error as Error)?.message ?? "Không tìm thấy dự án"}
-          retry={() => projectQuery.refetch()}
-        />
-      </AdminShell>
+  if (projectQuery.isError || !projectQuery.data) {
+    const errorEl = (
+      <ErrorState
+        message={(projectQuery.error as Error)?.message ?? "Không tìm thấy dự án"}
+        retry={() => projectQuery.refetch()}
+      />
     );
+    return embedded ? errorEl : <AdminShell detailLabel="Không tìm thấy">{errorEl}</AdminShell>;
+  }
 
   const project = projectQuery.data;
 
-  return (
-    <AdminShell detailLabel={project.code}>
+  const content = (
+    <div className="project-detail-container">
       {/* Read-only Project Header (Compact) */}
       <header className="detail-header">
-        <div>
+        <div className="flex items-center justify-between gap-4 flex-wrap w-full">
           <div className="detail-code-row">
+            {embedded && (
+              <Link href="/projects" className="button button-secondary button-sm flex items-center gap-1.5 mr-2">
+                <ArrowLeft className="w-4 h-4" />
+                <span>Quay lại</span>
+              </Link>
+            )}
             <span className="project-monogram">
               <Factory className="w-4 h-4" />
             </span>
@@ -96,6 +103,8 @@ export function ProjectDetail({ projectId }: { projectId: string }) {
           Đang đồng bộ
         </div>
       )}
-    </AdminShell>
+    </div>
   );
+
+  return embedded ? content : <AdminShell detailLabel={project.code}>{content}</AdminShell>;
 }

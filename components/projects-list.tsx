@@ -37,12 +37,7 @@ export function ProjectsList() {
     <>
       <div className="page-heading">
         <div>
-          <div className="eyebrow">
-            <BriefcaseBusiness />
-            CẤU HÌNH DỰ ÁN
-          </div>
           <h1>Quản lý dự án</h1>
-          <p>Thiết lập chính sách, tăng ca và công thức tính lương riêng cho từng đối tác.</p>
         </div>
       </div>
 

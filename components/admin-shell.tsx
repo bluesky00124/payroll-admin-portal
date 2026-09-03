@@ -18,7 +18,7 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useState } from "react";
 import { useResetDemo, useTheme, useToast, useUserRole, type ThemePreset } from "@/components/providers";
-import { Button, Modal } from "@/components/ui";
+import { Button, Modal, usePortalContainer } from "@/components/ui";
 
 const themeLabels: Record<ThemePreset, string> = {
   corporate: "Corporate Teal",
@@ -54,6 +54,7 @@ export function AdminShell({
   const { role, setRole, roleLabel, roleSubtitle } = useUserRole();
   const resetDemo = useResetDemo();
   const { notify } = useToast();
+  const portalContainer = usePortalContainer();
 
   const applyReset = () => {
     setConfirmReset(false);
@@ -63,88 +64,109 @@ export function AdminShell({
 
   const isEmployeesPage = pathname.startsWith("/employees");
   const isPayrollPage = pathname.startsWith("/payroll");
-  const isProjectsPage = pathname.startsWith("/projects");
+  const isProjectsPage = pathname === "/" || pathname.startsWith("/projects");
   const hasActivePayrollItem = isProjectsPage || isEmployeesPage || isPayrollPage;
 
   return (
-    <div className={`admin-layout ${collapsed ? "sidebar-collapsed" : ""}`}>
-      <aside className="sidebar">
-        <div className="sidebar-brand-header">
-          <Link href="/projects" className="brand-logo-link" title="Green Speed GRSC">
-            <GrscLogo compact={collapsed} />
-          </Link>
+    <div className={`admin-shell ${collapsed ? "is-collapsed" : ""}`}>
+      {/* Mobile Backdrop */}
+      {!collapsed && (
+        <div
+          className="admin-shell-backdrop"
+          onClick={() => setCollapsed(true)}
+          aria-hidden="true"
+        />
+      )}
+
+      {/* Main Sidebar */}
+      <aside className="admin-shell-sidebar">
+        <div className="sidebar-brand">
+          <GrscLogo compact={collapsed} />
+          {!collapsed && (
+            <div className="brand-meta">
+              <span className="brand-badge">Enterprise</span>
+            </div>
+          )}
+          <Button
+            variant="ghost"
+            size="icon"
+            className="sidebar-collapse-btn"
+            onClick={() => setCollapsed(!collapsed)}
+            aria-label={collapsed ? "Mở rộng thanh điều hướng" : "Thu gọn thanh điều hướng"}
+          >
+            <Menu />
+          </Button>
         </div>
 
-        <nav aria-label="Menu chính" className="sidebar-nav-container">
-          <ul className="sidebar-nav-list">
-            <li className="sidebar-nav-item">
-              <button
-                type="button"
-                className={`sidebar-parent-button ${hasActivePayrollItem ? "has-active-child" : ""}`}
-                data-state={isPayrollMenuOpen ? "open" : "closed"}
-                onClick={() => setIsPayrollMenuOpen((prev) => !prev)}
-                title="Quản lý lương"
-              >
-                <div className="nav-button-left">
-                  <Calculator className="nav-icon" />
-                  <span className="nav-label">Quản lý lương</span>
-                </div>
-                <ChevronRight className="parent-chevron" />
-              </button>
+        <nav className="sidebar-nav" aria-label="Menu chính">
+          <div className="nav-group">
+            <div
+              className={`nav-group-header ${isPayrollMenuOpen ? "is-open" : ""}`}
+              onClick={() => setIsPayrollMenuOpen(!isPayrollMenuOpen)}
+              role="button"
+              tabIndex={0}
+              onKeyDown={(e) => {
+                if (e.key === "Enter" || e.key === " ") {
+                  e.preventDefault();
+                  setIsPayrollMenuOpen(!isPayrollMenuOpen);
+                }
+              }}
+            >
+              <div className="nav-group-title">
+                <BriefcaseBusiness className="nav-group-icon" />
+                <span className="nav-group-label">Quản lý lương</span>
+              </div>
+              <ChevronRight className="nav-group-chevron" />
+            </div>
 
-              {isPayrollMenuOpen && (
-                <ul className="sidebar-submenu-list">
-                  <li>
-                    <Link
-                      className={`sidebar-submenu-button ${isProjectsPage ? "is-active" : ""}`}
-                      href="/projects"
-                      title="Dự án"
-                    >
-                      <BriefcaseBusiness className="w-4 h-4 shrink-0" />
-                      <span className="nav-label">Dự án</span>
-                    </Link>
-                  </li>
-                  <li>
-                    <Link
-                      className={`sidebar-submenu-button ${isEmployeesPage ? "is-active" : ""}`}
-                      href="/employees"
-                      title="Người lao động"
-                    >
-                      <Users className="w-4 h-4 shrink-0" />
-                      <span className="nav-label">Người lao động</span>
-                    </Link>
-                  </li>
-                  <li>
-                    <Link
-                      className={`sidebar-submenu-button ${isPayrollPage ? "is-active" : ""}`}
-                      href="/payroll"
-                      title="Bảng lương"
-                    >
-                      <Banknote className="w-4 h-4 shrink-0" />
-                      <span className="nav-label">Bảng lương</span>
-                    </Link>
-                  </li>
-                </ul>
-              )}
-            </li>
-          </ul>
+            {isPayrollMenuOpen && (
+              <div className="nav-group-items">
+                <Link
+                  href="/projects"
+                  className={`nav-item ${isProjectsPage ? "is-active" : ""}`}
+                  title="Dự án"
+                >
+                  <BriefcaseBusiness />
+                  <span>Dự án</span>
+                </Link>
+
+                <Link
+                  href="/employees"
+                  className={`nav-item ${isEmployeesPage ? "is-active" : ""}`}
+                  title="Người lao động"
+                >
+                  <Users />
+                  <span>Người lao động</span>
+                </Link>
+
+                <Link
+                  href="/payroll"
+                  className={`nav-item ${isPayrollPage ? "is-active" : ""}`}
+                  title="Bảng lương"
+                >
+                  <Banknote />
+                  <span>Bảng lương</span>
+                </Link>
+              </div>
+            )}
+          </div>
         </nav>
       </aside>
 
-      <section className="main-shell">
-        <header className="topbar">
+      <section className="admin-shell-main">
+        <header className="admin-shell-topbar">
           <div className="topbar-left">
-            <button
-              type="button"
-              className="collapse-toggle-btn"
-              onClick={() => setCollapsed((value) => !value)}
-              aria-label={collapsed ? "Mở rộng sidebar" : "Thu gọn sidebar"}
-              title={collapsed ? "Mở rộng sidebar" : "Thu gọn sidebar"}
+            <Button
+              variant="ghost"
+              size="icon"
+              className="mobile-sidebar-toggle"
+              onClick={() => setCollapsed(!collapsed)}
+              aria-label="Mở menu điều hướng"
             >
-              <Menu className="w-4 h-4" />
-            </button>
+              <Menu />
+            </Button>
 
-            <div className="breadcrumbs">
+            <div className="topbar-breadcrumb">
               {isPayrollPage ? (
                 <>
                   <Link href="/payroll">Bảng lương</Link>
@@ -187,7 +209,7 @@ export function AdminShell({
                   <span className="desktop-only">{themeLabels[preset]}</span>
                 </Button>
               </DropdownMenu.Trigger>
-              <DropdownMenu.Portal>
+              <DropdownMenu.Portal container={portalContainer ?? undefined}>
                 <DropdownMenu.Content className="dropdown-content" align="end">
                   <DropdownMenu.Label>Giao diện</DropdownMenu.Label>
                   {(Object.keys(themeLabels) as ThemePreset[]).map((theme) => (
@@ -234,7 +256,7 @@ export function AdminShell({
                   </div>
                 </button>
               </DropdownMenu.Trigger>
-              <DropdownMenu.Portal>
+              <DropdownMenu.Portal container={portalContainer ?? undefined}>
                 <DropdownMenu.Content className="dropdown-content" align="end">
                   <DropdownMenu.Label>Đổi vai trò đăng nhập</DropdownMenu.Label>
                   <DropdownMenu.Item
