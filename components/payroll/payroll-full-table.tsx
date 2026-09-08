@@ -94,7 +94,7 @@ export function PayrollFullTable({
             <tbody>{rowData.map(({ line, employee, detail, days }) => (
               <tr key={line.id}>
                 <td className="payroll-line-employee-sticky"><div className="line-employee"><UserAvatar name={line.employeeName} size="sm" /><div><strong>{line.employeeName}</strong><small>{line.employeeCode}</small>{line.note && <em>{line.note}</em>}</div></div></td>
-                <td className="text-center font-mono">{maskValue(employee?.idCard, canViewSensitive, 3)}</td>
+                <td className="text-center">{maskValue(employee?.idCard, canViewSensitive, 3)}</td>
                 <td className="text-center">{employee?.joinDate ? formatDate(employee.joinDate) : "—"}</td>
                 <td>{employee?.department ?? "—"}</td><td>{line.position}</td>
                 <td className="text-center bank-account-cell">{maskValue(detail.payment.bankAccount, canViewSensitive)}</td>

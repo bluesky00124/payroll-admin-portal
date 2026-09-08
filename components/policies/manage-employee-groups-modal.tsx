@@ -9,6 +9,7 @@ import {
   Pencil,
   Plus,
   RotateCcw,
+  Save,
   Search,
   Trash2,
   UserCheck,
@@ -17,12 +18,13 @@ import {
   Users,
   X,
 } from "lucide-react";
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useToast } from "@/components/providers";
-import { Badge, Button, LoadingBlock, Modal } from "@/components/ui";
+import { Badge, Button, LoadingBlock, Modal, TablePaginationFooter } from "@/components/ui";
 import { api } from "@/lib/api";
 import { resetMockDatabase } from "@/lib/mock-db";
 import type { Employee, ProjectEmployeeGroup } from "@/lib/types";
+import { hideGsLoading, showGsLoading } from "@/lib/utils";
 
 interface ManageEmployeeGroupsModalProps {
   projectId: string;
@@ -40,6 +42,8 @@ export function ManageEmployeeGroupsModal({
 
   // Active Category / Group Filter ("all" | "unassigned" | groupId)
   const [selectedCategory, setSelectedCategory] = useState<string>("all");
+  const [page, setPage] = useState(1);
+  const [pageSize, setPageSize] = useState(20);
 
   // Multi-select state for bulk actions
   const [selectedEmpIds, setSelectedEmpIds] = useState<Set<string>>(new Set());
@@ -67,21 +71,47 @@ export function ManageEmployeeGroupsModal({
   const groupsQuery = useQuery({
     queryKey: ["project-employee-groups", projectId],
     queryFn: () => api.getProjectEmployeeGroups(projectId),
-    enabled: isOpen,
+    enabled: isOpen && !!projectId,
   });
 
+  const isAssignedParam = useMemo(() => {
+    if (selectedCategory === "unassigned") return false;
+    if (selectedCategory === "all") return undefined;
+    return true;
+  }, [selectedCategory]);
+
   const employeesQuery = useQuery({
-    queryKey: ["employees", projectId],
-    queryFn: () => api.getEmployees({ projectId }),
-    enabled: isOpen,
+    queryKey: ["project-employees", projectId, isAssignedParam, page, pageSize, searchQuery],
+    queryFn: () =>
+      api.getProjectEmployees(projectId, {
+        pageIndex: page,
+        pageSize: pageSize,
+        isAssigned: isAssignedParam,
+        search: searchQuery.trim() || undefined,
+      }),
+    enabled: isOpen && !!projectId,
+    placeholderData: (previousData) => previousData,
+  });
+
+  const candidatesQuery = useQuery({
+    queryKey: ["project-employees-candidates", projectId, addMembersSearch],
+    queryFn: () =>
+      api.getProjectEmployees(projectId, {
+        pageIndex: 1,
+        pageSize: 50,
+        isAssigned: false,
+        search: addMembersSearch.trim() || undefined,
+      }),
+    enabled: isAddMembersModalOpen && !!projectId,
   });
 
   const groups = useMemo(() => groupsQuery.data ?? [], [groupsQuery.data]);
   const employees = useMemo(() => {
-    const raw = employeesQuery.data;
-    if (!raw) return [];
-    return Array.isArray(raw) ? raw : (raw as { data: Employee[] }).data ?? [];
+    return employeesQuery.data?.items ?? [];
   }, [employeesQuery.data]);
+  const candidateEmployees = useMemo(() => {
+    return candidatesQuery.data?.items ?? [];
+  }, [candidatesQuery.data]);
 
   // Group Helper Map
   const groupMap = useMemo(() => {
@@ -93,11 +123,6 @@ export function ManageEmployeeGroupsModal({
     return map;
   }, [groups]);
 
-  // Unassigned employees count
-  const unassignedEmployees = useMemo(() => {
-    return employees.filter((emp) => !emp.groupId || !groupMap.has(emp.groupId));
-  }, [employees, groupMap]);
-
   // Active Group object if a specific group is selected
   const activeGroup = useMemo(() => {
     if (selectedCategory === "all" || selectedCategory === "unassigned") return null;
@@ -106,12 +131,11 @@ export function ManageEmployeeGroupsModal({
 
   // Filtered employees according to selected category
   const categoryEmployees = useMemo(() => {
-    if (selectedCategory === "all") return employees;
-    if (selectedCategory === "unassigned") return unassignedEmployees;
+    if (selectedCategory === "all" || selectedCategory === "unassigned") return employees;
     return employees.filter(
       (emp) => emp.groupId === selectedCategory || (activeGroup && emp.groupId === activeGroup.code)
     );
-  }, [selectedCategory, employees, unassignedEmployees, activeGroup]);
+  }, [selectedCategory, employees, activeGroup]);
 
   // Filtered employees by search query
   const displayedEmployees = useMemo(() => {
@@ -130,7 +154,7 @@ export function ManageEmployeeGroupsModal({
   const candidateEmployeesToAdd = useMemo(() => {
     if (!activeGroup) return [];
     const activeIds = new Set(categoryEmployees.map((e) => e.id));
-    return employees
+    return candidateEmployees
       .filter((emp) => !activeIds.has(emp.id))
       .filter((emp) => {
         if (!addMembersSearch.trim()) return true;
@@ -142,7 +166,7 @@ export function ManageEmployeeGroupsModal({
           (emp.department && emp.department.toLowerCase().includes(q))
         );
       });
-  }, [activeGroup, categoryEmployees, employees, addMembersSearch]);
+  }, [activeGroup, categoryEmployees, candidateEmployees, addMembersSearch]);
 
   // Mutations
   const createGroupMutation = useMutation({
@@ -150,6 +174,7 @@ export function ManageEmployeeGroupsModal({
       api.createProjectEmployeeGroup(projectId, payload),
     onSuccess: (created) => {
       queryClient.invalidateQueries({ queryKey: ["project-employee-groups", projectId] });
+      queryClient.invalidateQueries({ queryKey: ["project-employees", projectId] });
       queryClient.invalidateQueries({ queryKey: ["project-policies", projectId] });
       setIsGroupModalOpen(false);
       if (created?.id) setSelectedCategory(created.id);
@@ -163,6 +188,7 @@ export function ManageEmployeeGroupsModal({
       api.updateProjectEmployeeGroup(projectId, id, payload),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["project-employee-groups", projectId] });
+      queryClient.invalidateQueries({ queryKey: ["project-employees", projectId] });
       queryClient.invalidateQueries({ queryKey: ["project-policies", projectId] });
       setIsGroupModalOpen(false);
       notify("Đã cập nhật thông tin nhóm lao động!");
@@ -174,6 +200,7 @@ export function ManageEmployeeGroupsModal({
     mutationFn: (id: string) => api.deleteProjectEmployeeGroup(projectId, id),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["project-employee-groups", projectId] });
+      queryClient.invalidateQueries({ queryKey: ["project-employees", projectId] });
       queryClient.invalidateQueries({ queryKey: ["employees", projectId] });
       queryClient.invalidateQueries({ queryKey: ["project-policies", projectId] });
       setIsDeleteModalOpen(false);
@@ -189,6 +216,7 @@ export function ManageEmployeeGroupsModal({
       api.assignEmployeesToGroup(projectId, groupId, { employeeIds }),
     onSuccess: (_, vars) => {
       queryClient.invalidateQueries({ queryKey: ["project-employee-groups", projectId] });
+      queryClient.invalidateQueries({ queryKey: ["project-employees", projectId] });
       queryClient.invalidateQueries({ queryKey: ["employees", projectId] });
       setSelectedEmpIds(new Set());
       setSelectedToAddIds(new Set());
@@ -198,6 +226,26 @@ export function ManageEmployeeGroupsModal({
     },
     onError: (err: Error) => notify(err.message, "error"),
   });
+
+  useEffect(() => {
+    if (!isOpen) return;
+    if (createGroupMutation.isPending || updateGroupMutation.isPending || deleteGroupMutation.isPending || assignMutation.isPending) {
+      showGsLoading("Đang xử lý nhóm người lao động...");
+    } else if (employeesQuery.isFetching && Boolean(employeesQuery.data)) {
+      showGsLoading("Đang tải danh sách nhân sự...");
+    } else {
+      hideGsLoading();
+    }
+    return () => hideGsLoading();
+  }, [
+    isOpen,
+    createGroupMutation.isPending,
+    updateGroupMutation.isPending,
+    deleteGroupMutation.isPending,
+    assignMutation.isPending,
+    employeesQuery.isFetching,
+    Boolean(employeesQuery.data),
+  ]);
 
   // Action handlers
   const handleOpenCreateGroup = () => {
@@ -282,13 +330,39 @@ export function ManageEmployeeGroupsModal({
     });
   };
 
-  const getMonogram = (name: string) => {
-    const parts = name.trim().split(/\s+/);
-    if (parts.length === 1) return parts[0].slice(0, 2).toUpperCase();
-    return (parts[0][0] + parts[parts.length - 1][0]).toUpperCase();
+  const getEmployeeAvatar = (gender?: string) => {
+    const g = String(gender || "").trim().toLowerCase();
+    if (g === "female" || g === "nữ" || g === "nu" || g === "f" || g === "1") {
+      return "/Contents/img/avatar_female.png";
+    }
+    return "/Contents/img/avatar_male.png";
+  };
+
+  const formatGenderBadge = (gender?: string) => {
+    const g = String(gender || "").trim().toLowerCase();
+    if (g === "female" || g === "nữ" || g === "nu" || g === "f" || g === "1") {
+      return (
+        <span className="inline-flex items-center px-2 py-0.5 rounded-full text-[11px] font-semibold bg-rose-500/10 text-rose-600 dark:text-rose-400 border border-rose-500/20">
+          Nữ
+        </span>
+      );
+    }
+    if (g === "male" || g === "nam" || g === "m" || g === "0") {
+      return (
+        <span className="inline-flex items-center px-2 py-0.5 rounded-full text-[11px] font-semibold bg-sky-500/10 text-sky-600 dark:text-sky-400 border border-sky-500/20">
+          Nam
+        </span>
+      );
+    }
+    return (
+      <span className="inline-flex items-center px-2 py-0.5 rounded-full text-[11px] font-medium bg-secondary text-muted border border-border/50">
+        Khác
+      </span>
+    );
   };
 
   const getGroupNameOfEmployee = (emp: Employee) => {
+    if (emp.groupName) return emp.groupName;
     if (!emp.groupId) return null;
     const found = groupMap.get(emp.groupId);
     return found ? found.name : null;
@@ -304,7 +378,7 @@ export function ManageEmployeeGroupsModal({
         size="xl"
       >
         <div className="space-y-4">
-          {groupsQuery.isLoading || employeesQuery.isLoading ? (
+          {groupsQuery.isLoading && !groupsQuery.data ? (
             <LoadingBlock rows={8} />
           ) : (
             <div className="grid grid-cols-1 lg:grid-cols-12 gap-5 min-h-[520px]">
@@ -335,50 +409,38 @@ export function ManageEmployeeGroupsModal({
                   <div className="space-y-1">
                     <button
                       type="button"
-                      onClick={() => {
+                      onClick={(e) => {
+                        e.stopPropagation();
                         setSelectedCategory("all");
                         setSelectedEmpIds(new Set());
+                        setPage(1);
                       }}
-                      className={`w-full px-3 py-2 rounded-xl text-xs font-semibold flex items-center justify-between transition-all cursor-pointer border ${
+                      className={`w-full px-3 py-2 rounded-xl text-xs font-semibold flex items-center gap-2 transition-all cursor-pointer border ${
                         selectedCategory === "all"
                           ? "bg-card border-primary/40 text-primary shadow-xs font-bold"
                           : "bg-transparent border-transparent text-muted hover:bg-card/70 hover:text-foreground"
                       }`}
                     >
-                      <div className="flex items-center gap-2">
-                        <Users className="w-3.5 h-3.5" />
-                        <span>Tất cả nhân sự</span>
-                      </div>
-                      <span className="font-mono text-[11px] px-2 py-0.5 rounded-full bg-secondary text-foreground font-semibold">
-                        {employees.length}
-                      </span>
+                      <Users className="w-3.5 h-3.5 shrink-0" />
+                      <span>Tất cả nhân sự</span>
                     </button>
 
                     <button
                       type="button"
-                      onClick={() => {
+                      onClick={(e) => {
+                        e.stopPropagation();
                         setSelectedCategory("unassigned");
                         setSelectedEmpIds(new Set());
+                        setPage(1);
                       }}
-                      className={`w-full px-3 py-2 rounded-xl text-xs font-semibold flex items-center justify-between transition-all cursor-pointer border ${
+                      className={`w-full px-3 py-2 rounded-xl text-xs font-semibold flex items-center gap-2 transition-all cursor-pointer border ${
                         selectedCategory === "unassigned"
                           ? "bg-card border-primary/40 text-primary shadow-xs font-bold"
                           : "bg-transparent border-transparent text-muted hover:bg-card/70 hover:text-foreground"
                       }`}
                     >
-                      <div className="flex items-center gap-2">
-                        <UserMinus className="w-3.5 h-3.5" />
-                        <span>Chưa phân nhóm</span>
-                      </div>
-                      <span
-                        className={`font-mono text-[11px] px-2 py-0.5 rounded-full font-semibold ${
-                          unassignedEmployees.length > 0
-                            ? "bg-amber-500/15 text-amber-600 dark:text-amber-400 border border-amber-500/20"
-                            : "bg-secondary text-muted"
-                        }`}
-                      >
-                        {unassignedEmployees.length}
-                      </span>
+                      <UserMinus className="w-3.5 h-3.5 shrink-0" />
+                      <span>Chưa phân nhóm</span>
                     </button>
                   </div>
 
@@ -401,9 +463,11 @@ export function ManageEmployeeGroupsModal({
                           return (
                             <div
                               key={group.id}
-                              onClick={() => {
+                              onClick={(e) => {
+                                e.stopPropagation();
                                 setSelectedCategory(group.id);
                                 setSelectedEmpIds(new Set());
+                                setPage(1);
                               }}
                               className={`group/item relative px-3 py-2.5 rounded-xl transition-all cursor-pointer flex items-center justify-between border ${
                                 isSelected
@@ -473,8 +537,8 @@ export function ManageEmployeeGroupsModal({
                           ? "Nhân sự chưa phân nhóm"
                           : activeGroup?.name || "Danh sách nhân sự"}
                       </h4>
-                      <Badge tone={selectedCategory === "unassigned" && unassignedEmployees.length > 0 ? "warning" : "neutral"}>
-                        {categoryEmployees.length} nhân sự
+                      <Badge tone={selectedCategory === "unassigned" && categoryEmployees.length > 0 ? "warning" : "neutral"}>
+                        {employeesQuery.data?.totalRow ?? categoryEmployees.length} nhân sự
                       </Badge>
                     </div>
                     <p className="text-xs text-muted max-w-lg leading-relaxed">
@@ -522,12 +586,18 @@ export function ManageEmployeeGroupsModal({
                         type="text"
                         placeholder="Tìm theo tên, mã nhân viên, vị trí, xưởng..."
                         value={searchQuery}
-                        onChange={(e) => setSearchQuery(e.target.value)}
+                        onChange={(e) => {
+                          setSearchQuery(e.target.value);
+                          setPage(1);
+                        }}
                       />
                       {searchQuery && (
                         <button
                           type="button"
-                          onClick={() => setSearchQuery("")}
+                          onClick={() => {
+                            setSearchQuery("");
+                            setPage(1);
+                          }}
                           className="text-muted hover:text-foreground p-0.5 rounded-full hover:bg-secondary shrink-0"
                           title="Xóa tìm kiếm"
                         >
@@ -583,7 +653,12 @@ export function ManageEmployeeGroupsModal({
                 </div>
 
                 {/* Employees Table */}
-                {displayedEmployees.length === 0 ? (
+                {employeesQuery.isFetching && employees.length === 0 ? (
+                  <div className="py-16 px-4 flex flex-col items-center justify-center text-center rounded-2xl bg-secondary/30 border border-border/70 space-y-2">
+                    <div className="w-6 h-6 border-2 border-primary border-t-transparent rounded-full animate-spin mx-auto" />
+                    <span className="text-xs text-muted font-medium">Đang tải danh sách nhân sự...</span>
+                  </div>
+                ) : displayedEmployees.length === 0 ? (
                   <div className="py-14 px-4 flex flex-col items-center justify-center text-center rounded-2xl bg-secondary/30 border border-border/70 space-y-2">
                     <Users className="w-8 h-8 text-muted mx-auto" />
                     <h5 className="text-xs font-semibold text-foreground text-center">
@@ -616,17 +691,17 @@ export function ManageEmployeeGroupsModal({
                     )}
                   </div>
                 ) : (
-                  <div className="rounded-2xl border border-border/80 bg-card shadow-2xs overflow-hidden flex-1 flex flex-col">
+                  <div className="rounded-2xl border border-border/80 bg-card shadow-2xs overflow-hidden flex-1 flex flex-col justify-between">
                     <div className="max-h-[340px] overflow-y-auto custom-scrollbar flex-1">
                       <table className="w-full text-left border-collapse">
-                        <thead className="sticky top-0 bg-secondary/85 backdrop-blur-xs z-10 border-b border-border/80">
+                        <thead className="sticky top-0 bg-secondary z-10 border-b border-border/80">
                           <tr>
                             <th className="w-10 px-3 py-2.5 text-center">
                               <input
                                 type="checkbox"
                                 checked={
-                                  selectedEmpIds.size === displayedEmployees.length &&
-                                  displayedEmployees.length > 0
+                                   selectedEmpIds.size === displayedEmployees.length &&
+                                   displayedEmployees.length > 0
                                 }
                                 onChange={toggleSelectAll}
                                 className="w-3.5 h-3.5 rounded border-border text-primary focus:ring-primary/20 cursor-pointer"
@@ -639,8 +714,8 @@ export function ManageEmployeeGroupsModal({
                             <th className="px-3 py-2.5 text-[11px] font-bold text-muted uppercase tracking-wider">
                               Nhân viên
                             </th>
-                            <th className="px-3 py-2.5 text-[11px] font-bold text-muted uppercase tracking-wider">
-                              Vị trí &amp; Phòng ban
+                            <th className="px-3 py-2.5 text-center text-[11px] font-bold text-muted uppercase tracking-wider w-24">
+                              Giới tính
                             </th>
                             <th className="px-3 py-2.5 text-[11px] font-bold text-muted uppercase tracking-wider">
                               Nhóm hiện tại
@@ -651,6 +726,8 @@ export function ManageEmployeeGroupsModal({
                           {displayedEmployees.map((emp, index) => {
                             const isChecked = selectedEmpIds.has(emp.id);
                             const groupName = getGroupNameOfEmployee(emp);
+                            const rawStt = (page - 1) * pageSize + index + 1;
+                            const stt = String(rawStt).padStart(2, "0");
 
                             return (
                               <tr
@@ -669,13 +746,15 @@ export function ManageEmployeeGroupsModal({
                                   />
                                 </td>
                                 <td className="px-2 py-2.5 text-center text-xs font-mono text-muted">
-                                  {index + 1}
+                                  {stt}
                                 </td>
                                 <td className="px-3 py-2.5">
                                   <div className="flex items-center gap-2.5">
-                                    <div className="w-7 h-7 rounded-lg bg-secondary/80 text-foreground flex items-center justify-center font-bold text-[10px] shrink-0 border border-border/60">
-                                      {getMonogram(emp.name)}
-                                    </div>
+                                    <img
+                                      src={getEmployeeAvatar(emp.gender)}
+                                      alt={emp.name}
+                                      className="w-7 h-7 rounded-full object-cover shrink-0 border border-border/60 bg-secondary/80"
+                                    />
                                     <div className="min-w-0">
                                       <span className="font-semibold text-xs text-foreground block truncate">
                                         {emp.name}
@@ -686,15 +765,8 @@ export function ManageEmployeeGroupsModal({
                                     </div>
                                   </div>
                                 </td>
-                                <td className="px-3 py-2.5">
-                                  <div className="space-y-0.5">
-                                    <span className="text-xs text-foreground font-medium block truncate">
-                                      {emp.position || "Công nhân"}
-                                    </span>
-                                    <span className="text-[11px] text-muted block truncate">
-                                      {emp.department || "Xưởng sản xuất"}
-                                    </span>
-                                  </div>
+                                <td className="px-3 py-2.5 text-center">
+                                  {formatGenderBadge(emp.gender)}
                                 </td>
                                 <td className="px-3 py-2.5">
                                   {groupName ? (
@@ -713,6 +785,17 @@ export function ManageEmployeeGroupsModal({
                         </tbody>
                       </table>
                     </div>
+                    <TablePaginationFooter
+                      totalItems={employeesQuery.data?.totalRow ?? displayedEmployees.length}
+                      selectedCount={selectedEmpIds.size > 0 ? selectedEmpIds.size : undefined}
+                      currentPage={page}
+                      pageSize={pageSize}
+                      onPageChange={setPage}
+                      onPageSizeChange={(newSize) => {
+                        setPageSize(newSize);
+                        setPage(1);
+                      }}
+                    />
                   </div>
                 )}
               </main>
@@ -759,7 +842,7 @@ export function ManageEmployeeGroupsModal({
               onClick={handleSaveGroup}
               disabled={createGroupMutation.isPending || updateGroupMutation.isPending}
             >
-              <CheckCircle2 className="w-3.5 h-3.5" /> {editingGroup ? "Lưu thay đổi" : "Tạo nhóm"}
+              <Save className="w-3.5 h-3.5" /> {editingGroup ? "Lưu thay đổi" : "Tạo nhóm"}
             </Button>
           </>
         }
@@ -894,10 +977,18 @@ export function ManageEmployeeGroupsModal({
                         onChange={() => toggleSelectToAdd(emp.id)}
                         className="w-4 h-4 rounded border-border text-primary focus:ring-primary/20 cursor-pointer"
                       />
+                      <img
+                        src={getEmployeeAvatar(emp.gender)}
+                        alt={emp.name}
+                        className="w-7 h-7 rounded-full object-cover shrink-0 border border-border/60 bg-secondary/80"
+                      />
                       <div className="space-y-0.5 min-w-0">
-                        <span className="font-semibold text-foreground block truncate">{emp.name}</span>
+                        <div className="flex items-center gap-2">
+                          <span className="font-semibold text-foreground block truncate">{emp.name}</span>
+                          {formatGenderBadge(emp.gender)}
+                        </div>
                         <span className="text-[11px] font-mono text-muted block truncate">
-                          {emp.code} · {emp.position || "Công nhân"} ·{" "}
+                          {emp.code} ·{" "}
                           <span className="text-primary font-sans font-medium">
                             Đang ở: {currentGrpName || "Chưa phân nhóm"}
                           </span>

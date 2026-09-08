@@ -42,26 +42,6 @@ const fail = (status: number, code: string, message: string, fields?: Record<str
 const projectId = (value: string | readonly string[] | undefined) => String(value ?? "");
 
 export const handlers = [
-  http.get("/api/projects", async ({ request }) => {
-    await delay(320);
-    const url = new URL(request.url);
-    const query = (url.searchParams.get("q") ?? "").toLocaleLowerCase("vi");
-    const status = url.searchParams.get("status") ?? "all";
-    const page = Math.max(1, Number(url.searchParams.get("page") ?? 1));
-    const pageSize = Math.max(1, Number(url.searchParams.get("pageSize") ?? 5));
-    const database = readMockDatabase();
-    const filtered = database.projects
-      .filter((project) => status === "all" || (status === "inactive" ? project.status !== "active" : project.status === status))
-      .filter((project) => `${project.code} ${project.name} ${project.client}`.toLocaleLowerCase("vi").includes(query))
-      .sort((a, b) => b.updatedAt.localeCompare(a.updatedAt));
-    const totalPages = Math.max(1, Math.ceil(filtered.length / pageSize));
-    const data = filtered.slice((page - 1) * pageSize, page * pageSize);
-    return HttpResponse.json<ApiResponse<Project[]>>({
-      data,
-      meta: { page, pageSize, total: filtered.length, totalPages },
-    });
-  }),
-
   http.post("/api/projects", async ({ request }) => {
     await delay(420);
     const payload = (await request.json()) as Partial<Project>;
@@ -89,11 +69,6 @@ export const handlers = [
     return ok(project, { status: 201 });
   }),
 
-  http.get("/api/projects/:projectId", async ({ params }) => {
-    await delay(220);
-    const project = readMockDatabase().projects.find((item) => item.id === projectId(params.projectId));
-    return project ? ok(project) : fail(404, "PROJECT_NOT_FOUND", "Không tìm thấy dự án.");
-  }),
 
   http.patch("/api/projects/:projectId", async ({ params, request }) => {
     await delay(300);
@@ -127,10 +102,6 @@ export const handlers = [
     return ok(clone, { status: 201 });
   }),
 
-  http.get("/api/policy-definitions", async () => {
-    await delay(250);
-    return ok(readMockDatabase().policyDefinitions);
-  }),
 
   http.get("/api/projects/:projectId/policies", async ({ params }) => {
     await delay(250);

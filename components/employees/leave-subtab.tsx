@@ -5,7 +5,7 @@ import {
   History,
   Search,
 } from "lucide-react";
-import { useMemo, useState } from "react";
+import { useMemo, useState, type ReactNode } from "react";
 import {
   Badge,
   Button,
@@ -53,9 +53,11 @@ function getRemainingDays(rec: LeaveRecord): number {
 export function LeaveSubtab({
   projectId,
   employees,
+  setHeaderAction,
 }: {
   projectId: string;
   employees: Employee[];
+  setHeaderAction?: (node: ReactNode) => void;
 }) {
   const [searchTerm, setSearchTerm] = useState("");
   const [filterStatus, setFilterStatus] = useState<FilterStatusType>("all");
@@ -179,22 +181,10 @@ export function LeaveSubtab({
     <div className="leave-subtab">
       {/* Integrated Single Card: Toolbar + Filters + Data Table */}
       <div className="integrated-table-card">
-        {/* Table Card Toolbar */}
+        {/* Table Card Toolbar: Single Row */}
         <div className="table-card-toolbar">
-          <div className="filter-panel-top">
-            <div className="filter-panel-inputs">
-              <label className="search-field">
-                <Search />
-                <input
-                  value={searchTerm}
-                  onChange={(e) => setSearchTerm(e.target.value)}
-                  placeholder="Tìm theo tên nhân viên, mã NV, mã dự án..."
-                />
-              </label>
-            </div>
-          </div>
-
-          <div className="filter-panel-bottom">
+          <div className="flex flex-wrap items-center justify-between gap-3 w-full">
+            {/* Left: Status Segmentation Pills */}
             <div className="filter-status-pills">
               <button
                 type="button"
@@ -208,28 +198,28 @@ export function LeaveSubtab({
                 className={`pill-btn success ${filterStatus === "official" ? "active" : ""}`}
                 onClick={() => setFilterStatus("official")}
               >
-                Chính thức có phép ({counts.official})
+                Chính thức ({counts.official})
               </button>
               <button
                 type="button"
                 className={`pill-btn warning ${filterStatus === "probation" ? "active" : ""}`}
                 onClick={() => setFilterStatus("probation")}
               >
-                Thử việc / Chưa có HĐLĐ ({counts.probation})
+                Thử việc ({counts.probation})
               </button>
               <button
                 type="button"
                 className={`pill-btn danger ${filterStatus === "resigned" ? "active" : ""}`}
                 onClick={() => setFilterStatus("resigned")}
               >
-                Đã nghỉ việc ({counts.resigned})
+                Đã nghỉ ({counts.resigned})
               </button>
               <button
                 type="button"
                 className={`pill-btn ${filterStatus === "available" ? "active" : ""}`}
                 onClick={() => setFilterStatus("available")}
               >
-                Còn phép khả dụng ({counts.available})
+                Còn phép ({counts.available})
               </button>
               <button
                 type="button"
@@ -238,6 +228,18 @@ export function LeaveSubtab({
               >
                 Hết phép ({counts.exhausted})
               </button>
+            </div>
+
+            {/* Right: Search */}
+            <div className="flex items-center gap-2.5 ml-auto">
+              <label className="search-field" style={{ minWidth: "260px" }}>
+                <Search />
+                <input
+                  value={searchTerm}
+                  onChange={(e) => setSearchTerm(e.target.value)}
+                  placeholder="Tìm theo tên NV, mã NV, dự án..."
+                />
+              </label>
             </div>
           </div>
         </div>
@@ -271,7 +273,8 @@ export function LeaveSubtab({
                     const isProbation = rec.contractType === "probation" || rec.employeeStatus === "probation" || rec.eligibilityStatus === "probation_ineligible";
                     const isResigned = rec.employeeStatus === "resigned" || rec.eligibilityStatus === "resigned";
                     const isOfficial = !isProbation && !isResigned;
-                    const stt = (page - 1) * pageSize + idx + 1;
+                    const rawStt = (page - 1) * pageSize + idx + 1;
+                    const stt = String(rawStt).padStart(2, "0");
 
                     const emp = employeeMap.get(rec.employeeId) || employeeMap.get(rec.employeeCode);
                     const joinDate = rec.joinDate || emp?.joinDate || rec.entitlementDate;
@@ -305,27 +308,29 @@ export function LeaveSubtab({
                             <StatusBadge tone="success">Chính thức</StatusBadge>
                           )}
                         </td>
-                        <td className="font-mono text-xs">
+                        <td className="text-[13px] text-foreground">
                           {joinDate ? formatDate(joinDate) : "—"}
                         </td>
                         <td>
                           {resignationDate ? (
-                            <span className="font-mono text-xs text-rose-600 dark:text-rose-400 font-medium">
+                            <span className="text-[13px] text-rose-600 dark:text-rose-400 font-medium">
                               {formatDate(resignationDate)}
                             </span>
                           ) : (
-                            <span className="text-muted text-xs">—</span>
+                            <span className="text-muted text-[13px]">—</span>
                           )}
                         </td>
                         <td>
                           {isResigned ? (
-                            <span className="text-xs text-rose-600 dark:text-rose-400 font-medium">
+                            <span className="text-[13px] text-rose-600 dark:text-rose-400 font-medium">
                               Nghỉ từ {formatDate(rec.resignationDate || "2026-06-30")}
                             </span>
                           ) : isProbation ? (
-                            <span className="text-xs text-muted font-medium">Chờ ký HĐLĐ</span>
+                            <span className="text-[13px] text-muted font-medium">Chờ ký HĐLĐ</span>
                           ) : (
-                            <Badge tone="neutral">{formatDate(rec.entitlementDate || "2026-01-01")}</Badge>
+                            <span className="text-[13px] text-foreground font-medium">
+                              {formatDate(rec.entitlementDate || "2026-01-01")}
+                            </span>
                           )}
                         </td>
                         <td className="text-center">
@@ -409,37 +414,39 @@ export function LeaveSubtab({
       >
         {selectedRecord?.history && selectedRecord.history.length > 0 ? (
           <div className="data-table-wrap">
-            <table className="data-table compact-table">
-              <thead>
-                <tr>
-                  <th>STT</th>
-                  <th>Khoảng thời gian</th>
-                  <th>Số ngày</th>
-                  <th>Loại nghỉ</th>
-                  <th>Lý do nghỉ</th>
-                  <th>Người phê duyệt</th>
-                </tr>
-              </thead>
-              <tbody>
-                {selectedRecord.history.map((h, i) => (
-                  <tr key={h.id}>
-                    <td>{i + 1}</td>
-                    <td>
-                      <strong>{formatDate(h.from)}</strong> ➔ <strong>{formatDate(h.to)}</strong>
-                    </td>
-                    <td>
-                      <Badge tone="info">{h.days} ngày</Badge>
-                    </td>
-                    <td>{leaveTypeLabel(h.leaveType)}</td>
-                    <td>{h.reason}</td>
-                    <td>
-                      <span className="text-xs text-muted">{h.approvedBy}</span>
-                      <div className="text-xs text-muted">{formatDate(h.approvedAt)}</div>
-                    </td>
+            <div className="data-table-scroll">
+              <table className="data-table compact-table min-w-[720px]">
+                <thead>
+                  <tr>
+                    <th style={{ width: "45px" }} className="text-center">STT</th>
+                    <th style={{ minWidth: "170px" }}>Khoảng thời gian</th>
+                    <th style={{ width: "90px" }} className="text-center">Số ngày</th>
+                    <th style={{ minWidth: "130px" }}>Loại nghỉ</th>
+                    <th style={{ minWidth: "170px" }}>Lý do nghỉ</th>
+                    <th style={{ minWidth: "140px" }}>Người phê duyệt</th>
                   </tr>
-                ))}
-              </tbody>
-            </table>
+                </thead>
+                <tbody>
+                  {selectedRecord.history.map((h, i) => (
+                    <tr key={h.id}>
+                      <td className="text-center font-medium text-muted">{String(i + 1).padStart(2, "0")}</td>
+                      <td>
+                        <strong>{formatDate(h.from)}</strong> ➔ <strong>{formatDate(h.to)}</strong>
+                      </td>
+                      <td className="text-center">
+                        <Badge tone="info">{h.days} ngày</Badge>
+                      </td>
+                      <td>{leaveTypeLabel(h.leaveType)}</td>
+                      <td>{h.reason}</td>
+                      <td>
+                        <span className="text-xs text-muted font-medium block">{h.approvedBy}</span>
+                        <div className="text-[11px] text-muted">{formatDate(h.approvedAt)}</div>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
           </div>
         ) : (
           <EmptyState

@@ -3444,7 +3444,7 @@ export const otherIncomes: OtherIncomeRecord[] = [
 ];
 
 export const seedDatabase: MockDatabase = {
-  schemaVersion: 19,
+  schemaVersion: 20,
   projects,
   policyDefinitions,
   projectPolicies,

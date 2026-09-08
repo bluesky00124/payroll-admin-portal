@@ -34,6 +34,8 @@ export interface Project {
   employeeCount: number;
   status: ProjectStatus;
   payrollCycle: string;
+  payrollCycleStartDate?: string;
+  payrollCycleEndDate?: string;
   effectiveFrom: string;
   effectiveTo?: string;
   templateName: string;
@@ -109,6 +111,29 @@ export interface ProjectPolicy {
   effectiveFrom: string;
   effectiveTo?: string;
   enabled: boolean;
+}
+
+export interface ProjectPolicyColumn {
+  id: number | string;
+  name: string;
+}
+
+export interface ProjectPolicyRow {
+  policyId: number | string;
+  policyName: string;
+  policyCode: string;
+  dataType: "percentage" | "currency" | string;
+  effectiveFrom: string | null;
+  effectiveTo: string | null;
+  values: Record<string, string | number>;
+}
+
+export interface ProjectPoliciesResponseData {
+  columns: ProjectPolicyColumn[];
+  rows: ProjectPolicyRow[];
+  pageIndex: number;
+  pageSize: number;
+  totalRow: number;
 }
 
 export interface AttendanceConfig {

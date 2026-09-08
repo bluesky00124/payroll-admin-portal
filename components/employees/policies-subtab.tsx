@@ -10,7 +10,7 @@ import {
   SlidersHorizontal,
   Upload,
 } from "lucide-react";
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState, type ReactNode } from "react";
 import { ExcelImportModal } from "@/components/employees/excel-import-modal";
 import { SubtabActivityLog } from "@/components/employees/subtab-activity-log";
 import { useToast } from "@/components/providers";
@@ -47,9 +47,11 @@ function formatAllowanceValue(pol: EmployeePolicyItem) {
 export function EmployeePoliciesSubtab({
   projectId,
   employees,
+  setHeaderAction,
 }: {
   projectId: string;
   employees: Employee[];
+  setHeaderAction?: (node: ReactNode) => void;
 }) {
   const { notify } = useToast();
   const queryClient = useQueryClient();
@@ -80,6 +82,21 @@ export function EmployeePoliciesSubtab({
     amount: number;
     reason: string;
   }>>([]);
+
+  // Register Header Action: Import phụ cấp
+  useEffect(() => {
+    if (!setHeaderAction) return;
+    setHeaderAction(
+      <Button
+        variant="secondary"
+        onClick={() => setImportModalOpen(true)}
+        className="gap-1.5 font-semibold text-xs h-8 px-3"
+      >
+        <Upload className="w-3.5 h-3.5" /> Import phụ cấp
+      </Button>
+    );
+    return () => setHeaderAction(null);
+  }, [setHeaderAction]);
 
   const policiesQuery = useQuery({
     queryKey: ["employee-policies", projectId],
@@ -311,28 +328,10 @@ export function EmployeePoliciesSubtab({
     <div className="employee-policies-subtab">
       {/* Integrated Flat Card Table */}
       <div className="integrated-table-card">
-        {/* Card Toolbar */}
+        {/* Card Toolbar: Single Row */}
         <div className="table-card-toolbar">
-          <div className="filter-panel-top">
-            <div className="filter-panel-inputs">
-              <label className="search-field">
-                <Search />
-                <input
-                  value={searchTerm}
-                  onChange={(e) => setSearchTerm(e.target.value)}
-                  placeholder="Tìm theo tên nhân viên, mã NV..."
-                />
-              </label>
-            </div>
-
-            <div className="filter-panel-actions">
-              <Button variant="primary" onClick={() => setImportModalOpen(true)}>
-                <Upload /> Tải lên phụ cấp Excel
-              </Button>
-            </div>
-          </div>
-
-          <div className="filter-panel-bottom">
+          <div className="flex flex-wrap items-center justify-between gap-3 w-full">
+            {/* Left: Status Segmentation Pills */}
             <div className="filter-status-pills">
               <button
                 type="button"
@@ -362,6 +361,18 @@ export function EmployeePoliciesSubtab({
               >
                 Học việc ({counts.probation})
               </button>
+            </div>
+
+            {/* Right: Search */}
+            <div className="flex items-center gap-2.5 ml-auto">
+              <label className="search-field" style={{ minWidth: "260px" }}>
+                <Search />
+                <input
+                  value={searchTerm}
+                  onChange={(e) => setSearchTerm(e.target.value)}
+                  placeholder="Tìm theo tên NV, mã NV..."
+                />
+              </label>
             </div>
           </div>
         </div>
@@ -395,7 +406,8 @@ export function EmployeePoliciesSubtab({
                 </thead>
                 <tbody>
                   {paginatedList.map((item, idx) => {
-                    const stt = (page - 1) * pageSize + idx + 1;
+                    const rawStt = (page - 1) * pageSize + idx + 1;
+                    const stt = String(rawStt).padStart(2, "0");
                     const emp = employeeMap.get(item.employeeId) || employeeMap.get(item.employeeCode);
                     const projectCode = item.projectCode || emp?.projectCode;
 
@@ -414,81 +426,75 @@ export function EmployeePoliciesSubtab({
 
                     return (
                       <tr key={item.id}>
-                        <td className="text-center font-semibold text-foreground/80">{stt}</td>
+                        <td className="text-center text-muted font-medium">{stt}</td>
                         <td>
                           <div className="employee-cell-info">
                             <span className="employee-cell-name font-bold text-foreground">{item.employeeName}</span>
                             <span className="employee-cell-sub">
                               <span className="employee-code-badge">{item.employeeCode}</span>
-                              {projectCode && <span className="text-muted-foreground text-[11.5px] font-normal">· {projectCode}</span>}
+                              {projectCode && <span className="text-muted text-[11.5px] font-normal">· {projectCode}</span>}
                             </span>
                           </div>
                         </td>
                         <td>{renderRoleBadge(item.role)}</td>
-                        <td className="text-right font-mono font-semibold text-foreground">
-                          {formatCurrency(item.baseSalary)}
+                        <td className="text-right font-semibold">
+                          {item.baseSalary ? formatCurrency(item.baseSalary) : "—"}
                         </td>
                         <td>
-                          <div className="flex items-center flex-wrap gap-1.5 py-0.5">
-                            {activeAllowances.length === 0 ? (
-                              <span className="text-muted-foreground text-xs font-normal">Không có phụ cấp</span>
-                            ) : (
-                              <>
-                                {visibleAllowances.map((pol) => {
-                                  const valText = formatAllowanceValue(pol);
-                                  const cleanName = pol.policyName.replace(/:$/, "").trim();
-                                  return (
-                                    <span
-                                      key={pol.policyId}
-                                      className="inline-flex items-center gap-1.5 text-xs px-2.5 py-1 rounded-md border border-border/80 bg-secondary/70 text-foreground font-semibold shadow-2xs"
-                                      title={pol.reason || pol.policyName}
-                                    >
-                                      <span className="text-foreground/90 font-medium">{cleanName}</span>
-                                      {valText && (
-                                        <strong className="font-mono font-bold text-primary">
-                                          {valText}
-                                        </strong>
-                                      )}
-                                    </span>
-                                  );
-                                })}
-
-                                {remainingCount > 0 && (
-                                  <button
-                                    type="button"
-                                    onClick={() => openDetailModal(item)}
-                                    className="inline-flex items-center justify-center min-w-[28px] h-6 px-1.5 rounded-md border border-primary/40 bg-primary/10 text-primary hover:bg-primary hover:text-white text-xs font-bold font-mono transition-all cursor-pointer shadow-2xs"
-                                    title={`Xem thêm ${remainingCount} khoản phụ cấp khác`}
+                          {activeAllowances.length === 0 ? (
+                            <span className="text-xs text-muted italic">Không có phụ cấp riêng</span>
+                          ) : (
+                            <div className="flex flex-wrap items-center gap-1.5 py-0.5">
+                              {visibleAllowances.map((pol) => {
+                                const valStr = formatAllowanceValue(pol);
+                                const cleanName = pol.policyName.replace(/:$/, "").trim();
+                                return (
+                                  <span
+                                    key={pol.policyId}
+                                    className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-md text-[11.5px] font-medium border ${
+                                      pol.isCustom
+                                        ? "bg-amber-50 text-amber-900 border-amber-300 dark:bg-amber-950/50 dark:text-amber-200 dark:border-amber-700/60 font-semibold"
+                                        : "bg-secondary text-secondary-foreground border-border/80"
+                                    }`}
+                                    title={pol.reason || (pol.isCustom ? "Đã điều chỉnh riêng" : "Theo định mức chuẩn")}
                                   >
-                                    +{remainingCount}
-                                  </button>
-                                )}
-                              </>
-                            )}
-                          </div>
+                                    <span>{cleanName}</span>
+                                    <strong className="text-primary">{valStr}</strong>
+                                  </span>
+                                );
+                              })}
+                              {remainingCount > 0 && (
+                                <button
+                                  type="button"
+                                  onClick={() => openDetailModal(item)}
+                                  className="inline-flex items-center px-1.5 py-0.5 rounded-md text-[11px] font-bold bg-primary/10 text-primary hover:bg-primary/20 border border-primary/30 transition-colors cursor-pointer"
+                                >
+                                  +{remainingCount} khoản
+                                </button>
+                              )}
+                            </div>
+                          )}
                         </td>
-                        <td className="text-right font-mono font-bold text-primary">
+                        <td className="text-right font-bold text-primary">
                           {formatCurrency(item.totalAllowance)}
                         </td>
-                        <td className="text-center font-mono text-xs">
-                          <span className="font-semibold text-foreground">
-                            {item.effectiveFrom ? formatDate(item.effectiveFrom) : item.updatedAt ? formatDate(item.updatedAt) : "01/08/2026"}
-                          </span>
+                        <td className="text-center text-[13px] text-muted">
+                          {item.effectiveFrom ? formatDate(item.effectiveFrom) : "01/08/2026"}
                         </td>
                         <td className="text-center">
                           <TableRowActions
                             items={[
                               {
-                                key: "view-details",
-                                label: "Xem chi tiết phụ cấp",
-                                icon: <Info />,
-                                onClick: () => openDetailModal(item),
-                              },
-                              {
-                                key: "edit-policy",
-                                label: "Cấu hình chế độ & phụ cấp",
+                                key: "edit",
+                                label: "Chỉnh sửa chế độ",
                                 icon: <Pencil />,
                                 onClick: () => openEditModal(item),
+                              },
+                              {
+                                key: "detail",
+                                label: `Xem chi tiết phụ cấp (${activeAllowances.length})`,
+                                icon: <Coins />,
+                                onClick: () => openDetailModal(item),
                               },
                             ]}
                           />
@@ -527,7 +533,7 @@ export function EmployeePoliciesSubtab({
       <Modal
         open={modalOpen}
         onOpenChange={setModalOpen}
-        title={`Cấu hình Chế độ & Phụ cấp: ${editRecord?.employeeName}`}
+        title={`Chỉnh sửa chế độ & phụ cấp: ${editRecord?.employeeName}`}
         description={`Mã NV: ${editRecord?.employeeCode} · Chức danh: ${editRecord?.roleTitle} · Dự án: ${editRecord?.projectCode || "JSS-ST"}`}
         size="lg"
         footer={
@@ -537,8 +543,9 @@ export function EmployeePoliciesSubtab({
               variant="primary"
               loading={saveMutation.isPending}
               onClick={() => saveMutation.mutate()}
+              className="gap-1.5 font-semibold"
             >
-              <Check /> Lưu cấu hình chế độ
+              <Check className="w-3.5 h-3.5" /> Lưu cấu hình chế độ
             </Button>
           </>
         }
@@ -855,6 +862,65 @@ export function EmployeePoliciesSubtab({
           );
         })()}
       </Modal>
+
+      {/* Modal 3: Import phụ cấp Excel */}
+      <ExcelImportModal
+        open={importModalOpen}
+        onOpenChange={setImportModalOpen}
+        title="Import phụ cấp người lao động"
+        description="Tải lên bảng tổng hợp phụ cấp định kỳ của nhân viên theo mẫu chuẩn hệ thống."
+        sampleTemplateName="Mau_Phu_Cap_Nhan_Vien.xlsx"
+        sampleTemplateDescription="Bảng kê gồm: Mã NV, Họ tên, Mã phụ cấp, Tên phụ cấp, Mức phụ cấp áp dụng và Lý do."
+        onDownloadSample={() => notify("Đã tải xuống biểu mẫu Mau_Phu_Cap_Nhan_Vien.xlsx")}
+        columns={[
+          {
+            key: "employeeCode",
+            label: "Mã NV",
+            width: "120px",
+            render: (row) => <code>{row.employeeCode}</code>,
+          },
+          {
+            key: "employeeName",
+            label: "Họ và tên",
+            render: (row) => <strong>{row.employeeName}</strong>,
+          },
+          {
+            key: "policyName",
+            label: "Khoản phụ cấp",
+            render: (row) => <Badge tone="info">{row.policyName}</Badge>,
+          },
+          {
+            key: "amount",
+            label: "Mức phụ cấp",
+            align: "right",
+            render: (row) => (
+              <strong className="font-mono text-primary font-bold">
+                {formatCurrency(row.amount)}
+              </strong>
+            ),
+          },
+          {
+            key: "reason",
+            label: "Lý do",
+            render: (row) => <span className="text-xs">{row.reason}</span>,
+          },
+        ]}
+        previewRows={uploadPreviewRows}
+        stats={[
+          {
+            label: "Tổng bản ghi",
+            value: `${uploadPreviewRows.length} dòng`,
+            tone: "primary",
+          },
+        ]}
+        isUploading={isUploading}
+        onSimulateUpload={handleSimulateFileUpload}
+        onConfirmImport={() => {
+          setImportModalOpen(false);
+          setUploadPreviewRows([]);
+          notify(`Đã cập nhật thành công phụ cấp cho ${uploadPreviewRows.length} nhân viên!`);
+        }}
+      />
     </div>
   );
 }

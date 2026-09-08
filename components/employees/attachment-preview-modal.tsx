@@ -62,8 +62,9 @@ export function AttachmentPreviewModal({
                 onOpenChange(false);
                 onUploadNew();
               }}
+              className="gap-1.5 font-semibold"
             >
-              <UploadCloud /> {hasAttachment ? "Đổi hồ sơ" : "Tải lên tài liệu"}
+              <UploadCloud className="w-3.5 h-3.5" /> {hasAttachment ? "Đổi hồ sơ" : "Tải lên tài liệu"}
             </Button>
           )}
 
@@ -76,8 +77,9 @@ export function AttachmentPreviewModal({
                 onOpenChange(false);
                 onReject();
               }}
+              className="gap-1.5 font-semibold"
             >
-              <X /> Từ chối
+              <X className="w-3.5 h-3.5" /> Từ chối
             </Button>
           )}
 
@@ -88,8 +90,9 @@ export function AttachmentPreviewModal({
               onClick={onConfirm}
               disabled={!hasAttachment}
               title={!hasAttachment ? "Cần bổ sung hồ sơ đính kèm trước khi duyệt" : undefined}
+              className="gap-1.5 font-semibold"
             >
-              <Check /> Duyệt hồ sơ
+              <Check className="w-3.5 h-3.5" /> Duyệt hồ sơ
             </Button>
           )}
         </>

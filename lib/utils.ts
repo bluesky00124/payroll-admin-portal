@@ -84,3 +84,22 @@ export function formatFullDateVN(value?: string | null): string {
 export function uid(prefix: string) {
   return `${prefix}-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`;
 }
+
+export function showGsLoading(message?: string) {
+  if (typeof window !== "undefined") {
+    const win = window as any;
+    if (typeof win.showGsLoading === "function") {
+      win.showGsLoading(message || "Đang tải dữ liệu...");
+    }
+  }
+}
+
+export function hideGsLoading() {
+  if (typeof window !== "undefined") {
+    const win = window as any;
+    if (typeof win.hideGsLoading === "function") {
+      win.hideGsLoading();
+    }
+  }
+}
+

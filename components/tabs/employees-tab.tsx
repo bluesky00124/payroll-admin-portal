@@ -12,7 +12,7 @@ import {
   Users,
   WalletCards,
 } from "lucide-react";
-import { useState } from "react";
+import { useEffect, useState, type ReactNode } from "react";
 import { DependentsSubtab } from "@/components/employees/dependents-subtab";
 import { InsuranceSubtab } from "@/components/employees/insurance-subtab";
 import { LeaveSubtab } from "@/components/employees/leave-subtab";
@@ -21,8 +21,9 @@ import { OtherIncomesSubtab } from "@/components/employees/other-incomes-subtab"
 import { EmployeePoliciesSubtab } from "@/components/employees/policies-subtab";
 import { StandardWorkdaysSubtab } from "@/components/employees/standard-workdays-subtab";
 import { UnionFeesSubtab } from "@/components/employees/union-fees-subtab";
-import { EmptyState, ErrorState, LoadingBlock, SearchableSelect } from "@/components/ui";
+import { EmptyState, ErrorState, GsProjectCombobox, LoadingBlock } from "@/components/ui";
 import { api } from "@/lib/api";
+import { hideGsLoading, showGsLoading } from "@/lib/utils";
 
 type EmployeeSubtab =
   | "dependents"
@@ -53,51 +54,77 @@ export function EmployeesTab({
   embedded?: boolean;
 }) {
   const [activeSubtab, setActiveSubtab] = useState<EmployeeSubtab>("dependents");
-  const [selectedProjectId, setSelectedProjectId] = useState<string>(projectId || "all");
 
-  const effectiveProjectId = embedded ? projectId || "all" : selectedProjectId;
+  const initialDefaultId = () => {
+    if (projectId) return projectId;
+    if (typeof window !== "undefined") {
+      const serverProjects = (window as any).__SERVER_PROJECTS;
+      if (Array.isArray(serverProjects) && serverProjects.length > 0) {
+        return String(serverProjects[0].id ?? serverProjects[0].ProjectId ?? serverProjects[0].Id ?? "");
+      }
+    }
+    return "";
+  };
+
+  const [selectedProjectId, setSelectedProjectId] = useState<string>(initialDefaultId);
+  const [headerAction, setHeaderAction] = useState<ReactNode>(null);
+
+  const effectiveProjectId = embedded ? projectId || "" : selectedProjectId;
 
   const projectsQuery = useQuery({
     queryKey: ["projects-lookup"],
-    queryFn: () => api.getProjects({ pageSize: 100 }),
+    queryFn: () => api.getLookupProjects(),
     enabled: !embedded,
   });
 
+  const projects = projectsQuery.data ?? [];
+
+  // Tự động chọn dự án đầu tiên khi danh sách dự án tải xong nếu chưa có dự án nào được chọn
+  useEffect(() => {
+    if (!projectId && !selectedProjectId && projects.length > 0) {
+      setSelectedProjectId(projects[0].id);
+    }
+  }, [projectId, projects, selectedProjectId]);
+
   const employeesQuery = useQuery({
     queryKey: ["employees", effectiveProjectId],
-    queryFn: () => api.getEmployees({ projectId: effectiveProjectId === "all" ? undefined : effectiveProjectId }),
+    queryFn: () => api.getEmployees({ projectId: (!effectiveProjectId || effectiveProjectId === "all") ? undefined : effectiveProjectId }),
+    enabled: Boolean(effectiveProjectId || embedded),
   });
 
-  const projects = projectsQuery.data?.data ?? [];
   const employees = employeesQuery.data ?? [];
+
+  useEffect(() => {
+    if (employeesQuery.isFetching && Boolean(employeesQuery.data)) {
+      showGsLoading("Đang tải dữ liệu người lao động...");
+    } else {
+      hideGsLoading();
+    }
+    return () => hideGsLoading();
+  }, [employeesQuery.isFetching, Boolean(employeesQuery.data)]);
 
   return (
     <div className="employees-main-tab">
-      {/* Top Header & Project Filter (Shown when not embedded or standalone) */}
-      <div className="tab-heading mb-4">
+      {/* Top Header & Project Filter */}
+      <div className="page-heading">
         <div>
-          <h1>Người lao động theo dự án</h1>
+          <h1>Người lao động</h1>
         </div>
 
-        {!embedded && (
-          <div className="heading-actions" style={{ minWidth: "280px" }}>
-            <SearchableSelect
-              icon={<Filter />}
-              value={selectedProjectId}
-              onChange={setSelectedProjectId}
-              placeholder="Chọn dự án..."
-              searchPlaceholder="Tìm mã hoặc tên dự án..."
-              options={[
-                { value: "all", label: `Tất cả dự án (${projects.length})` },
-                ...projects.map((p) => ({
-                  value: p.id,
-                  label: `${p.code} - ${p.name}`,
-                  subLabel: p.client || p.location,
-                })),
-              ]}
-            />
-          </div>
-        )}
+        <div className="heading-actions flex items-center gap-2">
+          {headerAction}
+          {!embedded && (
+            <div style={{ minWidth: "300px" }}>
+              <GsProjectCombobox
+                items={projects}
+                value={selectedProjectId}
+                onChange={setSelectedProjectId}
+                placeholder="Tất cả dự án"
+                allowAll={true}
+              />
+            </div>
+          )}
+        </div>
       </div>
 
       {/* Sub-navigation tabs (Clean Minimalist Underline) */}
@@ -110,7 +137,10 @@ export function EmployeesTab({
               key={tab.id}
               type="button"
               className={`subnav-item ${isActive ? "active" : ""}`}
-              onClick={() => setActiveSubtab(tab.id)}
+              onClick={() => {
+                setHeaderAction(null);
+                setActiveSubtab(tab.id);
+              }}
             >
               <Icon />
               <span>{tab.label}</span>
@@ -132,28 +162,60 @@ export function EmployeesTab({
         ) : (
           <>
             {activeSubtab === "dependents" && (
-              <DependentsSubtab projectId={effectiveProjectId} employees={employees} />
+              <DependentsSubtab
+                projectId={effectiveProjectId}
+                employees={employees}
+                setHeaderAction={setHeaderAction}
+              />
             )}
             {activeSubtab === "leave" && (
-              <LeaveSubtab projectId={effectiveProjectId} employees={employees} />
+              <LeaveSubtab
+                projectId={effectiveProjectId}
+                employees={employees}
+                setHeaderAction={setHeaderAction}
+              />
             )}
             {activeSubtab === "union" && (
-              <UnionFeesSubtab projectId={effectiveProjectId} employees={employees} />
+              <UnionFeesSubtab
+                projectId={effectiveProjectId}
+                employees={employees}
+                setHeaderAction={setHeaderAction}
+              />
             )}
             {activeSubtab === "workdays" && (
-              <StandardWorkdaysSubtab projectId={effectiveProjectId} employees={employees} />
+              <StandardWorkdaysSubtab
+                projectId={effectiveProjectId}
+                employees={employees}
+                setHeaderAction={setHeaderAction}
+              />
             )}
             {activeSubtab === "insurance" && (
-              <InsuranceSubtab projectId={effectiveProjectId} employees={employees} />
+              <InsuranceSubtab
+                projectId={effectiveProjectId}
+                employees={employees}
+                setHeaderAction={setHeaderAction}
+              />
             )}
             {activeSubtab === "policies" && (
-              <EmployeePoliciesSubtab projectId={effectiveProjectId} employees={employees} />
+              <EmployeePoliciesSubtab
+                projectId={effectiveProjectId}
+                employees={employees}
+                setHeaderAction={setHeaderAction}
+              />
             )}
             {activeSubtab === "deductions" && (
-              <OtherDeductionsSubtab projectId={effectiveProjectId} employees={employees} />
+              <OtherDeductionsSubtab
+                projectId={effectiveProjectId}
+                employees={employees}
+                setHeaderAction={setHeaderAction}
+              />
             )}
             {activeSubtab === "incomes" && (
-              <OtherIncomesSubtab projectId={effectiveProjectId} employees={employees} />
+              <OtherIncomesSubtab
+                projectId={effectiveProjectId}
+                employees={employees}
+                setHeaderAction={setHeaderAction}
+              />
             )}
           </>
         )}

@@ -11,7 +11,7 @@ import {
   Upload,
   X,
 } from "lucide-react";
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState, type ReactNode } from "react";
 import { ExcelImportModal } from "@/components/employees/excel-import-modal";
 import { SubtabActivityLog } from "@/components/employees/subtab-activity-log";
 import { useToast } from "@/components/providers";
@@ -32,9 +32,11 @@ import type { Employee, StandardWorkdayRecord } from "@/lib/types";
 export function StandardWorkdaysSubtab({
   projectId,
   employees,
+  setHeaderAction,
 }: {
   projectId: string;
   employees: Employee[];
+  setHeaderAction?: (node: ReactNode) => void;
 }) {
   const { notify } = useToast();
   const queryClient = useQueryClient();
@@ -56,6 +58,21 @@ export function StandardWorkdaysSubtab({
     overrideDays: number;
     reason: string;
   }>>([]);
+
+  // Register Header Action: Import ngày công chuẩn
+  useEffect(() => {
+    if (!setHeaderAction) return;
+    setHeaderAction(
+      <Button
+        variant="secondary"
+        onClick={() => setImportModalOpen(true)}
+        className="gap-1.5 font-semibold text-xs h-8 px-3"
+      >
+        <Upload className="w-3.5 h-3.5" /> Import ngày công chuẩn
+      </Button>
+    );
+    return () => setHeaderAction(null);
+  }, [setHeaderAction]);
 
   const workdaysQuery = useQuery({
     queryKey: ["standard-workdays", projectId],
@@ -197,28 +214,10 @@ export function StandardWorkdaysSubtab({
     <div className="standard-workdays-subtab">
       {/* Integrated Flat Card Table */}
       <div className="integrated-table-card">
-        {/* Card Toolbar */}
+        {/* Card Toolbar: Single Row */}
         <div className="table-card-toolbar">
-          <div className="filter-panel-top">
-            <div className="filter-panel-inputs">
-              <label className="search-field">
-                <Search />
-                <input
-                  value={searchTerm}
-                  onChange={(e) => setSearchTerm(e.target.value)}
-                  placeholder="Tìm theo tên nhân viên, mã NV..."
-                />
-              </label>
-            </div>
-
-            <div className="filter-panel-actions">
-              <Button variant="primary" onClick={() => setImportModalOpen(true)}>
-                <Upload /> Tải lên ngày công chuẩn
-              </Button>
-            </div>
-          </div>
-
-          <div className="filter-panel-bottom">
+          <div className="flex flex-wrap items-center justify-between gap-3 w-full">
+            {/* Left: Status Segmentation Pills */}
             <div className="filter-status-pills">
               <button
                 type="button"
@@ -241,6 +240,18 @@ export function StandardWorkdaysSubtab({
               >
                 Theo mặc định dự án ({workdays.length - overriddenCount})
               </button>
+            </div>
+
+            {/* Right: Search */}
+            <div className="flex items-center gap-2.5 ml-auto">
+              <label className="search-field" style={{ minWidth: "260px" }}>
+                <Search />
+                <input
+                  value={searchTerm}
+                  onChange={(e) => setSearchTerm(e.target.value)}
+                  placeholder="Tìm theo tên NV, mã NV..."
+                />
+              </label>
             </div>
           </div>
         </div>
@@ -275,7 +286,8 @@ export function StandardWorkdaysSubtab({
               <tbody>
                 {paginatedList.map((item, idx) => {
                   const appliedDays = item.isOverridden && item.overrideDays ? item.overrideDays : item.projectStandardDays;
-                  const stt = (page - 1) * pageSize + idx + 1;
+                  const rawStt = (page - 1) * pageSize + idx + 1;
+                  const stt = String(rawStt).padStart(2, "0");
                   const emp = employeeMap.get(item.employeeId) || employeeMap.get(item.employeeCode);
                   const projectCode = item.projectCode || emp?.projectCode;
 
@@ -372,7 +384,7 @@ export function StandardWorkdaysSubtab({
       <Modal
         open={overrideModalOpen}
         onOpenChange={setOverrideModalOpen}
-        title={`Chỉnh sửa Ngày công chuẩn: ${editRecord?.employeeName}`}
+        title={`Chỉnh sửa ngày công chuẩn: ${editRecord?.employeeName}`}
         description={`Mã NV: ${editRecord?.employeeCode} · Ngày công chuẩn mặc định của dự án: ${editRecord?.projectStandardDays} ngày`}
         size="md"
         footer={
@@ -391,8 +403,9 @@ export function StandardWorkdaysSubtab({
                   });
                 }
               }}
+              className="gap-1.5 font-semibold"
             >
-              <Check /> Lưu thay đổi
+              <Check className="w-3.5 h-3.5" /> Lưu thay đổi
             </Button>
           </>
         }
@@ -433,7 +446,7 @@ export function StandardWorkdaysSubtab({
       <ExcelImportModal
         open={importModalOpen}
         onOpenChange={setImportModalOpen}
-        title="Tải Lên Cập Nhật Ngày Công Chuẩn"
+        title="Import ngày công chuẩn"
         description="Tải lên tệp Excel danh sách ngày công chuẩn được điều chỉnh riêng cho từng nhân sự (theo ca kíp, bộ phận đặc thù)."
         sampleTemplateName="Mau_Ngay_Cong_Chuan.xlsx"
         sampleTemplateDescription="Bảng kê gồm: Mã NV, Họ và tên, Ngày công chuẩn áp dụng riêng (VD: 24, 22, 26) và Lý do điều chỉnh."

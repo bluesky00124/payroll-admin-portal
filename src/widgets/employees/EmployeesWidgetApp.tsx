@@ -101,15 +101,6 @@ export function EmployeesWidgetApp({ config }: { config: EmployeesWidgetConfig }
                     className="payroll-widget-root text-slate-900 antialiased font-sans p-2 sm:p-4"
                     data-theme={preset}
                   >
-                    {/* Header title */}
-                    <div className="mb-4">
-                      <div className="text-xs uppercase tracking-wider font-bold text-primary mb-1">Quản trị nhân sự</div>
-                      <h1 className="text-xl sm:text-2xl font-bold text-foreground">Người lao động</h1>
-                      <p className="text-xs sm:text-sm text-muted-foreground mt-1">
-                        Quản trị danh sách người lao động, người phụ thuộc, phép năm, công đoàn phí, công chuẩn, BHXH và thuế TNCN theo dự án.
-                      </p>
-                    </div>
-
                     <EmployeesTab />
 
                     {/* Toast Viewport */}

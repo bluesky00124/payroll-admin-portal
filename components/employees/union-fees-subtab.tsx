@@ -12,7 +12,7 @@ import {
   UserMinus,
   X,
 } from "lucide-react";
-import { useMemo, useState } from "react";
+import { useMemo, useState, type ReactNode } from "react";
 import { SubtabActivityLog } from "@/components/employees/subtab-activity-log";
 import { useToast } from "@/components/providers";
 import {
@@ -33,9 +33,11 @@ import { formatCurrency, formatDate } from "@/lib/utils";
 export function UnionFeesSubtab({
   projectId,
   employees,
+  setHeaderAction,
 }: {
   projectId: string;
   employees: Employee[];
+  setHeaderAction?: (node: ReactNode) => void;
 }) {
   const { notify } = useToast();
   const queryClient = useQueryClient();
@@ -150,25 +152,10 @@ export function UnionFeesSubtab({
     <div className="union-fees-subtab">
       {/* Integrated Flat Card Table */}
       <div className="integrated-table-card">
-        {/* Card Toolbar */}
+        {/* Card Toolbar: Single Row */}
         <div className="table-card-toolbar">
-          <div className="filter-panel-top">
-            <div className="filter-panel-inputs">
-              <label className="search-field">
-                <Search />
-                <input
-                  value={searchTerm}
-                  onChange={(e) => {
-                    setSearchTerm(e.target.value);
-                    setPage(1);
-                  }}
-                  placeholder="Tìm theo tên nhân viên, mã NV..."
-                />
-              </label>
-            </div>
-          </div>
-
-          <div className="filter-panel-bottom">
+          <div className="flex flex-wrap items-center justify-between gap-3 w-full">
+            {/* Left: Status Segmentation Pills */}
             <div className="filter-status-pills">
               <button
                 type="button"
@@ -201,6 +188,21 @@ export function UnionFeesSubtab({
                 Không tham gia ({unionFees.length - activeCount})
               </button>
             </div>
+
+            {/* Right: Search */}
+            <div className="flex items-center gap-2.5 ml-auto">
+              <label className="search-field" style={{ minWidth: "260px" }}>
+                <Search />
+                <input
+                  value={searchTerm}
+                  onChange={(e) => {
+                    setSearchTerm(e.target.value);
+                    setPage(1);
+                  }}
+                  placeholder="Tìm theo tên NV, mã NV..."
+                />
+              </label>
+            </div>
           </div>
         </div>
 
@@ -228,13 +230,14 @@ export function UnionFeesSubtab({
                 </thead>
                 <tbody>
                   {paginatedFees.map((item, idx) => {
-                    const stt = (page - 1) * pageSize + idx + 1;
+                    const rawStt = (page - 1) * pageSize + idx + 1;
+                    const stt = String(rawStt).padStart(2, "0");
                     const emp = employeeMap.get(item.employeeId) || employeeMap.get(item.employeeCode);
-                    const joinDate = item.joinDate || emp?.joinDate;
-                    const isResigned = emp?.status === "resigned" || item.resignationDate;
-                    const resignationDate = item.resignationDate || (emp?.status === "resigned" ? emp?.joinDate ? "2026-06-30" : undefined : undefined);
-                    const joinedUnionDate = item.joinedUnionDate || (item.isParticipating ? joinDate : undefined);
-                    const projectCode = item.projectCode || emp?.projectCode;
+                    const isResigned = emp?.status === "resigned";
+                    const resignationDate = emp?.resignationDate;
+                    const joinDate = emp?.joinDate;
+                    const joinedUnionDate = item.joinedUnionDate;
+                    const projectCode = emp?.projectCode;
 
                     return (
                       <tr key={item.id}>
@@ -248,30 +251,30 @@ export function UnionFeesSubtab({
                             </span>
                           </div>
                         </td>
-                        <td className="font-mono text-xs">
+                        <td className="text-[13px] text-foreground">
                           {joinDate ? formatDate(joinDate) : "—"}
                         </td>
                         <td>
                           {isResigned && resignationDate ? (
-                            <span className="font-mono text-xs text-rose-600 dark:text-rose-400 font-medium">
+                            <span className="text-[13px] text-rose-600 dark:text-rose-400 font-medium">
                               {formatDate(resignationDate)}
                             </span>
                           ) : (
-                            <span className="text-muted text-xs">—</span>
+                            <span className="text-muted text-[13px]">—</span>
                           )}
                         </td>
-                        <td className="font-mono text-xs">
+                        <td className="text-[13px]">
                           {item.isParticipating && joinedUnionDate ? (
-                            <Badge tone="neutral">{formatDate(joinedUnionDate)}</Badge>
+                            <span className="text-foreground font-medium">{formatDate(joinedUnionDate)}</span>
                           ) : (
-                            <span className="text-muted text-xs">—</span>
+                            <span className="text-muted text-[13px]">—</span>
                           )}
                         </td>
-                        <td className="text-right font-mono">
+                        <td className="text-right">
                           {item.isParticipating ? (
                             <span className="font-semibold text-primary">{formatCurrency(item.amount)}</span>
                           ) : (
-                            <span className="text-muted text-xs">—</span>
+                            <span className="text-muted text-[13px]">—</span>
                           )}
                         </td>
                         <td className="text-center">
@@ -330,14 +333,14 @@ export function UnionFeesSubtab({
         description="Lịch sử đăng ký gia nhập, ngừng tham gia và điều chỉnh mức trích nộp công đoàn phí"
       />
 
-      {/* Modal 1: Xác nhận thay đổi tham gia Công đoàn (Redesigned Confirm Popup) */}
+      {/* Modal 1: Xác nhận thay đổi tham gia Công đoàn */}
       <Modal
         open={confirmModalOpen}
         onOpenChange={setConfirmModalOpen}
         title={
           targetToggleRecord?.isParticipating
-            ? "Xác Nhận Dừng Tham Gia Công Đoàn"
-            : "Xác Nhận Đăng Ký Tham Gia Công Đoàn"
+            ? "Xác nhận dừng tham gia công đoàn"
+            : "Xác nhận đăng ký tham gia công đoàn"
         }
         description={
           targetToggleRecord?.isParticipating
@@ -347,21 +350,20 @@ export function UnionFeesSubtab({
         size="md"
         footer={
           <>
-            <Button variant="outline" onClick={() => setConfirmModalOpen(false)}>
-              <X className="w-4 h-4" /> Hủy bỏ
-            </Button>
+            <Button onClick={() => setConfirmModalOpen(false)}>Hủy</Button>
             <Button
               variant={targetToggleRecord?.isParticipating ? "danger" : "primary"}
               onClick={handleConfirmToggle}
               loading={toggleMutation.isPending}
+              className="gap-1.5 font-semibold"
             >
               {targetToggleRecord?.isParticipating ? (
                 <>
-                  <UserMinus className="w-4 h-4" /> Xác nhận dừng tham gia
+                  <UserMinus className="w-3.5 h-3.5" /> Xác nhận dừng tham gia
                 </>
               ) : (
                 <>
-                  <UserCheck className="w-4 h-4" /> Xác nhận đăng ký tham gia
+                  <UserCheck className="w-3.5 h-3.5" /> Xác nhận đăng ký tham gia
                 </>
               )}
             </Button>
@@ -454,9 +456,8 @@ export function UnionFeesSubtab({
               {/* Reason Form Field */}
               <div className="space-y-1.5">
                 <label className="text-xs font-bold text-foreground flex items-center justify-between">
-                  <span className="flex items-center gap-1.5">
-                    <FileText className="w-3.5 h-3.5 text-primary" />
-                    Lý do / Căn cứ xác nhận *
+                  <span>
+                    Lý do / Căn cứ thay đổi <span className="text-destructive">*</span>
                   </span>
                   <span className="text-[11px] text-muted-foreground font-normal">
                     Lưu vết hồ sơ nhân sự
@@ -483,7 +484,7 @@ export function UnionFeesSubtab({
       <Modal
         open={historyModalOpen}
         onOpenChange={setHistoryModalOpen}
-        title={`Lịch sử Công đoàn: ${selectedRecordForHistory?.employeeName}`}
+        title={`Lịch sử công đoàn: ${selectedRecordForHistory?.employeeName}`}
         description={`Mã NV: ${selectedRecordForHistory?.employeeCode} · Hình thức: ${selectedRecordForHistory?.feeType === "percentage" ? "1% Lương BHXH" : "Cố định"} · Trạng thái: ${selectedRecordForHistory?.isParticipating ? "Đang tham gia" : "Không tham gia"}`}
         size="lg"
         footer={<Button onClick={() => setHistoryModalOpen(false)}>Đóng</Button>}
@@ -517,8 +518,8 @@ export function UnionFeesSubtab({
                     ]
                 ).map((h, i) => (
                   <tr key={h.id}>
-                    <td className="text-center text-muted font-medium">{i + 1}</td>
-                    <td className="font-mono text-xs">
+                    <td className="text-center text-muted font-medium">{String(i + 1).padStart(2, "0")}</td>
+                    <td className="text-[13px] text-foreground">
                       {formatDate(h.actionDate)}
                     </td>
                     <td>
@@ -530,11 +531,11 @@ export function UnionFeesSubtab({
                         <StatusBadge tone="info">{h.actionLabel}</StatusBadge>
                       )}
                     </td>
-                    <td className="text-right font-mono">
+                    <td className="text-right">
                       {h.amount ? (
                         <span className="font-semibold text-primary">{formatCurrency(h.amount)}</span>
                       ) : (
-                        <span className="text-muted text-xs">—</span>
+                        <span className="text-muted text-[13px]">—</span>
                       )}
                     </td>
                     <td>

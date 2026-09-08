@@ -4,6 +4,7 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import {
   AlertTriangle,
   Calendar,
+  Check,
   DollarSign,
   Download,
   Eye,
@@ -24,7 +25,7 @@ import {
   Users,
   X,
 } from "lucide-react";
-import React, { useMemo, useRef, useState } from "react";
+import React, { useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import { DecisionDocumentPreviewModal } from "@/components/employees/decision-preview-modal";
 import { ExcelImportModal, type ExcelImportColumn } from "@/components/employees/excel-import-modal";
 import { SubtabActivityLog } from "@/components/employees/subtab-activity-log";
@@ -56,9 +57,11 @@ const DEDUCTION_CATEGORIES: { value: OtherDeductionCategory; label: string; tone
 export function OtherDeductionsSubtab({
   projectId,
   employees,
+  setHeaderAction,
 }: {
   projectId: string;
   employees: Employee[];
+  setHeaderAction?: (node: ReactNode) => void;
 }) {
   const { notify } = useToast();
   const queryClient = useQueryClient();
@@ -97,6 +100,46 @@ export function OtherDeductionsSubtab({
 
   const fileInputRef = useRef<HTMLInputElement>(null);
 
+  // Open Create Form
+  const handleOpenCreate = () => {
+    setEditingRecord(null);
+    setFormEmployeeId(employees[0]?.id || "");
+    setFormPeriod(periodFilter === "all" ? "2026-08" : periodFilter);
+    setFormCategory("violation");
+    setFormAmount(500000);
+    setFormDecisionNo("QĐ-2026/08-01/VP");
+    setFormDecisionDate(new Date().toISOString().slice(0, 10));
+    setFormReason("");
+    setFormAttachmentName("");
+    setFormAttachmentUrl("");
+    setFormAttachmentSize("");
+    setFormModalOpen(true);
+  };
+
+  // Register Header Action
+  useEffect(() => {
+    if (!setHeaderAction) return;
+    setHeaderAction(
+      <div className="flex items-center gap-2">
+        <Button
+          variant="secondary"
+          onClick={() => setImportModalOpen(true)}
+          className="gap-1.5 font-semibold text-xs h-8 px-3"
+        >
+          <UploadCloud className="w-3.5 h-3.5" /> Import Excel
+        </Button>
+        <Button
+          variant="primary"
+          onClick={handleOpenCreate}
+          className="gap-1.5 font-semibold text-xs h-8 px-3"
+        >
+          <Plus className="w-3.5 h-3.5" /> Thêm khoản trừ
+        </Button>
+      </div>
+    );
+    return () => setHeaderAction(null);
+  }, [setHeaderAction]);
+
   // Fetch deductions
   const deductionsQuery = useQuery({
     queryKey: ["other-deductions", projectId, periodFilter],
@@ -115,11 +158,11 @@ export function OtherDeductionsSubtab({
       const q = searchTerm.toLowerCase().trim();
       const matchSearch =
         !q ||
-        item.employeeName.toLowerCase().includes(q) ||
-        item.employeeCode.toLowerCase().includes(q) ||
+        (item.employeeName ?? "").toLowerCase().includes(q) ||
+        (item.employeeCode ?? "").toLowerCase().includes(q) ||
         (item.decisionNo ?? "").toLowerCase().includes(q) ||
         (item.categoryLabel ?? "").toLowerCase().includes(q) ||
-        item.reason.toLowerCase().includes(q);
+        (item.reason ?? "").toLowerCase().includes(q);
 
       const matchCategory = categoryFilter === "all" || item.category === categoryFilter;
 
@@ -145,22 +188,6 @@ export function OtherDeductionsSubtab({
     const start = (page - 1) * pageSize;
     return filteredDeductions.slice(start, start + pageSize);
   }, [filteredDeductions, page, pageSize]);
-
-  // Open Create Form
-  const handleOpenCreate = () => {
-    setEditingRecord(null);
-    setFormEmployeeId(employees[0]?.id || "");
-    setFormPeriod(periodFilter === "all" ? "2026-08" : periodFilter);
-    setFormCategory("violation");
-    setFormAmount(500000);
-    setFormDecisionNo("QĐ-2026/08-01/VP");
-    setFormDecisionDate(new Date().toISOString().slice(0, 10));
-    setFormReason("");
-    setFormAttachmentName("");
-    setFormAttachmentUrl("");
-    setFormAttachmentSize("");
-    setFormModalOpen(true);
-  };
 
   // Open Edit Form
   const handleOpenEdit = (record: OtherDeductionRecord) => {
@@ -327,138 +354,130 @@ export function OtherDeductionsSubtab({
 
   return (
     <div className="subtab-container space-y-4">
-      {/* Toolbar */}
-      <div className="table-toolbar bg-card border border-border rounded-xl p-3 flex flex-wrap items-center justify-between gap-3">
-        <div className="flex flex-wrap items-center gap-2 flex-1 min-w-[280px]">
-          {/* Search */}
-          <label className="search-field max-w-[280px]">
-            <Search className="w-4 h-4 text-muted shrink-0" />
-            <input
-              value={searchTerm}
-              onChange={(e) => {
-                setSearchTerm(e.target.value);
-                setPage(1);
-              }}
-              placeholder="Tìm mã, tên NLĐ, số QĐ..."
-            />
-            {searchTerm && (
+      {/* Integrated Flat Card Table */}
+      <div className="integrated-table-card">
+        {/* Toolbar: Single Row */}
+        <div className="table-card-toolbar">
+          <div className="flex flex-wrap items-center justify-between gap-3 w-full">
+            {/* Left: Category segmentation pills */}
+            <div className="filter-status-pills">
               <button
                 type="button"
-                onClick={() => setSearchTerm("")}
-                className="text-muted hover:text-foreground"
-              >
-                <X className="w-3.5 h-3.5" />
-              </button>
-            )}
-          </label>
-
-          {/* Month Filter */}
-          <div className="w-[190px]">
-            <MonthPicker
-              value={periodFilter}
-              onChange={(val) => {
-                setPeriodFilter(val || "all");
-                setPage(1);
-              }}
-              allowClear
-              clearLabel="Tất cả các tháng"
-              placeholder="Tất cả các tháng"
-              variant="filter"
-            />
-          </div>
-
-          {/* Category Filter */}
-          <div className="w-[190px]">
-            <SearchableSelect
-              icon={<Filter className="w-3.5 h-3.5 text-muted" />}
-              value={categoryFilter}
-              onChange={(val) => {
-                setCategoryFilter(val);
-                setPage(1);
-              }}
-              options={[
-                { value: "all", label: "Tất cả loại khoản trừ" },
-                ...DEDUCTION_CATEGORIES.map((c) => ({ value: c.value, label: c.label })),
-              ]}
-              placeholder="Lọc loại khoản trừ..."
-            />
-          </div>
-        </div>
-
-        {/* Action Buttons */}
-        <div className="flex items-center gap-2">
-          <Button
-            variant="secondary"
-            onClick={() => setImportModalOpen(true)}
-            title="Import danh sách từ file Excel"
-          >
-            <UploadCloud className="w-4 h-4 mr-1.5 text-primary" /> Import Excel
-          </Button>
-
-          <Button variant="primary" onClick={handleOpenCreate}>
-            <Plus className="w-4 h-4 mr-1.5" /> Thêm khoản trừ
-          </Button>
-        </div>
-      </div>
-
-      {/* Main Table */}
-      {deductionsQuery.isLoading ? (
-        <LoadingBlock rows={6} />
-      ) : deductionsQuery.isError ? (
-        <ErrorState
-          message="Không thể tải danh sách khoản trừ khác"
-          retry={() => deductionsQuery.refetch()}
-        />
-      ) : filteredDeductions.length === 0 ? (
-        <EmptyState
-          title="Không tìm thấy khoản trừ nào"
-          description={
-            searchTerm || periodFilter !== "all" || categoryFilter !== "all"
-              ? "Không có dữ liệu phù hợp với bộ lọc hiện tại."
-              : "Chưa có quyết định khấu trừ nào cho người lao động trong dự án."
-          }
-          action={
-            searchTerm || periodFilter !== "all" || categoryFilter !== "all" ? (
-              <Button
-                variant="secondary"
+                className={`pill-btn ${categoryFilter === "all" ? "active" : ""}`}
                 onClick={() => {
-                  setSearchTerm("");
-                  setPeriodFilter("all");
                   setCategoryFilter("all");
+                  setPage(1);
                 }}
               >
-                Xóa bộ lọc
-              </Button>
-            ) : (
-              <Button variant="primary" onClick={handleOpenCreate}>
-                <Plus className="w-4 h-4 mr-1.5" /> Thêm khoản trừ đầu tiên
-              </Button>
-            )
-          }
-        />
-      ) : (
-        <div className="data-table-wrap">
-          <div className="data-table-scroll">
-            <table className="data-table min-w-[1050px]">
-              <thead>
-                <tr>
-                  <th style={{ width: "45px" }} className="text-center">STT</th>
-                  <th style={{ minWidth: "170px" }}>NGƯỜI LAO ĐỘNG</th>
-                  <th style={{ width: "120px" }} className="text-center">THÁNG ÁP DỤNG</th>
-                  <th style={{ width: "170px" }}>LOẠI KHOẢN TRỪ</th>
-                  <th style={{ width: "130px" }} className="text-right">SỐ TIỀN</th>
-                  <th style={{ width: "220px" }}>CĂN CỨ &amp; FILE QĐ</th>
-                  <th>LÝ DO / GIẢI TRÌNH</th>
-                  <th style={{ width: "150px" }}>CẬP NHẬT</th>
-                  <th style={{ width: "80px" }} className="text-center">THAO TÁC</th>
-                </tr>
-              </thead>
-              <tbody>
-                {paginatedRecords.map((item, idx) => {
-                  const stt = (page - 1) * pageSize + idx + 1;
-                  const catDef = DEDUCTION_CATEGORIES.find((c) => c.value === item.category);
-                  const emp = employeeMap.get(item.employeeId) || employeeMap.get(item.employeeCode);
-                  const projectCode = emp?.projectCode;
+                Tất cả ({deductions.length})
+              </button>
+              {DEDUCTION_CATEGORIES.map((cat) => {
+                const count = deductions.filter((d) => d.category === cat.value).length;
+                return (
+                  <button
+                    key={cat.value}
+                    type="button"
+                    className={`pill-btn ${cat.tone === "danger" ? "danger" : cat.tone === "warning" ? "warning" : ""} ${categoryFilter === cat.value ? "active" : ""}`}
+                    onClick={() => {
+                      setCategoryFilter(cat.value);
+                      setPage(1);
+                    }}
+                  >
+                    {cat.label} ({count})
+                  </button>
+                );
+              })}
+            </div>
+
+            {/* Right: Search + MonthPicker */}
+            <div className="flex items-center gap-2.5 ml-auto">
+              <label className="search-field" style={{ minWidth: "220px" }}>
+                <Search className="w-4 h-4 text-muted shrink-0" />
+                <input
+                  value={searchTerm}
+                  onChange={(e) => {
+                    setSearchTerm(e.target.value);
+                    setPage(1);
+                  }}
+                  placeholder="Tìm mã, tên NLĐ, số QĐ..."
+                />
+              </label>
+              <div style={{ width: "160px" }}>
+                <MonthPicker
+                  value={periodFilter}
+                  onChange={(val) => {
+                    setPeriodFilter(val || "all");
+                    setPage(1);
+                  }}
+                  allowClear
+                  clearLabel="Tất cả các tháng"
+                  placeholder="Tất cả các tháng"
+                  variant="filter"
+                />
+              </div>
+            </div>
+          </div>
+        </div>
+
+        {/* Main Table */}
+        {deductionsQuery.isLoading ? (
+          <LoadingBlock rows={6} />
+        ) : deductionsQuery.isError ? (
+          <ErrorState
+            message="Không thể tải danh sách khoản trừ khác"
+            retry={() => deductionsQuery.refetch()}
+          />
+        ) : filteredDeductions.length === 0 ? (
+          <EmptyState
+            title="Không tìm thấy khoản trừ nào"
+            description={
+              searchTerm || periodFilter !== "all" || categoryFilter !== "all"
+                ? "Không có dữ liệu phù hợp với bộ lọc hiện tại."
+                : "Chưa có quyết định khấu trừ nào cho người lao động trong dự án."
+            }
+            action={
+              searchTerm || periodFilter !== "all" || categoryFilter !== "all" ? (
+                <Button
+                  variant="secondary"
+                  onClick={() => {
+                    setSearchTerm("");
+                    setPeriodFilter("all");
+                    setCategoryFilter("all");
+                  }}
+                >
+                  Xóa bộ lọc
+                </Button>
+              ) : (
+                <Button variant="primary" onClick={handleOpenCreate}>
+                  <Plus className="w-4 h-4 mr-1.5" /> Thêm khoản trừ đầu tiên
+                </Button>
+              )
+            }
+          />
+        ) : (
+          <div className="data-table-wrap">
+            <div className="data-table-scroll">
+              <table className="data-table min-w-[1050px]">
+                <thead>
+                  <tr>
+                    <th style={{ width: "45px" }} className="text-center">STT</th>
+                    <th style={{ minWidth: "170px" }}>NGƯỜI LAO ĐỘNG</th>
+                    <th style={{ width: "120px" }} className="text-center">THÁNG ÁP DỤNG</th>
+                    <th style={{ width: "170px" }}>LOẠI KHOẢN TRỪ</th>
+                    <th style={{ width: "130px" }} className="text-right">SỐ TIỀN</th>
+                    <th style={{ width: "220px" }}>CĂN CỨ &amp; FILE QĐ</th>
+                    <th>LÝ DO / GIẢI TRÌNH</th>
+                    <th style={{ width: "150px" }}>CẬP NHẬT</th>
+                    <th style={{ width: "80px" }} className="text-center">THAO TÁC</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {paginatedRecords.map((item, idx) => {
+                    const rawStt = (page - 1) * pageSize + idx + 1;
+                    const stt = String(rawStt).padStart(2, "0");
+                    const catDef = DEDUCTION_CATEGORIES.find((c) => c.value === item.category);
+                    const emp = employeeMap.get(item.employeeId) || employeeMap.get(item.employeeCode);
+                    const projectCode = emp?.projectCode;
 
                   return (
                     <tr key={item.id} className="hover:bg-secondary/40 transition-colors">
@@ -603,6 +622,7 @@ export function OtherDeductionsSubtab({
           />
         </div>
       )}
+      </div>
 
       {/* BOTTOM AUDIT / ACTIVITY LOG */}
       <SubtabActivityLog
@@ -618,7 +638,7 @@ export function OtherDeductionsSubtab({
       <Modal
         open={formModalOpen}
         onOpenChange={setFormModalOpen}
-        title={editingRecord ? "Chỉnh sửa khoản trừ" : "Thêm mới khoản trừ vào lương"}
+        title={editingRecord ? "Chỉnh sửa khoản trừ khác" : "Thêm mới khoản trừ khác"}
         description="Nhập thông tin quyết định xử phạt / bồi thường và đính kèm văn bản căn cứ."
         size="lg"
         footer={
@@ -630,7 +650,9 @@ export function OtherDeductionsSubtab({
               variant="primary"
               disabled={!formEmployeeId || !formAmount || saveMutation.isPending}
               onClick={() => saveMutation.mutate()}
+              className="gap-1.5 font-semibold"
             >
+              <Check className="w-3.5 h-3.5" />
               {saveMutation.isPending
                 ? "Đang lưu…"
                 : editingRecord

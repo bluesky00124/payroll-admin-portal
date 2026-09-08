@@ -4,6 +4,7 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import {
   Award,
   Calendar,
+  Check,
   DollarSign,
   Download,
   Eye,
@@ -26,7 +27,7 @@ import {
   WalletCards,
   X,
 } from "lucide-react";
-import React, { useMemo, useRef, useState } from "react";
+import React, { useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import { DecisionDocumentPreviewModal } from "@/components/employees/decision-preview-modal";
 import { ExcelImportModal, type ExcelImportColumn } from "@/components/employees/excel-import-modal";
 import { SubtabActivityLog } from "@/components/employees/subtab-activity-log";
@@ -58,9 +59,11 @@ const INCOME_CATEGORIES: { value: OtherIncomeCategory; label: string; tone: "suc
 export function OtherIncomesSubtab({
   projectId,
   employees,
+  setHeaderAction,
 }: {
   projectId: string;
   employees: Employee[];
+  setHeaderAction?: (node: ReactNode) => void;
 }) {
   const { notify } = useToast();
   const queryClient = useQueryClient();
@@ -99,6 +102,46 @@ export function OtherIncomesSubtab({
 
   const fileInputRef = useRef<HTMLInputElement>(null);
 
+  // Open Create Form
+  const handleOpenCreate = () => {
+    setEditingRecord(null);
+    setFormEmployeeId(employees[0]?.id || "");
+    setFormPeriod(periodFilter === "all" ? "2026-08" : periodFilter);
+    setFormCategory("spot_bonus");
+    setFormAmount(1000000);
+    setFormDecisionNo("QĐ-2026/08-02/KT");
+    setFormDecisionDate(new Date().toISOString().slice(0, 10));
+    setFormReason("");
+    setFormAttachmentName("");
+    setFormAttachmentUrl("");
+    setFormAttachmentSize("");
+    setFormModalOpen(true);
+  };
+
+  // Register Header Action
+  useEffect(() => {
+    if (!setHeaderAction) return;
+    setHeaderAction(
+      <div className="flex items-center gap-2">
+        <Button
+          variant="secondary"
+          onClick={() => setImportModalOpen(true)}
+          className="gap-1.5 font-semibold text-xs h-8 px-3"
+        >
+          <UploadCloud className="w-3.5 h-3.5" /> Import Excel
+        </Button>
+        <Button
+          variant="primary"
+          onClick={handleOpenCreate}
+          className="gap-1.5 font-semibold text-xs h-8 px-3"
+        >
+          <Plus className="w-3.5 h-3.5" /> Thêm thu nhập
+        </Button>
+      </div>
+    );
+    return () => setHeaderAction(null);
+  }, [setHeaderAction]);
+
   // Fetch incomes
   const incomesQuery = useQuery({
     queryKey: ["other-incomes", projectId, periodFilter],
@@ -117,11 +160,11 @@ export function OtherIncomesSubtab({
       const q = searchTerm.toLowerCase().trim();
       const matchSearch =
         !q ||
-        item.employeeName.toLowerCase().includes(q) ||
-        item.employeeCode.toLowerCase().includes(q) ||
+        (item.employeeName ?? "").toLowerCase().includes(q) ||
+        (item.employeeCode ?? "").toLowerCase().includes(q) ||
         (item.decisionNo ?? "").toLowerCase().includes(q) ||
         (item.categoryLabel ?? "").toLowerCase().includes(q) ||
-        item.reason.toLowerCase().includes(q);
+        (item.reason ?? "").toLowerCase().includes(q);
 
       const matchCategory = categoryFilter === "all" || item.category === categoryFilter;
 
@@ -147,22 +190,6 @@ export function OtherIncomesSubtab({
     const start = (page - 1) * pageSize;
     return filteredIncomes.slice(start, start + pageSize);
   }, [filteredIncomes, page, pageSize]);
-
-  // Open Create Form
-  const handleOpenCreate = () => {
-    setEditingRecord(null);
-    setFormEmployeeId(employees[0]?.id || "");
-    setFormPeriod(periodFilter === "all" ? "2026-08" : periodFilter);
-    setFormCategory("spot_bonus");
-    setFormAmount(1000000);
-    setFormDecisionNo("QĐ-2026/08-02/KT");
-    setFormDecisionDate(new Date().toISOString().slice(0, 10));
-    setFormReason("");
-    setFormAttachmentName("");
-    setFormAttachmentUrl("");
-    setFormAttachmentSize("");
-    setFormModalOpen(true);
-  };
 
   // Open Edit Form
   const handleOpenEdit = (record: OtherIncomeRecord) => {
@@ -333,282 +360,272 @@ export function OtherIncomesSubtab({
 
   return (
     <div className="subtab-container space-y-4">
-      {/* Toolbar */}
-      <div className="table-toolbar bg-card border border-border rounded-xl p-3 flex flex-wrap items-center justify-between gap-3">
-        <div className="flex flex-wrap items-center gap-2 flex-1 min-w-[280px]">
-          {/* Search */}
-          <label className="search-field max-w-[280px]">
-            <Search className="w-4 h-4 text-muted shrink-0" />
-            <input
-              value={searchTerm}
-              onChange={(e) => {
-                setSearchTerm(e.target.value);
-                setPage(1);
-              }}
-              placeholder="Tìm mã, tên NLĐ, số QĐ..."
-            />
-            {searchTerm && (
+      {/* Integrated Flat Card Table */}
+      <div className="integrated-table-card">
+        {/* Toolbar: Single Row */}
+        <div className="table-card-toolbar">
+          <div className="flex flex-wrap items-center justify-between gap-3 w-full">
+            {/* Left: Category segmentation pills */}
+            <div className="filter-status-pills">
               <button
                 type="button"
-                onClick={() => setSearchTerm("")}
-                className="text-muted hover:text-foreground"
-              >
-                <X className="w-3.5 h-3.5" />
-              </button>
-            )}
-          </label>
-
-          {/* Month Filter */}
-          <div className="w-[190px]">
-            <MonthPicker
-              value={periodFilter}
-              onChange={(val) => {
-                setPeriodFilter(val || "all");
-                setPage(1);
-              }}
-              allowClear
-              clearLabel="Tất cả các tháng"
-              placeholder="Tất cả các tháng"
-              variant="filter"
-            />
-          </div>
-
-          {/* Category Filter */}
-          <div className="w-[190px]">
-            <SearchableSelect
-              icon={<Filter className="w-3.5 h-3.5 text-muted" />}
-              value={categoryFilter}
-              onChange={(val) => {
-                setCategoryFilter(val);
-                setPage(1);
-              }}
-              options={[
-                { value: "all", label: "Tất cả loại thu nhập" },
-                ...INCOME_CATEGORIES.map((c) => ({ value: c.value, label: c.label })),
-              ]}
-              placeholder="Lọc loại thu nhập..."
-            />
-          </div>
-        </div>
-
-        {/* Action Buttons */}
-        <div className="flex items-center gap-2">
-          <Button
-            variant="secondary"
-            onClick={() => setImportModalOpen(true)}
-            title="Import danh sách từ file Excel"
-          >
-            <UploadCloud className="w-4 h-4 mr-1.5 text-primary" /> Import Excel
-          </Button>
-
-          <Button variant="primary" onClick={handleOpenCreate}>
-            <Plus className="w-4 h-4 mr-1.5" /> Thêm thu nhập
-          </Button>
-        </div>
-      </div>
-
-      {/* Main Table */}
-      {incomesQuery.isLoading ? (
-        <LoadingBlock rows={6} />
-      ) : incomesQuery.isError ? (
-        <ErrorState
-          message="Không thể tải danh sách thu nhập khác"
-          retry={() => incomesQuery.refetch()}
-        />
-      ) : filteredIncomes.length === 0 ? (
-        <EmptyState
-          title="Không tìm thấy khoản thu nhập nào"
-          description={
-            searchTerm || periodFilter !== "all" || categoryFilter !== "all"
-              ? "Không có dữ liệu phù hợp với bộ lọc hiện tại."
-              : "Chưa có quyết định khen thưởng / hỗ trợ nào cho người lao động trong dự án."
-          }
-          action={
-            searchTerm || periodFilter !== "all" || categoryFilter !== "all" ? (
-              <Button
-                variant="secondary"
+                className={`pill-btn ${categoryFilter === "all" ? "active" : ""}`}
                 onClick={() => {
-                  setSearchTerm("");
-                  setPeriodFilter("all");
                   setCategoryFilter("all");
+                  setPage(1);
                 }}
               >
-                Xóa bộ lọc
-              </Button>
-            ) : (
-              <Button variant="primary" onClick={handleOpenCreate}>
-                <Plus className="w-4 h-4 mr-1.5" /> Thêm khoản thu nhập đầu tiên
-              </Button>
-            )
-          }
-        />
-      ) : (
-        <div className="data-table-wrap">
-          <div className="data-table-scroll">
-            <table className="data-table min-w-[1050px]">
-              <thead>
-                <tr>
-                  <th style={{ width: "45px" }} className="text-center">STT</th>
-                  <th style={{ minWidth: "170px" }}>NGƯỜI LAO ĐỘNG</th>
-                  <th style={{ width: "120px" }} className="text-center">THÁNG ÁP DỤNG</th>
-                  <th style={{ width: "180px" }}>LOẠI THU NHẬP</th>
-                  <th style={{ width: "130px" }} className="text-right">SỐ TIỀN</th>
-                  <th style={{ width: "220px" }}>CĂN CỨ &amp; FILE QĐ</th>
-                  <th>LÝ DO / NỘI DUNG</th>
-                  <th style={{ width: "150px" }}>CẬP NHẬT</th>
-                  <th style={{ width: "80px" }} className="text-center">THAO TÁC</th>
-                </tr>
-              </thead>
-              <tbody>
-                {paginatedRecords.map((item, idx) => {
-                  const stt = (page - 1) * pageSize + idx + 1;
-                  const catDef = INCOME_CATEGORIES.find((c) => c.value === item.category);
-                  const emp = employeeMap.get(item.employeeId) || employeeMap.get(item.employeeCode);
-                  const projectCode = emp?.projectCode;
+                Tất cả ({incomes.length})
+              </button>
+              {INCOME_CATEGORIES.map((cat) => {
+                const count = incomes.filter((d) => d.category === cat.value).length;
+                return (
+                  <button
+                    key={cat.value}
+                    type="button"
+                    className={`pill-btn ${cat.tone === "success" ? "success" : cat.tone === "warning" ? "warning" : cat.tone === "info" ? "info" : ""} ${categoryFilter === cat.value ? "active" : ""}`}
+                    onClick={() => {
+                      setCategoryFilter(cat.value);
+                      setPage(1);
+                    }}
+                  >
+                    {cat.label} ({count})
+                  </button>
+                );
+              })}
+            </div>
 
-                  return (
-                    <tr key={item.id} className="hover:bg-secondary/40 transition-colors">
-                      {/* STT */}
-                      <td className="text-center text-muted font-medium">{stt}</td>
-
-                      {/* Employee Info */}
-                      <td>
-                        <div className="employee-cell-info">
-                          <span className="employee-cell-name font-semibold">{item.employeeName}</span>
-                          <span className="employee-cell-sub">
-                            <span className="employee-code-badge">{item.employeeCode}</span>
-                            {projectCode && <span className="text-muted text-[11px] font-normal">· {projectCode}</span>}
-                          </span>
-                        </div>
-                      </td>
-
-                      {/* Period */}
-                      <td className="text-center">
-                        <Badge tone="neutral">{formatMonthYear(item.period)}</Badge>
-                      </td>
-
-                      {/* Category */}
-                      <td>
-                        <Badge tone={catDef?.tone || "neutral"}>
-                          {item.categoryLabel || catDef?.label || item.category}
-                        </Badge>
-                      </td>
-
-                      {/* Amount */}
-                      <td className="text-right">
-                        <span className="font-mono font-bold text-emerald-600 dark:text-emerald-400 text-[13.5px]">
-                          +{formatCurrency(item.amount)}
-                        </span>
-                      </td>
-
-                      {/* Decision & Attachment */}
-                      <td>
-                        <div className="flex flex-col gap-1">
-                          {item.decisionNo ? (
-                            <div className="flex flex-col">
-                              <span className="text-xs font-medium text-foreground flex items-center gap-1">
-                                <FileText className="w-3.5 h-3.5 text-primary shrink-0" />
-                                {item.decisionNo}
-                              </span>
-                              {item.decisionDate && (
-                                <span className="text-[11px] text-muted ml-4.5">
-                                  Ngày {formatDate(item.decisionDate)}
-                                </span>
-                              )}
-                            </div>
-                          ) : (
-                            <span className="text-xs text-muted italic">Chưa có số QĐ</span>
-                          )}
-
-                          {item.attachmentName ? (
-                            <button
-                              type="button"
-                              onClick={() => {
-                                setPreviewingRecord(item);
-                                setPreviewFileModalOpen(true);
-                              }}
-                              className="inline-flex items-center gap-1 text-[11.5px] text-primary hover:underline font-medium text-left truncate max-w-[190px]"
-                              title={`Xem file: ${item.attachmentName}`}
-                            >
-                              <Paperclip className="w-3 h-3 shrink-0" />
-                              <span className="truncate">{item.attachmentName}</span>
-                            </button>
-                          ) : (
-                            <span className="text-[11px] text-muted">Chưa đính kèm file</span>
-                          )}
-                        </div>
-                      </td>
-
-                      {/* Reason */}
-                      <td>
-                        <p className="text-xs text-foreground/90 line-clamp-2" title={item.reason}>
-                          {item.reason}
-                        </p>
-                      </td>
-
-                      {/* Updated Info */}
-                      <td>
-                        <div className="text-[11.5px] text-muted space-y-0.5">
-                          <div className="truncate font-medium text-foreground/80">{item.updatedBy}</div>
-                          <div>{formatDate(item.updatedAt)}</div>
-                        </div>
-                      </td>
-
-                      {/* Actions */}
-                      <td className="text-center">
-                        <TableRowActions
-                          items={[
-                            {
-                              key: "edit",
-                              label: "Chỉnh sửa thu nhập",
-                              icon: <Pencil />,
-                              onClick: () => handleOpenEdit(item),
-                            },
-                            ...(item.attachmentName
-                              ? [
-                                  {
-                                    key: "preview_doc",
-                                    label: "Xem file quyết định",
-                                    icon: <Eye />,
-                                    onClick: () => {
-                                      setPreviewingRecord(item);
-                                      setPreviewFileModalOpen(true);
-                                    },
-                                  },
-                                ]
-                              : []),
-                            {
-                              key: "delete",
-                              label: "Xóa thu nhập",
-                              icon: <Trash2 />,
-                              danger: true,
-                              onClick: () => {
-                                setTargetDeleteRecord(item);
-                                setDeleteModalOpen(true);
-                              },
-                            },
-                          ]}
-                        />
-                      </td>
-                    </tr>
-                  );
-                })}
-              </tbody>
-            </table>
+            {/* Right: Search + MonthPicker */}
+            <div className="flex items-center gap-2.5 ml-auto">
+              <label className="search-field" style={{ minWidth: "220px" }}>
+                <Search className="w-4 h-4 text-muted shrink-0" />
+                <input
+                  value={searchTerm}
+                  onChange={(e) => {
+                    setSearchTerm(e.target.value);
+                    setPage(1);
+                  }}
+                  placeholder="Tìm mã, tên NLĐ, số QĐ..."
+                />
+              </label>
+              <div style={{ width: "160px" }}>
+                <MonthPicker
+                  value={periodFilter}
+                  onChange={(val) => {
+                    setPeriodFilter(val || "all");
+                    setPage(1);
+                  }}
+                  allowClear
+                  clearLabel="Tất cả các tháng"
+                  placeholder="Tất cả các tháng"
+                  variant="filter"
+                />
+              </div>
+            </div>
           </div>
-
-          <TablePaginationFooter
-            totalItems={filteredIncomes.length}
-            currentPage={page}
-            pageSize={pageSize}
-            onPageChange={setPage}
-            onPageSizeChange={(newSize) => {
-              setPageSize(newSize);
-              setPage(1);
-            }}
-          />
         </div>
-      )}
+
+        {/* Main Table */}
+        {incomesQuery.isLoading ? (
+          <LoadingBlock rows={6} />
+        ) : incomesQuery.isError ? (
+          <ErrorState
+            message="Không thể tải danh sách thu nhập khác"
+            retry={() => incomesQuery.refetch()}
+          />
+        ) : filteredIncomes.length === 0 ? (
+          <EmptyState
+            title="Không tìm thấy khoản thu nhập nào"
+            description={
+              searchTerm || periodFilter !== "all" || categoryFilter !== "all"
+                ? "Không có dữ liệu phù hợp với bộ lọc hiện tại."
+                : "Chưa có quyết định khen thưởng / hỗ trợ nào cho người lao động trong dự án."
+            }
+            action={
+              searchTerm || periodFilter !== "all" || categoryFilter !== "all" ? (
+                <Button
+                  variant="secondary"
+                  onClick={() => {
+                    setSearchTerm("");
+                    setPeriodFilter("all");
+                    setCategoryFilter("all");
+                  }}
+                >
+                  Xóa bộ lọc
+                </Button>
+              ) : (
+                <Button variant="primary" onClick={handleOpenCreate}>
+                  <Plus className="w-4 h-4 mr-1.5" /> Thêm khoản thu nhập đầu tiên
+                </Button>
+              )
+            }
+          />
+        ) : (
+          <div className="data-table-wrap">
+            <div className="data-table-scroll">
+              <table className="data-table min-w-[1050px]">
+                <thead>
+                  <tr>
+                    <th style={{ width: "45px" }} className="text-center">STT</th>
+                    <th style={{ minWidth: "170px" }}>NGƯỜI LAO ĐỘNG</th>
+                    <th style={{ width: "120px" }} className="text-center">THÁNG ÁP DỤNG</th>
+                    <th style={{ width: "180px" }}>LOẠI THU NHẬP</th>
+                    <th style={{ width: "130px" }} className="text-right">SỐ TIỀN</th>
+                    <th style={{ width: "220px" }}>CĂN CỨ &amp; FILE QĐ</th>
+                    <th>LÝ DO / NỘI DUNG</th>
+                    <th style={{ width: "150px" }}>CẬP NHẬT</th>
+                    <th style={{ width: "80px" }} className="text-center">THAO TÁC</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {paginatedRecords.map((item, idx) => {
+                    const rawStt = (page - 1) * pageSize + idx + 1;
+                    const stt = String(rawStt).padStart(2, "0");
+                    const catDef = INCOME_CATEGORIES.find((c) => c.value === item.category);
+                    const emp = employeeMap.get(item.employeeId) || employeeMap.get(item.employeeCode);
+                    const projectCode = emp?.projectCode;
+
+                    return (
+                      <tr key={item.id} className="hover:bg-secondary/40 transition-colors">
+                        {/* STT */}
+                        <td className="text-center text-muted font-medium">{stt}</td>
+
+                        {/* Employee Info */}
+                        <td>
+                          <div className="employee-cell-info">
+                            <span className="employee-cell-name font-semibold">{item.employeeName}</span>
+                            <span className="employee-cell-sub">
+                              <span className="employee-code-badge">{item.employeeCode}</span>
+                              {projectCode && <span className="text-muted text-[11px] font-normal">· {projectCode}</span>}
+                            </span>
+                          </div>
+                        </td>
+
+                        {/* Period */}
+                        <td className="text-center">
+                          <Badge tone="neutral">{formatMonthYear(item.period)}</Badge>
+                        </td>
+
+                        {/* Category */}
+                        <td>
+                          <Badge tone={catDef?.tone || "neutral"}>
+                            {item.categoryLabel || catDef?.label || item.category}
+                          </Badge>
+                        </td>
+
+                        {/* Amount */}
+                        <td className="text-right">
+                          <span className="font-mono font-bold text-success text-[13.5px]">
+                            +{formatCurrency(item.amount)}
+                          </span>
+                        </td>
+
+                        {/* Decision & Attachment */}
+                        <td>
+                          <div className="flex flex-col gap-1">
+                            {item.decisionNo ? (
+                              <div className="flex flex-col">
+                                <span className="text-xs font-medium text-foreground flex items-center gap-1">
+                                  <FileText className="w-3.5 h-3.5 text-primary shrink-0" />
+                                  {item.decisionNo}
+                                </span>
+                                {item.decisionDate && (
+                                  <span className="text-[11px] text-muted ml-4.5">
+                                    Ngày {formatDate(item.decisionDate)}
+                                  </span>
+                                )}
+                              </div>
+                            ) : (
+                              <span className="text-xs text-muted italic">Chưa có số QĐ</span>
+                            )}
+
+                            {item.attachmentName ? (
+                              <button
+                                type="button"
+                                onClick={() => {
+                                  setPreviewingRecord(item);
+                                  setPreviewFileModalOpen(true);
+                                }}
+                                className="text-xs text-primary hover:underline flex items-center gap-1 font-medium text-left"
+                              >
+                                <Paperclip className="w-3 h-3 shrink-0" />
+                                <span className="truncate max-w-[150px]">{item.attachmentName}</span>
+                              </button>
+                            ) : null}
+                          </div>
+                        </td>
+
+                        {/* Reason / Notes */}
+                        <td>
+                          <span className="text-xs text-foreground/80 line-clamp-2" title={item.reason}>
+                            {item.reason}
+                          </span>
+                        </td>
+
+                        {/* Audit info */}
+                        <td>
+                          <div className="text-[11px] text-muted space-y-0.5">
+                            <div className="truncate font-medium text-foreground/80">{item.updatedBy}</div>
+                            <div>{formatDate(item.updatedAt)}</div>
+                          </div>
+                        </td>
+
+                        {/* Actions */}
+                        <td className="text-center">
+                          <TableRowActions
+                            items={[
+                              {
+                                key: "edit",
+                                label: "Chỉnh sửa thu nhập",
+                                icon: <Pencil />,
+                                onClick: () => handleOpenEdit(item),
+                              },
+                              ...(item.attachmentName
+                                ? [
+                                    {
+                                      key: "preview_doc",
+                                      label: "Xem file quyết định",
+                                      icon: <Eye />,
+                                      onClick: () => {
+                                        setPreviewingRecord(item);
+                                        setPreviewFileModalOpen(true);
+                                      },
+                                    },
+                                  ]
+                                : []),
+                              {
+                                key: "delete",
+                                label: "Xóa thu nhập",
+                                icon: <Trash2 />,
+                                danger: true,
+                                onClick: () => {
+                                  setTargetDeleteRecord(item);
+                                  setDeleteModalOpen(true);
+                                },
+                              },
+                            ]}
+                          />
+                        </td>
+                      </tr>
+                    );
+                  })}
+                </tbody>
+              </table>
+            </div>
+
+            <TablePaginationFooter
+              totalItems={filteredIncomes.length}
+              currentPage={page}
+              pageSize={pageSize}
+              onPageChange={setPage}
+              onPageSizeChange={(newSize) => {
+                setPageSize(newSize);
+                setPage(1);
+              }}
+            />
+          </div>
+        )}
+      </div>
 
       {/* BOTTOM AUDIT / ACTIVITY LOG */}
       <SubtabActivityLog
@@ -624,7 +641,7 @@ export function OtherIncomesSubtab({
       <Modal
         open={formModalOpen}
         onOpenChange={setFormModalOpen}
-        title={editingRecord ? "Chỉnh sửa khoản thu nhập" : "Thêm mới thu nhập khen thưởng"}
+        title={editingRecord ? "Chỉnh sửa khoản thu nhập khác" : "Thêm mới khoản thu nhập khác"}
         description="Nhập thông tin quyết định khen thưởng / hỗ trợ và đính kèm văn bản phê duyệt."
         size="lg"
         footer={
@@ -636,7 +653,9 @@ export function OtherIncomesSubtab({
               variant="primary"
               disabled={!formEmployeeId || !formAmount || saveMutation.isPending}
               onClick={() => saveMutation.mutate()}
+              className="gap-1.5 font-semibold"
             >
+              <Check className="w-3.5 h-3.5" />
               {saveMutation.isPending
                 ? "Đang lưu…"
                 : editingRecord

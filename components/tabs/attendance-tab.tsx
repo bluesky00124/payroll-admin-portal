@@ -1,7 +1,7 @@
 "use client";
 
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { Pencil, Plus, Save, Search, Trash2, X } from "lucide-react";
+import { Check, Pencil, Plus, Search, Trash2, X } from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
 import { useToast } from "@/components/providers";
 import { Badge, Button, EmptyState, ErrorState, LoadingBlock, Modal } from "@/components/ui";
@@ -222,8 +222,9 @@ export function AttendanceTab({ projectId, embedded = false }: { projectId: stri
                                 onClick={() => saveRowMutation.mutate(config)}
                                 disabled={saveRowMutation.isPending}
                                 title="Lưu dòng này"
+                                className="gap-1.5 font-semibold"
                               >
-                                <Save className="w-3.5 h-3.5" /> Lưu
+                                <Check className="w-3.5 h-3.5" /> Lưu
                               </Button>
                               <Button
                                 size="icon"

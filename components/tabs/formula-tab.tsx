@@ -4,6 +4,7 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import {
   AlertCircle,
   Calculator,
+  Check,
   CheckCircle2,
   ChevronUp,
   GripVertical,
@@ -36,7 +37,7 @@ import {
   type SalaryComponentDefinition,
 } from "@/lib/payroll-component-library";
 import type { ExpressionNode, ProjectCustomVariable, SalaryFormula } from "@/lib/types";
-import { uid } from "@/lib/utils";
+import { hideGsLoading, showGsLoading, uid } from "@/lib/utils";
 
 const categoryLabels: Record<SalaryFormula["category"], string> = {
   income: "Thu nhập",
@@ -472,9 +473,9 @@ export function FormulaTab({ projectId }: { projectId: string; embedded?: boolea
 
   const getMissingCustomParams = (formula: SalaryFormula) => {
     const customMap = new Map(customVariables.map((c) => [c.code, c]));
-    const used = collectVariables(formula.expression);
+    const usedCodes = Array.from(new Set(collectVariables(formula.expression)));
     const missing: ProjectCustomVariable[] = [];
-    used.forEach((code) => {
+    usedCodes.forEach((code) => {
       const c = customMap.get(code);
       if (c && (c.value === null || c.value === undefined)) {
         missing.push(c);
@@ -619,6 +620,17 @@ export function FormulaTab({ projectId }: { projectId: string; embedded?: boolea
     onError: (error: Error) => notify(error.message, "error"),
   });
 
+  useEffect(() => {
+    if (saveMutation.isPending) {
+      showGsLoading("Đang lưu cấu hình công thức lương...");
+    } else if (formulasQuery.isFetching && Boolean(formulasQuery.data)) {
+      showGsLoading("Đang tải danh mục công thức...");
+    } else {
+      hideGsLoading();
+    }
+    return () => hideGsLoading();
+  }, [saveMutation.isPending, formulasQuery.isFetching, Boolean(formulasQuery.data)]);
+
   if (formulasQuery.isLoading || variablesQuery.isLoading) return <LoadingBlock rows={8} />;
   if (formulasQuery.isError || variablesQuery.isError) {
     return (
@@ -669,6 +681,7 @@ export function FormulaTab({ projectId }: { projectId: string; embedded?: boolea
             variant="primary"
             onClick={() => saveMutation.mutate()}
             disabled={saveMutation.isPending}
+            className="gap-1.5 font-semibold"
           >
             <Save className="w-4 h-4" /> Lưu cấu hình
           </Button>
@@ -756,7 +769,7 @@ export function FormulaTab({ projectId }: { projectId: string; embedded?: boolea
                   >
                     <div className="flex items-center gap-2 min-w-0">
                       <GripVertical className="w-3.5 h-3.5 text-muted/60 shrink-0 cursor-grab" />
-                      <span className="truncate block">{item.name}</span>
+                      <span className="truncate py-0.5 leading-normal">{item.name}</span>
                     </div>
 
                     {isAdded ? (
@@ -807,7 +820,7 @@ export function FormulaTab({ projectId }: { projectId: string; embedded?: boolea
                   >
                     <div className="flex items-center gap-2 min-w-0">
                       <GripVertical className="w-3.5 h-3.5 text-muted/60 shrink-0 cursor-grab" />
-                      <span className="truncate block">{item.name}</span>
+                      <span className="truncate py-0.5 leading-normal">{item.name}</span>
                     </div>
 
                     {isAdded ? (
@@ -868,7 +881,7 @@ export function FormulaTab({ projectId }: { projectId: string; embedded?: boolea
                             hasValue ? "bg-emerald-500" : "bg-amber-500 animate-pulse"
                           }`}
                         />
-                        <span className="truncate block text-foreground group-hover:text-primary transition-colors">
+                        <span className="truncate py-0.5 leading-normal text-foreground group-hover:text-primary transition-colors">
                           {param.name}
                         </span>
                       </div>
@@ -952,7 +965,7 @@ export function FormulaTab({ projectId }: { projectId: string; embedded?: boolea
                           className="px-2.5 py-1.5 rounded-lg border border-emerald-500/30 bg-card text-foreground text-xs font-semibold inline-flex items-center gap-1.5 shadow-2xs hover:border-emerald-500 transition-all max-w-full group"
                         >
                           <GripVertical className="w-3 h-3 text-emerald-500/70 shrink-0 cursor-grab" />
-                          <span className="truncate">{item.name}</span>
+                          <span className="truncate py-0.5 leading-normal">{item.name}</span>
                           <button
                             type="button"
                             onClick={() => removeComponentFromStructure(item.id)}
@@ -1010,7 +1023,7 @@ export function FormulaTab({ projectId }: { projectId: string; embedded?: boolea
                           className="px-2.5 py-1.5 rounded-lg border border-rose-500/30 bg-card text-foreground text-xs font-semibold inline-flex items-center gap-1.5 shadow-2xs hover:border-rose-500 transition-all max-w-full group"
                         >
                           <GripVertical className="w-3 h-3 text-rose-500/70 shrink-0 cursor-grab" />
-                          <span className="truncate">{item.name}</span>
+                          <span className="truncate py-0.5 leading-normal">{item.name}</span>
                           <button
                             type="button"
                             onClick={() => removeComponentFromStructure(item.id)}
@@ -1068,7 +1081,7 @@ export function FormulaTab({ projectId }: { projectId: string; embedded?: boolea
                             {String(idx + 1).padStart(2, "0")}
                           </span>
                           <div className="min-w-0">
-                            <strong className="text-sm font-bold text-foreground block truncate">{formula.name}</strong>
+                            <strong className="text-sm font-bold text-foreground truncate py-0.5 leading-normal">{formula.name}</strong>
                           </div>
                           <Badge tone={isIncome ? "success" : formula.category === "deduction" ? "danger" : "info"}>
                             {categoryLabels[formula.category]}

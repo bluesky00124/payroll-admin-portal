@@ -3,6 +3,7 @@
 import {
   Delete,
   Search,
+  Trash2,
   Variable,
   X,
 } from "lucide-react";
@@ -269,9 +270,21 @@ export function SmartFormulaEditor({
           Biểu thức tính toán:
         </span>
 
-        <span className="text-[11px] text-muted-foreground hidden sm:inline">
-          Gõ <code className="font-bold text-primary">@</code> để chèn biến
-        </span>
+        <div className="flex items-center gap-3">
+          <span className="text-[11px] text-muted-foreground hidden sm:inline">
+            Gõ <code className="font-bold text-primary">@</code> để chèn biến
+          </span>
+          {rawText && (
+            <button
+              type="button"
+              onClick={handleClearAll}
+              className="text-[11px] font-medium text-muted hover:text-destructive flex items-center gap-1 px-1.5 py-0.5 rounded hover:bg-destructive/10 transition-colors cursor-pointer"
+              title="Xóa toàn bộ nội dung công thức"
+            >
+              <Trash2 className="w-3 h-3" /> Xóa tất cả
+            </button>
+          )}
+        </div>
       </div>
 
       {/* 2. Main Freeform Excel Formula Input with Floating @ Mention Dropdown */}
@@ -289,20 +302,8 @@ export function SmartFormulaEditor({
             onChange={handleTextChange}
             onKeyDown={handleKeyDown}
             placeholder="Gõ @ để chèn biến"
-            className="w-full px-3.5 pr-10 py-2.5 !border-0 !outline-none !shadow-none !ring-0 focus:!ring-0 focus:!border-0 !bg-transparent font-mono text-sm leading-relaxed text-foreground placeholder:text-muted-foreground/60 placeholder:text-xs placeholder:font-sans resize-y min-h-[72px]"
+            className="w-full px-3.5 py-2.5 !border-0 !outline-none !shadow-none !ring-0 focus:!ring-0 focus:!border-0 !bg-transparent font-mono text-sm leading-relaxed text-foreground placeholder:text-muted-foreground/60 placeholder:text-xs placeholder:font-sans resize-y min-h-[72px]"
           />
-
-          {rawText && (
-            <button
-              type="button"
-              onClick={handleClearAll}
-              className="absolute right-2.5 top-2.5 p-1.5 rounded-md text-muted hover:text-destructive hover:bg-destructive/10 transition-colors"
-              title="Xóa toàn bộ công thức"
-              aria-label="Xóa toàn bộ"
-            >
-              <Delete className="w-4 h-4" />
-            </button>
-          )}
         </div>
 
         {/* Floating @ Mention Autocomplete Popup */}
@@ -347,7 +348,7 @@ export function SmartFormulaEditor({
                           className={`w-1.5 h-1.5 rounded-full shrink-0 ${isSelected ? "bg-white" : "bg-primary"
                             }`}
                         />
-                        <span className="font-semibold truncate">{v.name}</span>
+                        <span className="font-semibold truncate py-0.5 leading-normal">{v.name}</span>
                       </div>
                       <span
                         className={`text-[10px] font-mono shrink-0 ${isSelected ? "text-white/80" : "text-muted-foreground"
@@ -428,7 +429,7 @@ export function SmartFormulaEditor({
                       {v.group === "custom" || v.isCustom ? (
                         <span className="w-1.5 h-1.5 rounded-full bg-primary shrink-0" title="Tham số đầu vào" />
                       ) : null}
-                      <span className="font-semibold truncate group-hover:text-primary">{v.name}</span>
+                      <span className="font-semibold truncate py-0.5 leading-normal group-hover:text-primary">{v.name}</span>
                     </div>
                     {v.group === "custom" || v.isCustom ? (
                       <span className="text-[9px] font-semibold text-primary bg-primary/10 border border-primary/20 px-1 rounded shrink-0">

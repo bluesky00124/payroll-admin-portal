@@ -25,7 +25,7 @@ import {
   UserPlus,
   X,
 } from "lucide-react";
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import { ExcelImportModal } from "@/components/employees/excel-import-modal";
 import { SubtabActivityLog } from "@/components/employees/subtab-activity-log";
 import { useToast } from "@/components/providers";
@@ -54,10 +54,12 @@ export function InsuranceSubtab({
   projectId,
   employees,
   isAccountant = true,
+  setHeaderAction,
 }: {
   projectId: string;
   employees: Employee[];
   isAccountant?: boolean;
+  setHeaderAction?: (node: ReactNode) => void;
 }) {
   const { notify } = useToast();
   const queryClient = useQueryClient();
@@ -80,6 +82,33 @@ export function InsuranceSubtab({
   const [verifyModalOpen, setVerifyModalOpen] = useState(false);
   const [rejectModalOpen, setRejectModalOpen] = useState(false);
   const [selectedChangeForAction, setSelectedChangeForAction] = useState<InsuranceChangeRecord | null>(null);
+
+  // Register Header Action
+  useEffect(() => {
+    if (!setHeaderAction) return;
+    setHeaderAction(
+      <div className="flex items-center gap-2">
+        <Button
+          variant="secondary"
+          onClick={() => setUploadModalOpen(true)}
+          className="gap-1.5 font-semibold text-xs h-8 px-3"
+        >
+          <UploadCloud className="w-3.5 h-3.5" /> Import biến động
+        </Button>
+        <Button
+          variant="primary"
+          onClick={() => {
+            setActiveView("changes");
+            setDeclareModalOpen(true);
+          }}
+          className="gap-1.5 font-semibold text-xs h-8 px-3"
+        >
+          <Plus className="w-3.5 h-3.5" /> Khai báo biến động
+        </Button>
+      </div>
+    );
+    return () => setHeaderAction(null);
+  }, [setHeaderAction, setActiveView]);
 
   // Form state cho Modal Khai báo biến động
   const [formEmployeeId, setFormEmployeeId] = useState(employees[0]?.id ?? "");
@@ -437,39 +466,12 @@ export function InsuranceSubtab({
         </button>
       </nav>
 
-      {/* TAB 1: DANH SÁCH THAM GIA BHXH (SỔ THEO DÕI HIỆN HÀNH) */}
+      {/* TAB 1: DANH SÁCH THAM GIA BHXH */}
       {activeView === "master" && (
         <div className="integrated-table-card">
           <div className="table-card-toolbar">
-            <div className="filter-panel-top">
-              <div className="filter-panel-inputs">
-                <label className="search-field">
-                  <Search />
-                  <input
-                    value={searchTerm}
-                    onChange={(e) => {
-                      setSearchTerm(e.target.value);
-                      setMasterPage(1);
-                    }}
-                    placeholder="Tìm theo tên NV, mã NV, mã số BHXH..."
-                  />
-                </label>
-              </div>
-
-              <div className="filter-panel-actions">
-                <Button
-                  variant="primary"
-                  onClick={() => {
-                    setActiveView("changes");
-                    setDeclareModalOpen(true);
-                  }}
-                >
-                  <Plus /> Khai báo biến động
-                </Button>
-              </div>
-            </div>
-
-            <div className="filter-panel-bottom">
+            <div className="flex flex-wrap items-center justify-between gap-3 w-full">
+              {/* Left: Status Segmentation Pills */}
               <div className="filter-status-pills">
                 <button
                   type="button"
@@ -513,6 +515,20 @@ export function InsuranceSubtab({
                 </button>
               </div>
 
+              {/* Right: Search */}
+              <div className="flex items-center gap-2.5 ml-auto">
+                <label className="search-field" style={{ minWidth: "260px" }}>
+                  <Search />
+                  <input
+                    value={searchTerm}
+                    onChange={(e) => {
+                      setSearchTerm(e.target.value);
+                      setMasterPage(1);
+                    }}
+                    placeholder="Tìm theo tên NV, mã NV, mã số BHXH..."
+                  />
+                </label>
+              </div>
             </div>
           </div>
 
@@ -543,7 +559,8 @@ export function InsuranceSubtab({
                   {paginatedMaster.map((item, idx) => {
                     const empAmount = Math.round(item.insuranceSalary * 0.105);
                     const compAmount = Math.round(item.insuranceSalary * 0.215);
-                    const stt = (masterPage - 1) * masterPageSize + idx + 1;
+                    const rawStt = (masterPage - 1) * masterPageSize + idx + 1;
+                    const stt = String(rawStt).padStart(2, "0");
                     const emp = employeeMap.get(item.employeeId) || employeeMap.get(item.employeeCode);
                     const projectCode = item.projectCode || emp?.projectCode;
 
@@ -621,56 +638,73 @@ export function InsuranceSubtab({
       {activeView === "changes" && (
         <div className="integrated-table-card">
           <div className="table-card-toolbar">
-            <div className="filter-panel-top">
-              <div className="filter-panel-inputs">
-                {selectedChangeIds.size > 0 && (
-                  <Badge tone="info">Đã chọn {selectedChangeIds.size} hồ sơ</Badge>
-                )}
+            <div className="flex flex-wrap items-center justify-between gap-3 w-full">
+              {/* Left: Status Segmentation Pills */}
+              <div className="filter-status-pills">
+                <button
+                  type="button"
+                  className={`pill-btn ${changeStatusFilter === "all" ? "active" : ""}`}
+                  onClick={() => {
+                    setChangeStatusFilter("all");
+                    setChangesPage(1);
+                  }}
+                >
+                  Tất cả ({changeCounts.all})
+                </button>
+                <button
+                  type="button"
+                  className={`pill-btn warning ${changeStatusFilter === "pending" ? "active" : ""}`}
+                  onClick={() => {
+                    setChangeStatusFilter("pending");
+                    setChangesPage(1);
+                  }}
+                >
+                  Chờ đối chiếu ({changeCounts.pending})
+                </button>
+                <button
+                  type="button"
+                  className={`pill-btn success ${changeStatusFilter === "verified" ? "active" : ""}`}
+                  onClick={() => {
+                    setChangeStatusFilter("verified");
+                    setChangesPage(1);
+                  }}
+                >
+                  Đã đối chiếu ({changeCounts.verified})
+                </button>
+                <button
+                  type="button"
+                  className={`pill-btn danger ${changeStatusFilter === "rejected" ? "active" : ""}`}
+                  onClick={() => {
+                    setChangeStatusFilter("rejected");
+                    setChangesPage(1);
+                  }}
+                >
+                  Từ chối ({changeCounts.rejected})
+                </button>
               </div>
 
-              <div className="filter-panel-actions">
-                {selectedChangeIds.size > 0 ? (
-                  <div className="bulk-action-group">
-                    {isAccountant && (
-                      <Button
-                        variant="primary"
-                        onClick={() => {
-                          setSelectedChangeForAction(null);
-                          setVerifyModalOpen(true);
-                        }}
-                      >
-                        <CheckCheck /> Xác nhận {selectedChangeIds.size} hồ sơ đã chọn
-                      </Button>
-                    )}
-                    <Button variant="ghost" size="sm" onClick={() => setSelectedChangeIds(new Set())}>
-                      Bỏ chọn
-                    </Button>
-                  </div>
-                ) : (
-                  <>
-                    <Button
-                      variant="secondary"
-                      onClick={() => setUploadModalOpen(true)}
-                      title="Chủ dự án tải lên tệp danh sách biến động BHXH"
-                    >
-                      <Upload /> Tải lên biến động
-                    </Button>
-
-                    <Button
-                      variant="primary"
-                      onClick={() => {
-                        setFormEmployeeId(employees[0]?.id ?? "");
-                        const firstMaster = masterRecords.find((m) => m.employeeId === (employees[0]?.id ?? ""));
-                        setFormNewSalary(firstMaster?.insuranceSalary ?? 6300000);
-                        setFormEffectiveMonth(new Date().toISOString().slice(0, 7));
-                        setDeclareModalOpen(true);
-                      }}
-                      title="Khai báo tăng mới, giảm hẳn hoặc điều chỉnh mức đóng cho nhân sự"
-                    >
-                      <Plus /> Khai báo biến động
-                    </Button>
-                  </>
-                )}
+              {/* Right: Search + MonthPicker */}
+              <div className="flex items-center gap-2.5 ml-auto">
+                <label className="search-field" style={{ minWidth: "240px" }}>
+                  <Search />
+                  <input
+                    value={searchTerm}
+                    onChange={(e) => {
+                      setSearchTerm(e.target.value);
+                      setChangesPage(1);
+                    }}
+                    placeholder="Tìm theo tên NV, mã NV..."
+                  />
+                </label>
+                <div style={{ width: "160px" }}>
+                  <MonthPicker
+                    value={selectedPeriod}
+                    onChange={(val) => {
+                      setSelectedPeriod(val);
+                      setChangesPage(1);
+                    }}
+                  />
+                </div>
               </div>
             </div>
           </div>
@@ -678,12 +712,7 @@ export function InsuranceSubtab({
           {filteredChanges.length === 0 ? (
             <EmptyState
               title="Không có biến động BHXH"
-              description="Chưa phát sinh biến động tăng/giảm hoặc điều chỉnh lương đóng BHXH. Bấm 'Khai báo biến động' hoặc 'Tải lên biến động' để thêm mới."
-              action={
-                <Button variant="primary" onClick={() => setDeclareModalOpen(true)}>
-                  <Plus /> Khai báo biến động mới
-                </Button>
-              }
+              description="Chưa phát sinh biến động tăng/giảm hoặc điều chỉnh lương đóng BHXH trong kỳ này."
             />
           ) : (
             <div className="data-table-wrap">
@@ -717,7 +746,8 @@ export function InsuranceSubtab({
                       const isChecked = selectedChangeIds.has(item.id);
                       const empAmount = Math.round(item.newSalary * 0.105);
                       const compAmount = Math.round(item.newSalary * 0.215);
-                      const stt = (changesPage - 1) * changesPageSize + idx + 1;
+                      const rawStt = (changesPage - 1) * changesPageSize + idx + 1;
+                      const stt = String(rawStt).padStart(2, "0");
                       const emp = employeeMap.get(item.employeeId) || employeeMap.get(item.employeeCode);
                       const projectCode = item.projectCode || emp?.projectCode;
 
@@ -760,26 +790,42 @@ export function InsuranceSubtab({
                             </div>
                           </td>
                           <td className="text-right font-mono">
-                            <span className="text-warning font-semibold">{formatCurrency(empAmount)}</span>
+                            <span className="font-semibold text-warning">{formatCurrency(empAmount)}</span>
                           </td>
                           <td className="text-right font-mono">
-                            <span className="text-info font-semibold">{formatCurrency(compAmount)}</span>
+                            <span className="font-semibold text-info">{formatCurrency(compAmount)}</span>
                           </td>
                           <td>
-                            <StatusBadge tone="warning">Chờ xác nhận</StatusBadge>
+                            {item.status === "verified" ? (
+                              <StatusBadge tone="success">Đã đối chiếu</StatusBadge>
+                            ) : item.status === "rejected" ? (
+                              <StatusBadge tone="danger">Từ chối</StatusBadge>
+                            ) : (
+                              <StatusBadge tone="warning">Chờ đối chiếu</StatusBadge>
+                            )}
                           </td>
                           <td className="text-center">
                             <TableRowActions
                               items={[
-                                ...(isAccountant
+                                ...(isAccountant && item.status === "pending"
                                   ? [
                                       {
                                         key: "verify",
-                                        label: "Xác nhận đối chiếu BHXH",
+                                        label: "Xác nhận đối chiếu",
                                         icon: <Check />,
                                         onClick: () => {
                                           setSelectedChangeForAction(item);
                                           setVerifyModalOpen(true);
+                                        },
+                                      },
+                                      {
+                                        key: "reject",
+                                        label: "Từ chối biến động",
+                                        icon: <X />,
+                                        danger: true,
+                                        onClick: () => {
+                                          setSelectedChangeForAction(item);
+                                          setRejectModalOpen(true);
                                         },
                                       },
                                     ]
@@ -794,10 +840,8 @@ export function InsuranceSubtab({
                 </table>
               </div>
 
-              {/* Attached Table Footer */}
               <TablePaginationFooter
                 totalItems={filteredChanges.length}
-                selectedCount={selectedChangeIds.size}
                 currentPage={changesPage}
                 pageSize={changesPageSize}
                 onPageChange={setChangesPage}
@@ -809,6 +853,48 @@ export function InsuranceSubtab({
             </div>
           )}
         </div>
+      )}
+
+      {/* Floating SaveBar for Bulk Changes Confirmation */}
+      {selectedChangeIds.size > 0 && isAccountant && (
+        <aside className="save-bar" role="region" aria-label="Xác nhận đối chiếu BHXH">
+          <div className="flex items-center gap-3">
+            <div className="w-8 h-8 rounded-full bg-primary/10 text-primary flex items-center justify-center shrink-0">
+              <Check className="w-4 h-4" />
+            </div>
+            <div>
+              <div className="text-xs font-bold text-foreground">
+                Đã chọn {selectedChangeIds.size} biến động BHXH
+              </div>
+              <div className="text-[11px] text-muted font-medium">
+                Xác nhận đối chiếu dữ liệu với cơ quan BHXH
+              </div>
+            </div>
+          </div>
+          <div className="flex items-center gap-2">
+            <Button
+              type="button"
+              variant="outline"
+              size="sm"
+              onClick={() => setSelectedChangeIds(new Set())}
+              className="text-xs"
+            >
+              Bỏ chọn
+            </Button>
+            <Button
+              type="button"
+              variant="primary"
+              size="sm"
+              onClick={() => {
+                setSelectedChangeForAction(null);
+                setVerifyModalOpen(true);
+              }}
+              className="gap-1.5 font-semibold text-xs"
+            >
+              <Check className="w-3.5 h-3.5" /> Xác nhận đối chiếu ({selectedChangeIds.size})
+            </Button>
+          </div>
+        </aside>
       )}
 
       {/* BOTTOM AUDIT / ACTIVITY LOG */}

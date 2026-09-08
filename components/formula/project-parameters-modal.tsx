@@ -169,7 +169,7 @@ export function ProjectParametersModal({
               disabled={!isDirty || saveMutation.isPending}
               className="gap-1.5"
             >
-              <CheckCircle2 className="w-4 h-4" />
+              <Save className="w-4 h-4" />
               {saveMutation.isPending ? "Đang lưu..." : isDirty ? "Lưu thay đổi (*)" : "Đã lưu"}
             </Button>
           </div>

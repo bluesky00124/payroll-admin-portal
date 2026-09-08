@@ -27,11 +27,13 @@ import type {
   EmployeePolicyItem,
   EmployeePolicyRecord,
   ProjectEmployeeGroup,
+  ProjectPoliciesResponseData,
   OtherDeductionRecord,
   OtherIncomeRecord,
 } from "@/lib/types";
 
 import { handlers } from "@/mocks/handlers";
+import { formatDate } from "@/lib/utils";
 
 export class ApiRequestError extends Error {
   constructor(
@@ -89,20 +91,493 @@ async function request<T>(url: string, init?: RequestInit): Promise<{ data: T; m
   return { data: payload.data, meta: payload.meta };
 }
 
+export function getApiBaseUrl(): string {
+  if (typeof window !== "undefined") {
+    if ((window as any).API_BASE_URL) return (window as any).API_BASE_URL;
+    const widget = document.querySelector("payroll-projects, payroll-widget, payroll-employees");
+    const attrUrl = widget?.getAttribute("api-base-url");
+    if (attrUrl) return attrUrl;
+  }
+  return "https://bruh.thanhf.dev/api/";
+}
+
+export function getAuthToken(): string {
+  if (typeof window !== "undefined") {
+    if ((window as any).__SERVER_TOKEN) return (window as any).__SERVER_TOKEN;
+    const widget = document.querySelector("payroll-projects, payroll-widget, payroll-employees");
+    const attrToken = widget?.getAttribute("auth-token");
+    if (attrToken) return attrToken;
+  }
+  return "";
+}
+
+const cachedProjectsMap = new Map<string, Project>();
+
 export const api = {
-  getProjects: (params: { q?: string; status?: string; page?: number; pageSize?: number }) => {
-    const query = new URLSearchParams(Object.entries(params).filter(([, value]) => value !== undefined).map(([key, value]) => [key, String(value)]));
-    return request<Project[]>(`/api/projects?${query}`);
+  getLookupProjects: async (): Promise<Array<{ id: string; code: string; name: string }>> => {
+    // 1. Kiểm tra cache window.__SERVER_PROJECTS (nếu ASP.NET inject sẵn như trang Dashboard)
+    if (typeof window !== "undefined") {
+      const serverProjects = (window as any).__SERVER_PROJECTS;
+      if (Array.isArray(serverProjects) && serverProjects.length > 0) {
+        return serverProjects.map((p: any) => ({
+          id: String(p.id ?? p.ProjectId ?? p.Id ?? ""),
+          code: String(p.code ?? p.ProjectCode ?? "").trim(),
+          name: String(p.name ?? p.ProjectName ?? p.code ?? `Dự án #${p.id}`).trim(),
+        }));
+      }
+    }
+
+    // 2. Gọi API giống hệt trang Home/Dashboard: /api/project/getprojectbyuserid?status=true
+    const rawBaseUrl = getApiBaseUrl();
+    const baseUrl = (rawBaseUrl && rawBaseUrl.trim().length > 0 && !rawBaseUrl.startsWith("/api/payroll") ? rawBaseUrl : "https://bruh.thanhf.dev/api/").replace(/\/+$/, "");
+    const token = getAuthToken();
+    const userId = typeof window !== "undefined" && typeof (window as any).__SERVER_USER_ID === "number" ? (window as any).__SERVER_USER_ID : 0;
+
+    const apiRoot = baseUrl.endsWith("/api") ? baseUrl : `${baseUrl}/api`;
+    const url = `${apiRoot}/project/getprojectbyuserid?status=true${userId > 0 ? `&UserId=${userId}` : ""}`;
+
+    const headers: Record<string, string> = {
+      Accept: "*/*",
+      "Content-Type": "application/json",
+    };
+    if (token) {
+      headers["Authorization"] = `Bearer ${token}`;
+    }
+
+    try {
+      const response = await fetch(url, { method: "GET", headers });
+      if (response.ok) {
+        const data = await response.json();
+        const rawList: any[] = Array.isArray(data)
+          ? data
+          : data && Array.isArray(data.Data)
+          ? data.Data
+          : data && Array.isArray(data.data)
+          ? data.data
+          : [];
+
+        if (rawList.length > 0) {
+          return rawList
+            .filter((p: any) => p && p.Active !== false && p.active !== false)
+            .map((p: any) => {
+              const pId = String(p.ProjectId ?? p.projectId ?? p.Id ?? p.id ?? "");
+              const pCode = String(p.ProjectCode ?? p.projectCode ?? "").trim();
+              const pName = String(p.ProjectName ?? p.projectName ?? pCode ?? `Dự án #${pId}`).trim();
+              return {
+                id: pId,
+                code: pCode,
+                name: pName,
+              };
+            });
+        }
+      }
+    } catch (err) {
+      console.warn("[getLookupProjects] Lỗi gọi /api/project/getprojectbyuserid, fallback:", err);
+    }
+
+    // 3. Fallback sang /web/payroll/projects nếu endpoint cũ không phản hồi
+    try {
+      const fallbackRes = await api.getProjects({ pageSize: 100 });
+      return fallbackRes.data.map((p) => ({
+        id: p.id,
+        code: p.code,
+        name: p.name,
+      }));
+    } catch {
+      return [];
+    }
+  },
+  getProjects: async (params: { q?: string; status?: string; page?: number; pageSize?: number }) => {
+    const rawBaseUrl = getApiBaseUrl();
+    const baseUrl = (rawBaseUrl && rawBaseUrl.trim().length > 0 ? rawBaseUrl : "https://bruh.thanhf.dev/api/").replace(/\/+$/, "");
+    const token = getAuthToken();
+    const search = params.q ?? "";
+    const pageIndex = params.page ?? 1;
+    const pageSize = params.pageSize ?? 8;
+
+    const query = new URLSearchParams();
+    if (search) query.set("search", search);
+    query.set("pageIndex", String(pageIndex));
+    query.set("pageSize", String(pageSize));
+
+    const url = `${baseUrl}/web/payroll/projects?${query.toString()}`;
+    const headers: Record<string, string> = {
+      Accept: "*/*",
+      "Content-Type": "application/json",
+    };
+    if (token) {
+      headers["Authorization"] = `Bearer ${token}`;
+    }
+
+    const response = await fetch(url, { method: "GET", headers });
+    if (!response.ok) {
+      throw new ApiRequestError(
+        `Không thể tải danh sách dự án (Status: ${response.status})`,
+        "FETCH_PROJECTS_FAILED",
+        response.status
+      );
+    }
+    const resJson = await response.json();
+    if (!resJson || resJson.success === false) {
+      throw new ApiRequestError(
+        resJson?.message || "Lỗi khi lấy dữ liệu danh sách dự án",
+        "API_ERROR",
+        response.status
+      );
+    }
+
+    const dataObj = resJson.data || {};
+    const rawItems: any[] = Array.isArray(dataObj.items) ? dataObj.items : Array.isArray(dataObj) ? dataObj : [];
+    const totalRow: number = typeof dataObj.totalRow === "number" ? dataObj.totalRow : rawItems.length;
+    const currentPage: number = typeof dataObj.pageIndex === "number" ? dataObj.pageIndex : pageIndex;
+    const currentPageSize: number = typeof dataObj.pageSize === "number" ? dataObj.pageSize : pageSize;
+    const totalPages = Math.max(1, Math.ceil(totalRow / (currentPageSize || 1)));
+
+    const items: Project[] = rawItems.map((item: any) => {
+      const startCycle = item.payrollCycleStartDate;
+      const endCycle = item.payrollCycleEndDate;
+      let cycle = "Hàng tháng";
+      if (startCycle && endCycle) {
+        cycle = `${formatDate(startCycle)} - ${formatDate(endCycle)}`;
+      } else if (startCycle) {
+        cycle = `Từ ${formatDate(startCycle)}`;
+      }
+
+      return {
+        id: String(item.projectId ?? item.id ?? ""),
+        code: item.projectCode || "",
+        name: item.projectName || "",
+        client: item.projectName || "",
+        location: "",
+        manager: item.ownerName || "Chưa phân công",
+        managerEmail: item.ownerEmail || undefined,
+        managerPhone: item.ownerPhone || undefined,
+        employeeCount: typeof item.totalActiveEmployees === "number" ? item.totalActiveEmployees : 0,
+        status: "active",
+        payrollCycle: cycle,
+        payrollCycleStartDate: startCycle || undefined,
+        payrollCycleEndDate: endCycle || undefined,
+        effectiveFrom: "2026-01-01",
+        templateName: "Quy chuẩn",
+        updatedAt: new Date().toISOString(),
+        tabStates: {
+          overview: "complete",
+          policies: "complete",
+          attendance: "complete",
+          formulas: "complete",
+        },
+      };
+    });
+
+    // Cache tất cả dự án để sử dụng trực tiếp trong detail mà không cần gọi API riêng
+    for (const p of items) {
+      cachedProjectsMap.set(p.id, p);
+      if (p.code) cachedProjectsMap.set(p.code, p);
+    }
+
+    return {
+      data: items,
+      meta: {
+        page: currentPage,
+        pageSize: currentPageSize,
+        total: totalRow,
+        totalPages: totalPages,
+      },
+    };
   },
   createProject: (payload: Partial<Project>) => request<Project>("/api/projects", { method: "POST", body: JSON.stringify(payload) }).then((item) => item.data),
-  getProject: (id: string) => request<Project>(`/api/projects/${id}`).then((item) => item.data),
+  getProject: async (id: string): Promise<Project> => {
+    // 1. Lấy trực tiếp từ cache danh sách dự án
+    const cached = cachedProjectsMap.get(String(id));
+    if (cached) return cached;
+
+    // 2. Nếu chưa có trong cache (F5 trực tiếp trang detail), lấy từ danh sách dự án
+    try {
+      const listRes = await api.getProjects({ pageSize: 100 });
+      const found = listRes.data.find((p) => String(p.id) === String(id) || String(p.code) === String(id));
+      if (found) return found;
+    } catch {
+      // Fallback
+    }
+
+    return {
+      id: String(id),
+      code: `PRJ-${id}`,
+      name: `Dự án #${id}`,
+      client: `Dự án #${id}`,
+      location: "",
+      manager: "Chưa phân công",
+      employeeCount: 0,
+      status: "active",
+      payrollCycle: "Hàng tháng",
+      effectiveFrom: "2026-01-01",
+      templateName: "Quy chuẩn",
+      updatedAt: new Date().toISOString(),
+      tabStates: {
+        overview: "complete",
+        policies: "complete",
+        attendance: "complete",
+        formulas: "complete",
+      },
+    };
+  },
   updateProject: (id: string, payload: Partial<Project>) => request<Project>(`/api/projects/${id}`, { method: "PATCH", body: JSON.stringify(payload) }).then((item) => item.data),
   cloneProject: (id: string) => request<Project>(`/api/projects/${id}/clone`, { method: "POST" }).then((item) => item.data),
-  getPolicyDefinitions: () => request<PolicyDefinition[]>("/api/policy-definitions").then((item) => item.data),
-  getProjectPolicies: (id: string) => request<ProjectPolicy[]>(`/api/projects/${id}/policies`).then((item) => item.data),
-  createProjectPolicy: (id: string, payload: Omit<ProjectPolicy, "id" | "projectId">) => request<ProjectPolicy>(`/api/projects/${id}/policies`, { method: "POST", body: JSON.stringify(payload) }).then((item) => item.data),
-  updateProjectPolicy: (id: string, policyId: string, payload: Partial<ProjectPolicy>) => request<ProjectPolicy>(`/api/projects/${id}/policies/${policyId}`, { method: "PATCH", body: JSON.stringify(payload) }).then((item) => item.data),
-  deleteProjectPolicy: (id: string, policyId: string) => request<{ deleted: boolean }>(`/api/projects/${id}/policies/${policyId}`, { method: "DELETE" }).then((item) => item.data),
+  getPolicyDefinitions: async (projectId?: string | number): Promise<PolicyDefinition[]> => {
+    const rawBaseUrl = getApiBaseUrl();
+    const baseUrl = (rawBaseUrl && rawBaseUrl.trim().length > 0 ? rawBaseUrl : "https://bruh.thanhf.dev/api/").replace(/\/+$/, "");
+    const token = getAuthToken();
+    const query = new URLSearchParams();
+    if (projectId !== undefined && projectId !== null && String(projectId).trim() !== "") {
+      query.set("projectId", String(projectId).trim());
+    }
+    const queryString = query.toString();
+    const url = `${baseUrl}/web/payroll/policies${queryString ? `?${queryString}` : ""}`;
+    const headers: Record<string, string> = {
+      Accept: "*/*",
+      "Content-Type": "application/json",
+    };
+    if (token) {
+      headers["Authorization"] = `Bearer ${token}`;
+    }
+
+    const response = await fetch(url, { method: "GET", headers });
+    if (!response.ok) {
+      throw new ApiRequestError(
+        `Không thể tải danh mục chế độ (Status: ${response.status})`,
+        "FETCH_POLICIES_FAILED",
+        response.status
+      );
+    }
+    const resJson = await response.json();
+    if (!resJson || resJson.success === false) {
+      throw new ApiRequestError(
+        resJson?.message || "Lỗi khi lấy danh mục chế độ",
+        "API_ERROR",
+        response.status
+      );
+    }
+
+    const rawItems: any[] = Array.isArray(resJson.data) ? resJson.data : [];
+    return rawItems.map((item: any) => {
+      const isPercentage = item.dataType === "percentage" || String(item.typeName).toLowerCase().includes("phần trăm");
+      return {
+        id: String(item.id),
+        code: item.policyCode || "",
+        name: item.policyName || "",
+        category: isPercentage ? "bonus" : "allowance",
+        description: item.description || item.typeName || "",
+        fields: [
+          {
+            key: isPercentage ? "multiplier" : "amount",
+            label: item.policyName || "",
+            type: isPercentage ? "percentage" : "money",
+            unit: isPercentage ? "%" : "VNĐ/tháng",
+            defaultValue: 0,
+          },
+        ],
+        targetValues: {},
+      };
+    });
+  },
+  addPoliciesToProject: async (
+    projectId: string,
+    payload: {
+      PolicyItemIds: number[];
+      EffectiveFrom: string;
+      EffectiveTo?: string;
+    }
+  ) => {
+    const rawBaseUrl = getApiBaseUrl();
+    const baseUrl = (rawBaseUrl && rawBaseUrl.trim().length > 0 ? rawBaseUrl : "https://bruh.thanhf.dev/api/").replace(/\/+$/, "");
+    const token = getAuthToken();
+    const url = `${baseUrl}/web/payroll/projects/${projectId}/policies`;
+    const headers: Record<string, string> = {
+      Accept: "*/*",
+      "Content-Type": "application/json",
+    };
+    if (token) {
+      headers["Authorization"] = `Bearer ${token}`;
+    }
+
+    const response = await fetch(url, {
+      method: "POST",
+      headers,
+      body: JSON.stringify({
+        PolicyItemIds: payload.PolicyItemIds,
+        EffectiveFrom: payload.EffectiveFrom,
+        EffectiveTo: payload.EffectiveTo || payload.EffectiveFrom,
+      }),
+    });
+
+    if (!response.ok) {
+      throw new ApiRequestError(
+        `Không thể thêm chế độ vào dự án (Status: ${response.status})`,
+        "ADD_POLICIES_FAILED",
+        response.status
+      );
+    }
+
+    const resJson = await response.json();
+    if (!resJson || resJson.success === false) {
+      throw new ApiRequestError(
+        resJson?.message || "Lỗi khi thêm chế độ vào dự án",
+        "API_ERROR",
+        response.status
+      );
+    }
+
+    return resJson.data;
+  },
+  getProjectPolicies: async (
+    id: string,
+    params?: { pageIndex?: number; pageSize?: number; search?: string }
+  ): Promise<ProjectPoliciesResponseData> => {
+    const rawBaseUrl = getApiBaseUrl();
+    const baseUrl = (rawBaseUrl && rawBaseUrl.trim().length > 0 ? rawBaseUrl : "https://bruh.thanhf.dev/api/").replace(/\/+$/, "");
+    const token = getAuthToken();
+    const pageIndex = params?.pageIndex ?? 1;
+    const pageSize = params?.pageSize ?? 20;
+    const search = params?.search ?? "";
+
+    const query = new URLSearchParams();
+    query.set("pageIndex", String(pageIndex));
+    query.set("pageSize", String(pageSize));
+    if (search) query.set("search", search);
+
+    const url = `${baseUrl}/web/payroll/projects/${id}/policies?${query.toString()}`;
+    const headers: Record<string, string> = {
+      Accept: "*/*",
+      "Content-Type": "application/json",
+    };
+    if (token) {
+      headers["Authorization"] = `Bearer ${token}`;
+    }
+
+    const response = await fetch(url, { method: "GET", headers });
+    if (!response.ok) {
+      throw new ApiRequestError(
+        `Không thể tải danh sách chế độ dự án (Status: ${response.status})`,
+        "FETCH_PROJECT_POLICIES_FAILED",
+        response.status
+      );
+    }
+    const resJson = await response.json();
+    if (!resJson || resJson.success === false) {
+      throw new ApiRequestError(
+        resJson?.message || "Lỗi khi lấy danh sách chế độ dự án",
+        "API_ERROR",
+        response.status
+      );
+    }
+
+    const data = resJson.data || {};
+    return {
+      columns: Array.isArray(data.columns) ? data.columns : [],
+      rows: Array.isArray(data.rows) ? data.rows : [],
+      pageIndex: typeof data.pageIndex === "number" ? data.pageIndex : pageIndex,
+      pageSize: typeof data.pageSize === "number" ? data.pageSize : pageSize,
+      totalRow: typeof data.totalRow === "number" ? data.totalRow : (data.rows?.length ?? 0),
+    };
+  },
+  updateProjectPolicyValues: async (
+    projectId: string,
+    payload: Array<{
+      PolicyId: number | string;
+      EffectiveFrom: string;
+      EffectiveTo?: string;
+      Note?: string;
+      Values: Array<{
+        TargetGroupId: number | string;
+        PolicyValue: string;
+      }>;
+    }>
+  ) => {
+    const rawBaseUrl = getApiBaseUrl();
+    const baseUrl = (rawBaseUrl && rawBaseUrl.trim().length > 0 ? rawBaseUrl : "https://bruh.thanhf.dev/api/").replace(/\/+$/, "");
+    const token = getAuthToken();
+    const url = `${baseUrl}/web/payroll/projects/${projectId}/policies`;
+    const headers: Record<string, string> = {
+      Accept: "*/*",
+      "Content-Type": "application/json",
+    };
+    if (token) {
+      headers["Authorization"] = `Bearer ${token}`;
+    }
+
+    const bodyData = payload.map((item) => ({
+      PolicyId: Number(item.PolicyId),
+      EffectiveFrom: item.EffectiveFrom,
+      EffectiveTo: item.EffectiveTo || item.EffectiveFrom,
+      Note: item.Note ?? "",
+      Values: item.Values.map((v) => ({
+        TargetGroupId: Number(v.TargetGroupId),
+        PolicyValue: String(v.PolicyValue ?? ""),
+      })),
+    }));
+
+    const response = await fetch(url, {
+      method: "PUT",
+      headers,
+      body: JSON.stringify(bodyData),
+    });
+
+    if (!response.ok) {
+      throw new ApiRequestError(
+        `Không thể cập nhật chế độ (Status: ${response.status})`,
+        "UPDATE_POLICY_FAILED",
+        response.status
+      );
+    }
+
+    const resJson = await response.json();
+    if (!resJson || resJson.success === false) {
+      throw new ApiRequestError(
+        resJson?.message || "Lỗi khi cập nhật chế độ",
+        "API_ERROR",
+        response.status
+      );
+    }
+
+    return resJson;
+  },
+  deleteProjectPolicy: async (projectId: string, policyId: string | number) => {
+    const rawBaseUrl = getApiBaseUrl();
+    const baseUrl = (rawBaseUrl && rawBaseUrl.trim().length > 0 ? rawBaseUrl : "https://bruh.thanhf.dev/api/").replace(/\/+$/, "");
+    const token = getAuthToken();
+    const url = `${baseUrl}/web/payroll/projects/${projectId}/policies/${policyId}`;
+    const headers: Record<string, string> = {
+      Accept: "*/*",
+      "Content-Type": "application/json",
+    };
+    if (token) {
+      headers["Authorization"] = `Bearer ${token}`;
+    }
+
+    const response = await fetch(url, {
+      method: "DELETE",
+      headers,
+    });
+
+    if (!response.ok) {
+      throw new ApiRequestError(
+        `Không thể bỏ chế độ khỏi dự án (Status: ${response.status})`,
+        "DELETE_POLICY_FAILED",
+        response.status
+      );
+    }
+
+    const resJson = await response.json();
+    if (!resJson || resJson.success === false) {
+      throw new ApiRequestError(
+        resJson?.message || "Lỗi khi xóa chế độ khỏi dự án",
+        "API_ERROR",
+        response.status
+      );
+    }
+
+    return resJson;
+  },
   getAttendanceConfig: (id: string) => request<AttendanceConfig>(`/api/projects/${id}/attendance-config`).then((item) => item.data),
   saveAttendanceConfig: (id: string, payload: AttendanceConfig) => request<AttendanceConfig>(`/api/projects/${id}/attendance-config`, { method: "PUT", body: JSON.stringify(payload) }).then((item) => item.data),
   getOvertimeTypes: () => request<OvertimeType[]>("/api/overtime-types").then((item) => item.data),
@@ -121,6 +596,88 @@ export const api = {
   runTest: (id: string, payload: { employeeId: string; period: string }) => request<TestRunResult>(`/api/projects/${id}/test-runs`, { method: "POST", body: JSON.stringify(payload) }).then((item) => item.data),
 
   // Employee Management APIs
+  getProjectEmployees: async (
+    projectId: string,
+    params?: { pageIndex?: number; pageSize?: number; search?: string; isAssigned?: boolean }
+  ): Promise<{ items: Employee[]; totalRow: number; pageIndex: number; pageSize: number }> => {
+    const rawBaseUrl = getApiBaseUrl();
+    const baseUrl = (rawBaseUrl && rawBaseUrl.trim().length > 0 ? rawBaseUrl : "https://bruh.thanhf.dev/api/").replace(/\/+$/, "");
+    const token = getAuthToken();
+    const pageIndex = params?.pageIndex ?? 1;
+    const pageSize = params?.pageSize ?? 20;
+    const query = new URLSearchParams();
+    query.set("pageIndex", String(pageIndex));
+    query.set("pageSize", String(pageSize));
+    if (params?.search) query.set("search", params.search);
+    if (params?.isAssigned !== undefined && params?.isAssigned !== null) {
+      query.set("isAssigned", String(params.isAssigned));
+    }
+
+    const url = `${baseUrl}/web/payroll/projects/${projectId}/employees?${query.toString()}`;
+    const headers: Record<string, string> = {
+      Accept: "*/*",
+      "Content-Type": "application/json",
+    };
+    if (token) {
+      headers["Authorization"] = `Bearer ${token}`;
+    }
+
+    try {
+      const response = await fetch(url, { method: "GET", headers });
+      if (!response.ok) {
+        throw new ApiRequestError(
+          `Không thể tải danh sách nhân viên dự án (Status: ${response.status})`,
+          "FETCH_PROJECT_EMPLOYEES_FAILED",
+          response.status
+        );
+      }
+
+      const resJson = await response.json();
+      if (!resJson || resJson.success === false) {
+        throw new ApiRequestError(
+          resJson?.message || "Lỗi khi lấy danh sách nhân viên dự án",
+          "API_ERROR",
+          response.status
+        );
+      }
+
+      const data = resJson.data || {};
+      const rawList: any[] = Array.isArray(data.items)
+        ? data.items
+        : Array.isArray(data)
+        ? data
+        : [];
+
+      const items: Employee[] = rawList.map((item: any) => ({
+        id: String(item.employeeCode || item.id || `emp-${Math.random()}`),
+        code: item.employeeCode || item.code || "",
+        name: item.fullName || item.name || `Nhân viên #${item.employeeCode || item.id}`,
+        idCard: item.idCard || "",
+        phone: item.phone || "",
+        email: item.email || "",
+        gender: item.gender || "",
+        projectId: String(projectId),
+        projectCode: "",
+        department: item.department || "",
+        position: item.position || "Nhân viên",
+        joinDate: item.joinDate || "",
+        status: (item.status || "active") as "active" | "resigned" | "probation",
+        groupId: item.currentGroupId !== null && item.currentGroupId !== undefined ? String(item.currentGroupId) : undefined,
+        groupName: item.currentGroupName || undefined,
+      }));
+
+      return {
+        items,
+        totalRow: typeof data.totalRow === "number" ? data.totalRow : items.length,
+        pageIndex: typeof data.pageIndex === "number" ? data.pageIndex : pageIndex,
+        pageSize: typeof data.pageSize === "number" ? data.pageSize : pageSize,
+      };
+    } catch (err: any) {
+      console.warn("[api.getProjectEmployees] Error:", err);
+      if (err instanceof ApiRequestError) throw err;
+      return { items: [], totalRow: 0, pageIndex: 1, pageSize: 20 };
+    }
+  },
   getEmployees: (params?: { projectId?: string; q?: string }) => {
     const query = new URLSearchParams(Object.entries(params ?? {}).filter(([, v]) => v !== undefined).map(([k, v]) => [k, String(v)]));
     return request<Employee[]>(`/api/employees?${query}`).then((item) => item.data);
@@ -133,6 +690,42 @@ export const api = {
     request<Dependent>("/api/dependents", { method: "POST", body: JSON.stringify(payload) }).then((item) => item.data),
   importDependents: (payload: { projectId: string; items: Partial<Dependent>[] }) =>
     request<Dependent[]>("/api/dependents/import", { method: "POST", body: JSON.stringify(payload) }).then((item) => item.data),
+  importDependentsFile: async (file: File): Promise<{ success: boolean; message?: string; data?: any }> => {
+    const rawBaseUrl = getApiBaseUrl();
+    const baseUrl = (rawBaseUrl && rawBaseUrl.trim().length > 0 && !rawBaseUrl.startsWith("/api/payroll") ? rawBaseUrl : "https://bruh.thanhf.dev/api/").replace(/\/+$/, "");
+    const token = getAuthToken();
+
+    const apiRoot = baseUrl.endsWith("/api") ? baseUrl : `${baseUrl}/api`;
+    const url = `${apiRoot}/web/payroll/dependents/import`;
+    const headers: Record<string, string> = {
+      Accept: "*/*",
+    };
+    if (token) {
+      headers["Authorization"] = `Bearer ${token}`;
+    }
+
+    const formData = new FormData();
+    formData.append("file", file);
+
+    const response = await fetch(url, {
+      method: "POST",
+      headers,
+      body: formData,
+    });
+
+    if (!response.ok) {
+      let errorMsg = `Không thể nhập tệp mẫu (Mã lỗi ${response.status})`;
+      try {
+        const errJson = await response.json();
+        if (errJson?.message) errorMsg = errJson.message;
+        else if (errJson?.error) errorMsg = errJson.error;
+      } catch (_) {}
+      throw new ApiRequestError(errorMsg, "IMPORT_DEPENDENTS_FAILED", response.status);
+    }
+
+    const resJson = await response.json();
+    return resJson;
+  },
   confirmDependents: (ids: string[], verifiedBy?: string) =>
     request<Dependent[]>("/api/dependents/confirm", { method: "POST", body: JSON.stringify({ ids, verifiedBy }) }).then((item) => item.data),
   rejectDependent: (id: string, reason: string) =>
@@ -141,6 +734,50 @@ export const api = {
     request<Dependent>(`/api/dependents/${id}`, { method: "PUT", body: JSON.stringify(payload) }).then((item) => item.data),
   updateDependentAttachment: (id: string, payload: { attachmentType: string; attachmentName: string; attachmentUrl?: string }) =>
     request<Dependent>(`/api/dependents/${id}/attachment`, { method: "PATCH", body: JSON.stringify(payload) }).then((item) => item.data),
+  downloadDependentImportTemplate: async (projectId?: string | number): Promise<void> => {
+    const rawBaseUrl = getApiBaseUrl();
+    const baseUrl = (rawBaseUrl && rawBaseUrl.trim().length > 0 && !rawBaseUrl.startsWith("/api/payroll") ? rawBaseUrl : "https://bruh.thanhf.dev/api/").replace(/\/+$/, "");
+    const token = getAuthToken();
+
+    const apiRoot = baseUrl.endsWith("/api") ? baseUrl : `${baseUrl}/api`;
+    const url = `${apiRoot}/web/payroll/dependents/download-import-template`;
+    const headers: Record<string, string> = {
+      Accept: "*/*",
+    };
+    if (token) {
+      headers["Authorization"] = `Bearer ${token}`;
+    }
+
+    const response = await fetch(url, { method: "GET", headers });
+    if (!response.ok) {
+      let errorMsg = `Không thể tải template (Mã lỗi ${response.status})`;
+      try {
+        const errJson = await response.json();
+        if (errJson?.message) errorMsg = errJson.message;
+        else if (errJson?.error) errorMsg = errJson.error;
+      } catch (_) {}
+      throw new ApiRequestError(errorMsg, "DOWNLOAD_TEMPLATE_FAILED", response.status);
+    }
+
+    const blob = await response.blob();
+    let filename = "Mau_Nguoi_Phu_Thuoc.xlsx";
+    const disposition = response.headers.get("Content-Disposition") || response.headers.get("content-disposition");
+    if (disposition && disposition.includes("filename=")) {
+      const match = disposition.match(/filename[^;=\n]*=((['"]).*?\2|[^;\n]*)/);
+      if (match && match[1]) {
+        filename = match[1].replace(/['"]/g, "").trim();
+      }
+    }
+
+    const downloadUrl = window.URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = downloadUrl;
+    a.download = filename;
+    document.body.appendChild(a);
+    a.click();
+    window.URL.revokeObjectURL(downloadUrl);
+    document.body.removeChild(a);
+  },
   getLeaveRecords: (params?: { projectId?: string }) => {
     const query = new URLSearchParams(Object.entries(params ?? {}).filter(([, v]) => v !== undefined).map(([k, v]) => [k, String(v)]));
     return request<LeaveRecord[]>(`/api/leave-records?${query}`).then((item) => item.data);
@@ -207,16 +844,184 @@ export const api = {
     request<EmployeePolicyRecord[]>("/api/employee-policies/batch-import", { method: "POST", body: JSON.stringify(payload) }).then((item) => item.data),
   resetEmployeePoliciesToDefault: (employeeId: string) =>
     request<EmployeePolicyRecord>(`/api/employee-policies/${employeeId}/reset`, { method: "POST" }).then((item) => item.data),
-  getProjectEmployeeGroups: (projectId: string) =>
-    request<ProjectEmployeeGroup[]>(`/api/projects/${projectId}/employee-groups`).then((item) => item.data),
-  createProjectEmployeeGroup: (projectId: string, payload: Partial<ProjectEmployeeGroup>) =>
-    request<ProjectEmployeeGroup>(`/api/projects/${projectId}/employee-groups`, { method: "POST", body: JSON.stringify(payload) }).then((item) => item.data),
+  getProjectEmployeeGroups: async (projectId: string): Promise<ProjectEmployeeGroup[]> => {
+    const rawBaseUrl = getApiBaseUrl();
+    const baseUrl = (rawBaseUrl && rawBaseUrl.trim().length > 0 ? rawBaseUrl : "https://bruh.thanhf.dev/api/").replace(/\/+$/, "");
+    const token = getAuthToken();
+    const url = `${baseUrl}/web/payroll/projects/${projectId}/employee-groups`;
+    const headers: Record<string, string> = {
+      Accept: "*/*",
+      "Content-Type": "application/json",
+    };
+    if (token) {
+      headers["Authorization"] = `Bearer ${token}`;
+    }
+
+    const response = await fetch(url, { method: "GET", headers });
+    if (!response.ok) {
+      throw new ApiRequestError(
+        `Không thể lấy danh sách nhóm nhân viên (Status: ${response.status})`,
+        "FETCH_GROUPS_FAILED",
+        response.status
+      );
+    }
+
+    const resJson = await response.json();
+    if (!resJson || resJson.success === false) {
+      throw new ApiRequestError(
+        resJson?.message || "Lỗi khi lấy danh sách nhóm nhân viên",
+        "API_ERROR",
+        response.status
+      );
+    }
+
+    const rawItems: any[] = Array.isArray(resJson.data) ? resJson.data : [];
+    return rawItems.map((item: any) => ({
+      id: String(item.id),
+      projectId: String(item.projectId),
+      name: item.groupName || `Nhóm #${item.id}`,
+      code: item.groupCode || `GRP_${item.id}`,
+      colorTone: "primary",
+      employeeCount: typeof item.employeeCount === "number" ? item.employeeCount : 0,
+    }));
+  },
+  createProjectEmployeeGroup: async (projectId: string, payload: Partial<ProjectEmployeeGroup>): Promise<ProjectEmployeeGroup> => {
+    const rawBaseUrl = getApiBaseUrl();
+    const baseUrl = (rawBaseUrl && rawBaseUrl.trim().length > 0 ? rawBaseUrl : "https://bruh.thanhf.dev/api/").replace(/\/+$/, "");
+    const token = getAuthToken();
+    const url = `${baseUrl}/web/payroll/projects/${projectId}/employee-groups`;
+    const headers: Record<string, string> = {
+      Accept: "*/*",
+      "Content-Type": "application/json",
+    };
+    if (token) {
+      headers["Authorization"] = `Bearer ${token}`;
+    }
+
+    const groupName = payload.name || (payload as any).groupName || (payload as any).GroupName || "";
+    const response = await fetch(url, {
+      method: "POST",
+      headers,
+      body: JSON.stringify({
+        GroupName: groupName,
+      }),
+    });
+
+    if (!response.ok) {
+      throw new ApiRequestError(
+        `Không thể tạo nhóm lao động (Status: ${response.status})`,
+        "CREATE_GROUP_FAILED",
+        response.status
+      );
+    }
+
+    const resJson = await response.json();
+    if (!resJson || resJson.success === false) {
+      throw new ApiRequestError(
+        resJson?.message || "Lỗi khi tạo nhóm lao động",
+        "API_ERROR",
+        response.status
+      );
+    }
+
+    const item = resJson.data || {};
+    return {
+      id: String(item.id),
+      projectId: String(item.projectId),
+      name: item.groupName || groupName,
+      code: item.groupCode || `GRP_${item.id}`,
+      colorTone: "primary",
+      employeeCount: typeof item.employeeCount === "number" ? item.employeeCount : 0,
+    };
+  },
+  deleteProjectEmployeeGroup: async (projectId: string, groupId: string | number) => {
+    const rawBaseUrl = getApiBaseUrl();
+    const baseUrl = (rawBaseUrl && rawBaseUrl.trim().length > 0 ? rawBaseUrl : "https://bruh.thanhf.dev/api/").replace(/\/+$/, "");
+    const token = getAuthToken();
+    const url = `${baseUrl}/web/payroll/projects/${projectId}/employee-groups/${groupId}`;
+    const headers: Record<string, string> = {
+      Accept: "*/*",
+      "Content-Type": "application/json",
+    };
+    if (token) {
+      headers["Authorization"] = `Bearer ${token}`;
+    }
+
+    const response = await fetch(url, {
+      method: "DELETE",
+      headers,
+    });
+
+    if (!response.ok) {
+      throw new ApiRequestError(
+        `Không thể xóa nhóm lao động (Status: ${response.status})`,
+        "DELETE_GROUP_FAILED",
+        response.status
+      );
+    }
+
+    const resJson = await response.json();
+    if (!resJson || resJson.success === false) {
+      throw new ApiRequestError(
+        resJson?.message || "Lỗi khi xóa nhóm lao động",
+        "API_ERROR",
+        response.status
+      );
+    }
+
+    return resJson;
+  },
   updateProjectEmployeeGroup: (projectId: string, groupId: string, payload: Partial<ProjectEmployeeGroup>) =>
     request<ProjectEmployeeGroup>(`/api/projects/${projectId}/employee-groups/${groupId}`, { method: "PATCH", body: JSON.stringify(payload) }).then((item) => item.data),
-  deleteProjectEmployeeGroup: (projectId: string, groupId: string) =>
-    request<{ success: boolean }>(`/api/projects/${projectId}/employee-groups/${groupId}`, { method: "DELETE" }).then((item) => item.data),
-  assignEmployeesToGroup: (projectId: string, groupId: string, payload: { employeeIds: string[] }) =>
-    request<{ success: boolean; updatedCount: number }>(`/api/projects/${projectId}/employee-groups/${groupId}/assign`, { method: "POST", body: JSON.stringify(payload) }).then((item) => item.data),
+  assignEmployeesToGroup: async (
+    projectId: string,
+    groupId: string | number,
+    payload: { employeeCodes?: string[]; employeeIds?: string[] }
+  ): Promise<{ success: boolean; message?: string }> => {
+    const rawBaseUrl = getApiBaseUrl();
+    const baseUrl = (rawBaseUrl && rawBaseUrl.trim().length > 0 ? rawBaseUrl : "https://bruh.thanhf.dev/api/").replace(/\/+$/, "");
+    const token = getAuthToken();
+    const url = `${baseUrl}/web/payroll/projects/${projectId}/employee-groups/${groupId}/employees`;
+    const headers: Record<string, string> = {
+      Accept: "*/*",
+      "Content-Type": "application/json",
+    };
+    if (token) {
+      headers["Authorization"] = `Bearer ${token}`;
+    }
+
+    const employeeCodes = payload.employeeCodes || payload.employeeIds || [];
+
+    const response = await fetch(url, {
+      method: "POST",
+      headers,
+      body: JSON.stringify({
+        EmployeeCodes: employeeCodes,
+      }),
+    });
+
+    if (!response.ok) {
+      throw new ApiRequestError(
+        `Không thể thêm nhân viên vào nhóm (Status: ${response.status})`,
+        "ASSIGN_EMPLOYEES_FAILED",
+        response.status
+      );
+    }
+
+    const resJson = await response.json();
+    if (!resJson || resJson.success === false) {
+      throw new ApiRequestError(
+        resJson?.message || "Lỗi khi thêm nhân viên vào nhóm",
+        "API_ERROR",
+        response.status
+      );
+    }
+
+    return {
+      success: true,
+      message: resJson.message || "Thêm nhân viên vào nhóm thành công",
+    };
+  },
   getActivityLogs: (params?: { projectId?: string; module?: ActivityLogModule; q?: string }) => {
     const query = new URLSearchParams(Object.entries(params ?? {}).filter(([, v]) => v !== undefined).map(([k, v]) => [k, String(v)]));
     return request<ActivityLogItem[]>(`/api/activity-logs?${query}`).then((item) => item.data);

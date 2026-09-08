@@ -1,43 +1,82 @@
 "use client";
 
+import { CalendarDays, MapPin, UserRound, Users } from "lucide-react";
 import type { Project } from "@/lib/types";
 
 export function OverviewTab({ project }: { project: Project; embedded?: boolean }) {
   return (
-    <div className="project-info-panel">
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6 items-start">
-        <div className="info-panel-item">
-          <span className="info-panel-label">Chủ dự án</span>
-          <strong className="info-panel-value">{project.manager}</strong>
-          {(project.managerPhone || project.managerEmail) && (
-            <div className="text-xs text-muted font-normal mt-1 space-y-0.5">
-              {project.managerPhone && (
-                <div>SĐT: <span className="text-foreground/85 font-medium">{project.managerPhone}</span></div>
-              )}
-              {project.managerEmail && (
-                <div className="break-all">Email: <span className="text-foreground/85">{project.managerEmail}</span></div>
-              )}
+    <div className="project-overview-section">
+      <div className="project-overview-heading">
+        <h2>TỔNG QUAN</h2>
+      </div>
+
+      <div className="overview-stats-grid">
+        {/* Card 1: Chủ dự án */}
+        <div className="stat-card">
+          <div className="stat-icon stat-icon-cyan">
+            <UserRound className="w-5 h-5" />
+          </div>
+          <div className="stat-body">
+            <span className="stat-label">Chủ dự án</span>
+            <div className="stat-value font-semibold text-foreground truncate">
+              {project.manager || "—"}
             </div>
-          )}
+            {(project.managerPhone || project.managerEmail) && (
+              <div className="stat-subinfo">
+                {project.managerPhone && (
+                  <span className="stat-subitem">
+                    <span className="stat-sublabel">SĐT:</span>
+                    <span className="stat-subval">{project.managerPhone}</span>
+                  </span>
+                )}
+                {project.managerEmail && (
+                  <span className="stat-subitem" title={project.managerEmail}>
+                    <span className="stat-sublabel">Email:</span>
+                    <span className="stat-subval">{project.managerEmail}</span>
+                  </span>
+                )}
+              </div>
+            )}
+          </div>
         </div>
 
-        <div className="info-panel-item">
-          <span className="info-panel-label">Địa điểm triển khai</span>
-          <strong className="info-panel-value">{project.location}</strong>
+        {/* Card 2: Địa điểm triển khai */}
+        <div className="stat-card">
+          <div className="stat-icon stat-icon-emerald">
+            <MapPin className="w-5 h-5" />
+          </div>
+          <div className="stat-body">
+            <span className="stat-label">Địa điểm triển khai</span>
+            <div className="stat-value font-semibold text-foreground">
+              {project.location || "Chưa thiết lập"}
+            </div>
+          </div>
         </div>
 
-        <div className="info-panel-item">
-          <span className="info-panel-label">Chu kỳ lương</span>
-          <strong className="info-panel-value">
-            {project.payrollCycle || "Chốt công ngày 25 hàng tháng"}
-          </strong>
+        {/* Card 3: Chu kỳ lương */}
+        <div className="stat-card">
+          <div className="stat-icon stat-icon-indigo">
+            <CalendarDays className="w-5 h-5" />
+          </div>
+          <div className="stat-body">
+            <span className="stat-label">Chu kỳ tính lương</span>
+            <div className="stat-value font-semibold text-foreground">
+              {project.payrollCycle || "Hàng tháng"}
+            </div>
+          </div>
         </div>
 
-        <div className="info-panel-item">
-          <span className="info-panel-label">Nhân viên đang làm việc</span>
-          <strong className="info-panel-value text-primary">
-            {project.employeeCount?.toLocaleString("vi-VN") ?? 0} nhân viên
-          </strong>
+        {/* Card 4: Nhân viên đang làm việc */}
+        <div className="stat-card">
+          <div className="stat-icon stat-icon-amber">
+            <Users className="w-5 h-5" />
+          </div>
+          <div className="stat-body">
+            <span className="stat-label">Nhân viên đang làm việc</span>
+            <div className="stat-value font-bold text-primary">
+              {(project.employeeCount ?? 0).toLocaleString("vi-VN")} nhân viên
+            </div>
+          </div>
         </div>
       </div>
     </div>

@@ -142,94 +142,111 @@ export function ExcelImportModal<T = any>({
         </div>
       }
     >
-      <div className="upload-modal-body">
-        {/* 1. Guide Banner with Download Sample Button */}
-        <div className="upload-guide-box">
+      <div className="upload-modal-body space-y-4 pt-1">
+        {/* Bước 1: Tải tệp mẫu */}
+        <div className="border-t border-dashed border-border pt-3.5 first:border-t-0 first:pt-0">
           <div className="flex items-center justify-between gap-4">
-            <div>
-              <strong className="text-sm">Tệp Excel biểu mẫu chuẩn hệ thống:</strong>
-              <p className="text-xs text-muted mt-0.5">{sampleTemplateDescription}</p>
+            <div className="flex items-center gap-3.5 min-w-0">
+              <div className="w-12 h-12 rounded-xl bg-primary/15 text-primary flex items-center justify-center shrink-0">
+                <FileSpreadsheet className="w-6 h-6" />
+              </div>
+              <div className="min-w-0">
+                <p className="text-sm font-bold text-foreground m-0">Bước 1: Tải tệp mẫu</p>
+                <button
+                  type="button"
+                  onClick={handleDownloadTemplate}
+                  className="sb-upload-link"
+                >
+                  <span className="truncate">Tải xuống tệp mẫu ({sampleTemplateName})</span>
+                  <Download className="w-4 h-4 shrink-0" />
+                </button>
+                {sampleTemplateDescription && (
+                  <p className="text-xs text-slate-500 dark:text-slate-400 mt-0.5 mb-0">
+                    {sampleTemplateDescription}
+                  </p>
+                )}
+              </div>
             </div>
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={handleDownloadTemplate}
-            >
-              <Download /> Tải tệp mẫu biểu (.xlsx)
-            </Button>
           </div>
         </div>
 
-        {/* 2. Hidden File Input & Modern Dropzone */}
-        <input
-          type="file"
-          ref={fileInputRef}
-          style={{ display: "none" }}
-          accept=".xlsx,.xls,.csv"
-          onChange={handleFileChange}
-        />
+        {/* Bước 2: Tải lên tệp đã điền */}
+        <div className="border-t border-dashed border-border pt-3.5">
+          <p className="text-sm font-bold text-foreground mb-2.5">Bước 2: Tải lên tệp đã điền</p>
 
-        {previewRows.length === 0 ? (
-          <div className="modern-dropzone" onClick={handleDropzoneClick}>
-            <div className="modern-dropzone-icon">
-              <FileSpreadsheet className="w-6 h-6" />
-            </div>
-            <div>
-              <div className="modern-dropzone-title">
-                Bấm để chọn tệp Excel từ máy tính hoặc kéo thả file vào đây
-              </div>
-              <div className="modern-dropzone-sub">
-                Hệ thống sẽ tự động quét, kiểm tra cú pháp và đối chiếu danh sách nhân sự
-              </div>
-            </div>
-            <div className="modern-dropzone-badges">
-              <Badge tone="neutral">.XLSX</Badge>
-              <Badge tone="neutral">.XLS</Badge>
-              <Badge tone="neutral">.CSV</Badge>
-              <span className="text-[11px] text-muted self-center">Dung lượng tối đa 15MB</span>
-            </div>
-            {isUploading && (
-              <div className="flex items-center gap-2 text-xs text-primary font-semibold mt-1">
-                <RefreshCw className="w-3.5 h-3.5 animate-spin" /> Đang thẩm định và đọc cấu trúc tệp...
-              </div>
-            )}
-          </div>
-        ) : (
-          <div className="attached-file-card mb-3">
-            <div className="attached-file-left">
-              <div className="attached-file-icon">
-                <FileCheck className="w-5 h-5" />
-              </div>
-              <div className="attached-file-info">
-                <span className="attached-file-name">
-                  {uploadedFileName || sampleTemplateName}
-                </span>
-                <span className="attached-file-meta">
-                  {uploadedFileSize && <span>{uploadedFileSize} • </span>}
-                  <span className="text-success font-medium">✓ Đã đọc {previewRows.length} dòng dữ liệu</span>
-                </span>
-              </div>
-            </div>
+          <input
+            type="file"
+            ref={fileInputRef}
+            style={{ display: "none" }}
+            accept=".xlsx,.xls,.csv"
+            onChange={handleFileChange}
+          />
 
-            <div className="flex items-center gap-2">
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={handleDropzoneClick}
-              >
-                Chọn tệp khác
-              </Button>
-              <Button
-                variant="danger"
-                size="sm"
-                onClick={handleClear}
-                title="Xóa tệp"
-              >
-                <Trash2 className="w-3.5 h-3.5" />
-              </Button>
+          {previewRows.length === 0 ? (
+            <div
+              className={`border-2 border-dashed rounded-xl min-h-[190px] p-6 text-center cursor-pointer transition-all flex flex-col items-center justify-center ${
+                isDragging
+                  ? "border-primary bg-primary/10"
+                  : "border-slate-300 dark:border-slate-700 bg-slate-50 dark:bg-slate-900/50 hover:border-primary"
+              }`}
+              onClick={handleDropzoneClick}
+              onDragOver={handleDragOver}
+              onDragLeave={handleDragLeave}
+              onDrop={handleDrop}
+            >
+              <div className="w-15 h-15 rounded-xl bg-slate-200 dark:bg-slate-800 text-slate-500 dark:text-slate-400 flex items-center justify-center mb-3">
+                <UploadCloud className="w-7 h-7" />
+              </div>
+              <p className="text-sm font-bold text-foreground m-0">Kéo và thả tệp vào đây</p>
+              <p className="text-sm text-slate-500 dark:text-slate-400 mt-1 mb-0">
+                Hoặc <span className="text-primary font-bold hover:underline">duyệt từ máy tính</span>
+              </p>
+              <p className="text-xs text-slate-400 dark:text-slate-500 uppercase mt-2.5 mb-0 tracking-wide font-medium">
+                ĐỊNH DẠNG HỖ TRỢ: .XLSX, .XLS, .CSV (TỐI ĐA 15MB)
+              </p>
+              {isUploading && (
+                <div className="flex items-center gap-2 text-xs text-primary font-semibold mt-2">
+                  <RefreshCw className="w-3.5 h-3.5 animate-spin" /> Đang thẩm định và đọc cấu trúc tệp...
+                </div>
+              )}
             </div>
-          </div>
-        )}
+          ) : (
+            <div className="attached-file-card mb-3">
+              <div className="attached-file-left">
+                <div className="attached-file-icon">
+                  <FileCheck className="w-5 h-5" />
+                </div>
+                <div className="attached-file-info">
+                  <span className="attached-file-name">
+                    {uploadedFileName || sampleTemplateName}
+                  </span>
+                  <span className="attached-file-meta">
+                    {uploadedFileSize && <span>{uploadedFileSize} • </span>}
+                    <span className="text-success font-medium">✓ Đã đọc {previewRows.length} dòng dữ liệu</span>
+                  </span>
+                </div>
+              </div>
+
+              <div className="flex items-center gap-2">
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={handleDropzoneClick}
+                >
+                  Chọn tệp khác
+                </Button>
+                <Button
+                  variant="danger"
+                  size="sm"
+                  onClick={handleClear}
+                  title="Xóa tệp"
+                >
+                  <Trash2 className="w-3.5 h-3.5" />
+                </Button>
+              </div>
+            </div>
+          )}
+        </div>
 
         {/* 3. Validation Stats Summary */}
         {previewRows.length > 0 && stats.length > 0 && (
@@ -264,11 +281,11 @@ export function ExcelImportModal<T = any>({
               </strong>
               <Badge tone="success">Thẩm định hoàn tất</Badge>
             </div>
-            <div className="max-h-60 overflow-y-auto border border-border rounded-md">
-              <table className="upload-preview-table mt-0">
+            <div className="max-h-60 overflow-auto border border-border rounded-md">
+              <table className="upload-preview-table mt-0 min-w-[650px]">
                 <thead>
                   <tr>
-                    <th style={{ width: "40px" }} className="text-center">STT</th>
+                    <th style={{ width: "45px" }} className="text-center">STT</th>
                     {columns.map((col) => (
                       <th
                         key={col.key}
@@ -283,7 +300,7 @@ export function ExcelImportModal<T = any>({
                 <tbody>
                   {previewRows.map((row, rowIdx) => (
                     <tr key={rowIdx}>
-                      <td className="text-center text-muted text-xs">{rowIdx + 1}</td>
+                      <td className="text-center text-muted text-xs font-medium">{String(rowIdx + 1).padStart(2, "0")}</td>
                       {columns.map((col) => (
                         <td
                           key={col.key}

@@ -1,7 +1,7 @@
 import { seedDatabase } from "@/lib/mock-data";
 import type { MockDatabase } from "@/lib/types";
 
-const STORAGE_KEY = "payroll-admin-demo-db-v24";
+const STORAGE_KEY = "payroll-admin-demo-db-v25";
 
 const cloneSeed = () => structuredClone(seedDatabase);
 
@@ -24,7 +24,9 @@ export function readMockDatabase(): MockDatabase {
       !parsed.activityLogs ||
       parsed.activityLogs.length === 0 ||
       !parsed.otherDeductions ||
+      parsed.otherDeductions.length === 0 ||
       !parsed.otherIncomes ||
+      parsed.otherIncomes.length === 0 ||
       !parsed.payrollRuns ||
       !parsed.payrollAttendanceSheets ||
       !parsed.payrollLines ||

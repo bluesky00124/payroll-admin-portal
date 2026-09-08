@@ -1,15 +1,14 @@
 "use client";
 
 import { useQuery } from "@tanstack/react-query";
-import { Factory, FunctionSquare, LoaderCircle, ScrollText } from "lucide-react";
-import { useState } from "react";
+import { FunctionSquare, LoaderCircle, ScrollText } from "lucide-react";
+import { useEffect, useState } from "react";
 import { AdminShell } from "@/components/admin-shell";
 import { FormulaTab } from "@/components/tabs/formula-tab";
-import { OverviewTab } from "@/components/tabs/overview-tab";
 import { PoliciesTab } from "@/components/tabs/policies-tab";
 import { ErrorState, LoadingBlock } from "@/components/ui";
 import { api } from "@/lib/api";
-import { formatDate } from "@/lib/utils";
+import { formatDate, hideGsLoading, showGsLoading } from "@/lib/utils";
 
 import Link from "next/link";
 import { ArrowLeft } from "lucide-react";
@@ -19,6 +18,15 @@ type TabId = "policies" | "formulas";
 export function ProjectDetail({ projectId, embedded = false }: { projectId: string; embedded?: boolean }) {
   const [activeTab, setActiveTab] = useState<TabId>("policies");
   const projectQuery = useQuery({ queryKey: ["project", projectId], queryFn: () => api.getProject(projectId) });
+
+  useEffect(() => {
+    if (projectQuery.isFetching && Boolean(projectQuery.data)) {
+      showGsLoading("Đang đồng bộ thông tin dự án...");
+    } else {
+      hideGsLoading();
+    }
+    return () => hideGsLoading();
+  }, [projectQuery.isFetching, Boolean(projectQuery.data)]);
 
   if (projectQuery.isLoading) {
     const loadingEl = <LoadingBlock rows={7} />;
@@ -39,34 +47,72 @@ export function ProjectDetail({ projectId, embedded = false }: { projectId: stri
 
   const content = (
     <div className="project-detail-container">
-      {/* Read-only Project Header (Compact) */}
-      <header className="detail-header">
-        <div className="flex items-center justify-between gap-4 flex-wrap w-full">
-          <div className="detail-code-row">
-            {embedded && (
-              <Link href="/projects" className="button button-secondary button-sm flex items-center gap-1.5 mr-2">
-                <ArrowLeft className="w-4 h-4" />
-                <span>Quay lại</span>
-              </Link>
-            )}
-            <span className="project-monogram">
-              <Factory className="w-4 h-4" />
-            </span>
-            <div className="flex flex-col gap-0.5">
-              <div className="title-with-status">
-                <h1>{project.name}</h1>
-              </div>
-              <span className="font-mono font-bold text-primary text-xs tracking-wide">
-                {project.code}
-              </span>
-            </div>
-          </div>
+      {/* Back button navigation (SOP Standard Text Link) */}
+      {embedded && (
+        <div className="mb-3.5">
+          <Link
+            href="/projects"
+            className="inline-flex items-center gap-1.5 text-xs font-medium text-muted hover:text-foreground transition-colors group"
+          >
+            <ArrowLeft className="w-3.5 h-3.5 group-hover:-translate-x-0.5 transition-transform" />
+            <span>Về danh sách dự án</span>
+          </Link>
         </div>
-      </header>
+      )}
 
-      {/* Read-only Project Information Overview Grid */}
-      <div className="mb-6">
-        <OverviewTab project={project} embedded />
+      {/* Level 1: Page Header (Project Title & Code Badge) */}
+      <div className="project-detail-page-header mb-3.5">
+        <div className="flex items-center gap-3 flex-wrap">
+          <h1 className="project-page-title">{project.name}</h1>
+          <span className="project-code-badge">{project.code}</span>
+        </div>
+      </div>
+
+      {/* Level 2: Project Metadata Strip (Clean SaaS Style) */}
+      <div className="project-meta-strip mb-6">
+        {/* Item 1: Chủ dự án */}
+        <div className="meta-strip-item">
+          <span className="meta-strip-label">Chủ dự án:</span>
+          <strong className="meta-strip-value">{project.manager || "—"}</strong>
+          {(project.managerPhone || project.managerEmail) && (
+            <span className="meta-strip-contact">
+              {project.managerPhone && (
+                <span className="contact-chunk">
+                  <span className="text-muted/60">•</span>
+                  <span className="text-muted text-xs">SĐT:</span>
+                  <span className="font-medium text-foreground">{project.managerPhone}</span>
+                </span>
+              )}
+              {project.managerEmail && (
+                <span className="contact-chunk" title={project.managerEmail}>
+                  <span className="text-muted/60">•</span>
+                  <span className="text-muted text-xs">Email:</span>
+                  <span className="font-medium text-foreground">{project.managerEmail}</span>
+                </span>
+              )}
+            </span>
+          )}
+        </div>
+
+        <div className="meta-strip-divider" />
+
+        {/* Item 2: Chu kỳ tính lương */}
+        <div className="meta-strip-item">
+          <span className="meta-strip-label">Chu kỳ lương:</span>
+          <strong className="meta-strip-value">
+            {project.payrollCycle || "Hàng tháng"}
+          </strong>
+        </div>
+
+        <div className="meta-strip-divider" />
+
+        {/* Item 3: Quy mô nhân sự */}
+        <div className="meta-strip-item">
+          <span className="meta-strip-label">Nhân sự:</span>
+          <strong className="meta-strip-value meta-strip-highlight">
+            {(project.employeeCount ?? 0).toLocaleString("vi-VN")} nhân viên
+          </strong>
+        </div>
       </div>
 
       {/* Horizontal Tabs Navigation (Minimalist Underline) */}
@@ -76,7 +122,7 @@ export function ProjectDetail({ projectId, embedded = false }: { projectId: stri
           className={`project-tab-btn ${activeTab === "policies" ? "active" : ""}`}
           onClick={() => setActiveTab("policies")}
         >
-          <ScrollText />
+          <ScrollText className="w-4 h-4" />
           <span>Danh sách chế độ</span>
           {activeTab === "policies" && <span className="tab-indicator" />}
         </button>
@@ -85,7 +131,7 @@ export function ProjectDetail({ projectId, embedded = false }: { projectId: stri
           className={`project-tab-btn ${activeTab === "formulas" ? "active" : ""}`}
           onClick={() => setActiveTab("formulas")}
         >
-          <FunctionSquare />
+          <FunctionSquare className="w-4 h-4" />
           <span>Công thức tính lương</span>
           {activeTab === "formulas" && <span className="tab-indicator" />}
         </button>
@@ -96,13 +142,6 @@ export function ProjectDetail({ projectId, embedded = false }: { projectId: stri
         {activeTab === "policies" && <PoliciesTab projectId={project.id} embedded />}
         {activeTab === "formulas" && <FormulaTab projectId={project.id} embedded />}
       </div>
-
-      {projectQuery.isFetching && (
-        <div className="corner-loading">
-          <LoaderCircle className="spin" />
-          Đang đồng bộ
-        </div>
-      )}
     </div>
   );
 

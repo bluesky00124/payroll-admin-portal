@@ -11,8 +11,9 @@ import {
 } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
-import { Button, EmptyState, ErrorState, LoadingBlock } from "@/components/ui";
+import { EmptyState, ErrorState, LoadingBlock, TablePaginationFooter } from "@/components/ui";
 import { api } from "@/lib/api";
+import { hideGsLoading, showGsLoading } from "@/lib/utils";
 
 export function ProjectsList() {
   const router = useRouter();
@@ -30,8 +31,22 @@ export function ProjectsList() {
 
   const projectsQuery = useQuery({
     queryKey: ["projects", debouncedQuery, "all", page],
-    queryFn: () => api.getProjects({ q: debouncedQuery, status: "all", page, pageSize: 6 }),
+    queryFn: () => api.getProjects({ q: debouncedQuery, status: "all", page, pageSize: 8 }),
+    placeholderData: (previousData) => previousData,
   });
+
+  useEffect(() => {
+    // Lần đầu tải trang sẽ dùng Skeleton, chỉ kích hoạt GS Loading toàn màn hình khi chuyển trang hoặc tìm kiếm sau đó
+    if (projectsQuery.isFetching && Boolean(projectsQuery.data)) {
+      showGsLoading("Đang tải danh sách dự án...");
+    } else {
+      hideGsLoading();
+    }
+
+    return () => {
+      hideGsLoading();
+    };
+  }, [projectsQuery.isFetching, Boolean(projectsQuery.data)]);
 
   return (
     <>
@@ -60,14 +75,21 @@ export function ProjectsList() {
           </div>
         </div>
 
-        {projectsQuery.isLoading ? (
+        {projectsQuery.isLoading && !projectsQuery.data ? (
           <LoadingBlock rows={6} />
         ) : projectsQuery.isError ? (
           <ErrorState message={(projectsQuery.error as Error).message} retry={() => projectsQuery.refetch()} />
         ) : projectsQuery.data?.data.length === 0 ? (
           <EmptyState title="Không tìm thấy dự án" description="Thử thay đổi từ khóa tìm kiếm." />
         ) : (
-          <div className="project-grid">
+          <div
+            className="project-grid"
+            style={{
+              opacity: projectsQuery.isFetching ? 0.65 : 1,
+              transition: "opacity 0.2s ease-in-out",
+              pointerEvents: projectsQuery.isFetching ? "none" : "auto",
+            }}
+          >
             {projectsQuery.data?.data.map((project) => (
               <div
                 key={project.id}
@@ -102,7 +124,7 @@ export function ProjectsList() {
                   {project.managerEmail && (
                     <div className="info-row">
                       <span className="info-label pl-5">Email:</span>
-                      <span className="info-value contact-value break-all" title={project.managerEmail}>
+                      <span className="info-value font-medium text-foreground break-all" title={project.managerEmail}>
                         {project.managerEmail}
                       </span>
                     </div>
@@ -124,34 +146,12 @@ export function ProjectsList() {
           </div>
         )}
 
-        <div className="table-footer">
-          <span>
-            Hiển thị {projectsQuery.data?.data.length ?? 0} / {projectsQuery.data?.meta?.total ?? 0} dự án
-          </span>
-          <div>
-            <Button
-              size="icon"
-              variant="ghost"
-              disabled={page <= 1}
-              onClick={() => setPage((value) => value - 1)}
-              aria-label="Trang trước"
-            >
-              <ChevronLeft />
-            </Button>
-            <span>
-              Trang {page} / {projectsQuery.data?.meta?.totalPages ?? 1}
-            </span>
-            <Button
-              size="icon"
-              variant="ghost"
-              disabled={page >= (projectsQuery.data?.meta?.totalPages ?? 1)}
-              onClick={() => setPage((value) => value + 1)}
-              aria-label="Trang sau"
-            >
-              <ChevronRight />
-            </Button>
-          </div>
-        </div>
+        <TablePaginationFooter
+          totalItems={projectsQuery.data?.meta?.total ?? 0}
+          currentPage={page}
+          pageSize={8}
+          onPageChange={(newPage) => setPage(newPage)}
+        />
       </section>
     </>
   );
