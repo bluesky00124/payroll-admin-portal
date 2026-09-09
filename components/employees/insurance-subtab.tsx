@@ -220,8 +220,51 @@ export function InsuranceSubtab({
     });
   }, [masterRecords, searchTerm, masterStatusFilter]);
 
-  // Filtered Changes (No filters)
-  const filteredChanges = changeRecords;
+  // Filtered Changes with period, search, and status filters
+  const filteredChanges = useMemo(() => {
+    return changeRecords.filter((item) => {
+      const term = searchTerm.toLowerCase().trim();
+      const matchSearch =
+        !term ||
+        item.employeeName.toLowerCase().includes(term) ||
+        item.employeeCode.toLowerCase().includes(term) ||
+        (item.agencyReceiptCode && item.agencyReceiptCode.toLowerCase().includes(term)) ||
+        (item.reason && item.reason.toLowerCase().includes(term));
+
+      const matchPeriod = !selectedPeriod || item.period === selectedPeriod || item.effectiveMonth === selectedPeriod;
+
+      const matchStatus =
+        changeStatusFilter === "all" ||
+        (changeStatusFilter === "pending" && (item.status === "pending_agency_verification" || (item.status as string) === "pending")) ||
+        (changeStatusFilter === "verified" && item.status === "verified") ||
+        (changeStatusFilter === "rejected" && item.status === "rejected");
+
+      return matchSearch && matchPeriod && matchStatus;
+    });
+  }, [changeRecords, searchTerm, selectedPeriod, changeStatusFilter]);
+
+  // Status counts for changes (scoped to the selected period)
+  const changeCounts = useMemo(() => {
+    const periodRecords = changeRecords.filter(
+      (item) => !selectedPeriod || item.period === selectedPeriod || item.effectiveMonth === selectedPeriod
+    );
+    const counts = {
+      all: periodRecords.length,
+      pending: 0,
+      verified: 0,
+      rejected: 0,
+    };
+    periodRecords.forEach((item) => {
+      if (item.status === "pending_agency_verification" || (item.status as string) === "pending") {
+        counts.pending++;
+      } else if (item.status === "verified") {
+        counts.verified++;
+      } else if (item.status === "rejected") {
+        counts.rejected++;
+      }
+    });
+    return counts;
+  }, [changeRecords, selectedPeriod]);
 
   // Pagination for Master
   const [masterPage, setMasterPage] = useState(1);
@@ -239,15 +282,22 @@ export function InsuranceSubtab({
     return filteredChanges.slice(start, start + changesPageSize);
   }, [filteredChanges, changesPage, changesPageSize]);
 
-  // Pending counts
+  // Pending changes selection
+  const pendingFilteredChanges = useMemo(() => {
+    return filteredChanges.filter(
+      (item) => item.status === "pending_agency_verification" || (item.status as string) === "pending"
+    );
+  }, [filteredChanges]);
+
   const isAllPendingSelected =
-    changeRecords.length > 0 && changeRecords.every((item) => selectedChangeIds.has(item.id));
+    pendingFilteredChanges.length > 0 &&
+    pendingFilteredChanges.every((item) => selectedChangeIds.has(item.id));
 
   const toggleSelectAllChanges = () => {
     if (isAllPendingSelected) {
       setSelectedChangeIds(new Set());
     } else {
-      setSelectedChangeIds(new Set(changeRecords.map((item) => item.id)));
+      setSelectedChangeIds(new Set(pendingFilteredChanges.map((item) => item.id)));
     }
   };
 
@@ -807,7 +857,7 @@ export function InsuranceSubtab({
                           <td className="text-center">
                             <TableRowActions
                               items={[
-                                ...(isAccountant && item.status === "pending"
+                                ...(isAccountant && (item.status === "pending_agency_verification" || (item.status as string) === "pending")
                                   ? [
                                       {
                                         key: "verify",
@@ -1021,9 +1071,9 @@ export function InsuranceSubtab({
                 onClick={() => setIsEmployeeDropdownOpen(!isEmployeeDropdownOpen)}
               >
                 <div className="flex items-center gap-2">
-                  <span className="employee-code-badge">{selectedEmployeeObj?.code}</span>
-                  <strong className="text-foreground">{selectedEmployeeObj?.name}</strong>
-                  <span className="text-xs text-muted">({selectedEmployeeObj?.position})</span>
+                  <span className="employee-code-badge text-xs">{selectedEmployeeObj?.code}</span>
+                  <strong className="text-foreground text-sm">{selectedEmployeeObj?.name}</strong>
+                  <span className="text-sm text-muted">({selectedEmployeeObj?.position})</span>
                 </div>
                 <ChevronDown className="w-4 h-4 text-muted" />
               </button>
@@ -1046,14 +1096,14 @@ export function InsuranceSubtab({
                         onClick={() => setEmployeeSearchTerm("")}
                         className="text-muted hover:text-foreground"
                       >
-                        <X className="w-3.5 h-3.5" />
+                        <X className="w-4 h-4" />
                       </button>
                     )}
                   </div>
 
                   <div className="searchable-select-list">
                     {filteredEmployeesForSelect.length === 0 ? (
-                      <div className="p-3 text-xs text-muted text-center">
+                      <div className="p-3 text-sm text-muted text-center">
                         Không tìm thấy người lao động phù hợp
                       </div>
                     ) : (
@@ -1075,14 +1125,14 @@ export function InsuranceSubtab({
                             }}
                           >
                             <div className="searchable-select-item-left">
-                              <span className="employee-code-badge">{emp.code}</span>
+                              <span className="employee-code-badge text-xs">{emp.code}</span>
                               <div>
-                                <span className="font-semibold text-xs text-foreground">{emp.name}</span>
-                                <div className="text-[11px] text-muted">{emp.position}</div>
+                                <span className="font-semibold text-sm text-foreground">{emp.name}</span>
+                                <div className="text-xs text-muted">{emp.position}</div>
                               </div>
                             </div>
                             <div className="text-right">
-                              <span className="text-[11px] text-primary font-mono font-semibold">
+                              <span className="text-xs text-primary font-mono font-semibold">
                                 {formatCurrency(empMaster?.insuranceSalary ?? 6300000)}
                               </span>
                             </div>
@@ -1104,7 +1154,7 @@ export function InsuranceSubtab({
                   <div className="employee-preview-meta">
                     <span className="employee-preview-name">{selectedEmployeeObj.name}</span>
                     <span className="employee-preview-sub">
-                      <span className="employee-code-badge">{selectedEmployeeObj.code}</span>
+                      <span className="employee-code-badge text-xs">{selectedEmployeeObj.code}</span>
                       <span>•</span>
                       <span>{selectedEmployeeObj.position}</span>
                     </span>
@@ -1166,7 +1216,7 @@ export function InsuranceSubtab({
             <div className="statutory-calculator-card">
               <div className="flex items-center justify-between gap-4">
                 <div className="flex-1">
-                  <label className="text-xs text-muted mb-1 block">Mức lương đóng BHXH mới (VNĐ):</label>
+                  <label className="text-sm font-semibold text-foreground/80 mb-1.5 block">Mức lương đóng BHXH mới (VNĐ):</label>
                   <input
                     type="number"
                     step={100000}
@@ -1174,11 +1224,12 @@ export function InsuranceSubtab({
                     onChange={(e) => setFormNewSalary(Number(e.target.value))}
                     disabled={formChangeType === "decrease"}
                     placeholder="6.300.000"
+                    className="text-sm font-mono font-medium"
                   />
                 </div>
 
                 <div className="w-56">
-                  <label className="text-xs text-muted mb-1 block">Tháng áp dụng hiệu lực:</label>
+                  <label className="text-sm font-semibold text-foreground/80 mb-1.5 block">Tháng áp dụng hiệu lực:</label>
                   <MonthPicker
                     value={formEffectiveMonth}
                     onChange={(val) => setFormEffectiveMonth(val)}
@@ -1190,26 +1241,26 @@ export function InsuranceSubtab({
               <div className="statutory-calculator-grid">
                 <div className="statutory-calc-item">
                   <span className="statutory-calc-label">
-                    <span className="w-2 h-2 rounded-full bg-warning inline-block"></span> NLĐ trích (10.5%)
+                    <span className="w-2.5 h-2.5 rounded-full bg-warning inline-block"></span> NLĐ trích (10.5%)
                   </span>
                   <span className="statutory-calc-val text-warning">{formatCurrency(calcEmpAmount)}</span>
-                  <span className="text-[10px] text-muted">8% Hưu trí + 1.5% BHYT + 1% BHTN</span>
+                  <span className="text-xs text-muted">8% Hưu trí + 1.5% BHYT + 1% BHTN</span>
                 </div>
 
                 <div className="statutory-calc-item">
                   <span className="statutory-calc-label">
-                    <span className="w-2 h-2 rounded-full bg-info inline-block"></span> Doanh nghiệp (21.5%)
+                    <span className="w-2.5 h-2.5 rounded-full bg-info inline-block"></span> Doanh nghiệp (21.5%)
                   </span>
                   <span className="statutory-calc-val text-info">{formatCurrency(calcCompAmount)}</span>
-                  <span className="text-[10px] text-muted">17% BHXH + 3% BHYT + 1% BHTN + 0.5% BNN</span>
+                  <span className="text-xs text-muted">17% BHXH + 3% BHYT + 1% BHTN + 0.5% BNN</span>
                 </div>
 
                 <div className="statutory-calc-item">
                   <span className="statutory-calc-label">
-                    <span className="w-2 h-2 rounded-full bg-primary inline-block"></span> Tổng kinh phí (32%)
+                    <span className="w-2.5 h-2.5 rounded-full bg-primary inline-block"></span> Tổng kinh phí (32%)
                   </span>
                   <span className="statutory-calc-val text-primary">{formatCurrency(calcTotalAmount)}</span>
-                  <span className="text-[10px] text-muted">Tổng nộp cơ quan BHXH</span>
+                  <span className="text-xs text-muted">Tổng nộp cơ quan BHXH</span>
                 </div>
               </div>
             </div>

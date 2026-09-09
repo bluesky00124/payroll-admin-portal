@@ -116,7 +116,7 @@ export function ProjectsWidgetApp({ config }: { config: ProjectsWidgetConfig }) 
               <QueryClientProvider client={queryClient}>
                 <WidgetNavigationProvider initialUrl={initialUrl}>
                   <div
-                    className="payroll-widget-root text-slate-900 antialiased font-sans p-2 sm:p-4"
+                    className="payroll-widget-root text-slate-900 font-sans p-2 sm:p-4"
                     data-theme={preset}
                   >
                     <ProjectsRouterView />

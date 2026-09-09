@@ -707,7 +707,7 @@ export function PoliciesTab({ projectId }: { projectId: string; embedded?: boole
         <div className="space-y-3">
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 p-3 bg-secondary/30 rounded-lg border border-border/60">
             <div className="form-field mb-0">
-              <span className="text-xs font-semibold text-foreground mb-1 block">Áp dụng từ (EffectiveFrom) <span className="text-destructive">*</span></span>
+              <span className="text-xs font-semibold text-foreground mb-1 block">Áp dụng từ <span className="text-destructive">*</span></span>
               <DatePicker
                 value={modalEffectiveFrom}
                 onChange={(val) => setModalEffectiveFrom(val)}
@@ -716,7 +716,7 @@ export function PoliciesTab({ projectId }: { projectId: string; embedded?: boole
               />
             </div>
             <div className="form-field mb-0">
-              <span className="text-xs font-semibold text-foreground mb-1 block">Ngày kết thúc (EffectiveTo)</span>
+              <span className="text-xs font-semibold text-foreground mb-1 block">Ngày kết thúc</span>
               <DatePicker
                 value={modalEffectiveTo}
                 onChange={(val) => setModalEffectiveTo(val)}

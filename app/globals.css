@@ -1192,7 +1192,6 @@ button:disabled { cursor: not-allowed; opacity: .5; }
   z-index: 99990;
   background: rgba(15, 23, 42, 0.45);
   animation: fade-in 0.1s ease-out;
-  transform: translateZ(0);
 }
 
 .dialog-content {
@@ -1211,6 +1210,7 @@ button:disabled { cursor: not-allowed; opacity: .5; }
   box-shadow: 0 24px 48px rgba(15, 23, 42, 0.22);
   overflow: hidden;
   animation: fade-in 0.12s ease-out;
+  backface-visibility: hidden;
 }
 
 :root.dark .dialog-content {
@@ -3162,8 +3162,8 @@ button:disabled { cursor: not-allowed; opacity: .5; }
   display: flex;
   align-items: center;
   justify-content: space-between;
-  gap: 12px;
-  padding: 10px 14px;
+  gap: 14px;
+  padding: 12px 16px;
   border-radius: var(--radius-md, 8px);
   background: color-mix(in srgb, var(--secondary) 60%, var(--card));
   border: 1px solid var(--border);
@@ -3172,11 +3172,11 @@ button:disabled { cursor: not-allowed; opacity: .5; }
 .employee-preview-left {
   display: flex;
   align-items: center;
-  gap: 10px;
+  gap: 12px;
 }
 .employee-avatar-circle {
-  width: 36px;
-  height: 36px;
+  width: 40px;
+  height: 40px;
   border-radius: 50%;
   background: var(--primary-soft);
   color: var(--primary);
@@ -3184,21 +3184,21 @@ button:disabled { cursor: not-allowed; opacity: .5; }
   align-items: center;
   justify-content: center;
   font-weight: 750;
-  font-size: 13.5px;
+  font-size: 15px;
   flex-shrink: 0;
 }
 .employee-preview-meta {
   display: flex;
   flex-direction: column;
-  gap: 1px;
+  gap: 2px;
 }
 .employee-preview-name {
   font-weight: 700;
-  font-size: 13.5px;
+  font-size: 15px;
   color: var(--foreground);
 }
 .employee-preview-sub {
-  font-size: 11.5px;
+  font-size: 13px;
   color: var(--muted);
   display: flex;
   align-items: center;
@@ -3208,16 +3208,16 @@ button:disabled { cursor: not-allowed; opacity: .5; }
   text-align: right;
   display: flex;
   flex-direction: column;
-  gap: 1px;
+  gap: 2px;
 }
 .employee-preview-salary-label {
-  font-size: 10.5px;
+  font-size: 12px;
   color: var(--muted);
 }
 .employee-preview-salary-val {
   font-family: var(--font-mono) !important;
-  font-size: 13px;
-  font-weight: 650;
+  font-size: 15px;
+  font-weight: 700;
   color: var(--primary);
   font-variant-numeric: tabular-nums;
 }
@@ -3226,20 +3226,20 @@ button:disabled { cursor: not-allowed; opacity: .5; }
 .change-type-simple-pills {
   display: flex;
   align-items: center;
-  gap: 8px;
+  gap: 10px;
   flex-wrap: wrap;
-  margin-top: 4px;
+  margin-top: 6px;
 }
 
 .change-type-pill-btn {
-  height: 36px;
-  padding: 0 14px;
+  height: 38px;
+  padding: 0 16px;
   border-radius: var(--radius-md, 8px);
   border: 1px solid var(--border);
   background: var(--card);
   color: var(--foreground);
   font-family: var(--font-sans);
-  font-size: 13px;
+  font-size: 14px;
   font-weight: 550;
   cursor: pointer;
   transition: all 0.15s ease;
@@ -3281,36 +3281,36 @@ button:disabled { cursor: not-allowed; opacity: .5; }
 .declare-section-header-left {
   display: flex;
   align-items: center;
-  gap: 8px;
+  gap: 10px;
 }
 .declare-section-badge {
-  width: 22px;
-  height: 22px;
+  width: 26px;
+  height: 26px;
   border-radius: 50%;
   background: var(--primary-soft);
   color: var(--primary);
   display: flex;
   align-items: center;
   justify-content: center;
-  font-size: 11px;
+  font-size: 13px;
   font-weight: 800;
   flex-shrink: 0;
   border: 1px solid color-mix(in srgb, var(--primary) 25%, transparent);
 }
 .declare-section-title {
-  font-size: 13.5px;
+  font-size: 15px;
   font-weight: 700;
   color: var(--foreground);
 }
 .declare-section-hint {
-  font-size: 11.5px;
+  font-size: 13px;
   color: var(--muted);
 }
 
 /* Long Reason Textarea */
 .long-reason-textarea {
   min-height: 130px !important;
-  font-size: 13.5px !important;
+  font-size: 14.5px !important;
   line-height: 1.6 !important;
   padding: 12px 14px !important;
   border-radius: var(--radius-md, 8px) !important;
@@ -3360,13 +3360,13 @@ button:disabled { cursor: not-allowed; opacity: .5; }
 .attached-file-left {
   display: flex;
   align-items: center;
-  gap: 10px;
+  gap: 12px;
   min-width: 0;
 }
 .attached-file-icon {
-  width: 34px;
-  height: 34px;
-  border-radius: 6px;
+  width: 38px;
+  height: 38px;
+  border-radius: 8px;
   background: var(--primary-soft);
   color: var(--primary);
   display: flex;
@@ -3377,11 +3377,11 @@ button:disabled { cursor: not-allowed; opacity: .5; }
 .attached-file-info {
   display: flex;
   flex-direction: column;
-  gap: 2px;
+  gap: 3px;
   min-width: 0;
 }
 .attached-file-name {
-  font-size: 12.5px;
+  font-size: 14px;
   font-weight: 650;
   color: var(--foreground);
   white-space: nowrap;
@@ -3389,7 +3389,7 @@ button:disabled { cursor: not-allowed; opacity: .5; }
   text-overflow: ellipsis;
 }
 .attached-file-meta {
-  font-size: 11px;
+  font-size: 12.5px;
   color: var(--muted);
   display: flex;
   align-items: center;
@@ -3397,7 +3397,7 @@ button:disabled { cursor: not-allowed; opacity: .5; }
 }
 
 .statutory-calculator-card {
-  padding: 14px 16px;
+  padding: 16px 18px;
   border-radius: var(--radius-md, 8px);
   background: var(--card);
   border: 1px solid var(--border);
@@ -3407,40 +3407,42 @@ button:disabled { cursor: not-allowed; opacity: .5; }
 .statutory-calculator-grid {
   display: grid;
   grid-template-columns: 1fr 1fr 1fr;
-  gap: 12px;
-  margin-top: 10px;
-  padding-top: 10px;
+  gap: 14px;
+  margin-top: 12px;
+  padding-top: 12px;
   border-top: 1px dashed var(--border);
 }
 .statutory-calc-item {
   display: flex;
   flex-direction: column;
-  gap: 2px;
+  gap: 3px;
 }
 .statutory-calc-label {
-  font-size: 11px;
-  color: var(--muted);
+  font-size: 13px;
+  font-weight: 550;
+  color: var(--muted-strong);
   display: flex;
   align-items: center;
-  gap: 4px;
+  gap: 6px;
 }
 .statutory-calc-val {
   font-family: var(--font-mono) !important;
-  font-size: 13.5px;
-  font-weight: 650;
+  font-size: 16px;
+  font-weight: 700;
   font-variant-numeric: tabular-nums;
 }
 
 .quick-reason-chips {
   display: flex;
   flex-wrap: wrap;
-  gap: 6px;
-  margin-top: 6px;
+  gap: 8px;
+  margin-top: 8px;
 }
 .quick-reason-chip {
-  padding: 3px 9px;
+  padding: 5px 12px;
   border-radius: 999px;
-  font-size: 11px;
+  font-size: 12.5px;
+  font-weight: 500;
   color: var(--muted-strong);
   background: var(--secondary);
   border: 1px solid var(--border);
@@ -5734,10 +5736,10 @@ button:disabled { cursor: not-allowed; opacity: .5; }
   position: relative;
   display: inline-flex;
   align-items: center;
-  gap: 7.5px;
-  padding: 10px 4px 13px 4px;
-  font-size: 13.5px;
-  font-weight: 550;
+  gap: 8px;
+  padding: 11px 6px 14px 6px;
+  font-size: 14.5px;
+  font-weight: 600;
   color: var(--muted);
   background: transparent;
   border: none;
@@ -5748,8 +5750,8 @@ button:disabled { cursor: not-allowed; opacity: .5; }
 }
 
 .payroll-page-tab-btn svg {
-  width: 16px;
-  height: 16px;
+  width: 17.5px;
+  height: 17.5px;
   color: var(--muted);
   transition: color 0.16s ease;
   flex-shrink: 0;
@@ -5765,7 +5767,7 @@ button:disabled { cursor: not-allowed; opacity: .5; }
 
 .payroll-page-tab-btn.active {
   color: var(--primary);
-  font-weight: 650;
+  font-weight: 700;
 }
 
 .payroll-page-tab-btn.active svg {
@@ -6108,20 +6110,20 @@ button:disabled { cursor: not-allowed; opacity: .5; }
 .payroll-lines-attendance { min-width: 2480px; }
 .payroll-lines-income { min-width: 3180px; }
 .payroll-lines-deductions { min-width: 2380px; }
-.payroll-lines-table th { min-width: 116px; height: 42px; padding: 9px 12px; line-height: 1.35; white-space: normal; vertical-align: middle; border-bottom: 1px solid rgba(3, 139, 140, 0.1); border-right: 1px solid color-mix(in srgb, var(--border) 60%, transparent); color: #64748b; font-size: 11px; font-weight: 700; letter-spacing: .04em; text-transform: uppercase; user-select: none; }
+.payroll-lines-table th { min-width: 116px; height: 44px; padding: 9px 12px; line-height: 1.35; white-space: normal; vertical-align: middle; border-bottom: 1px solid rgba(3, 139, 140, 0.1); border-right: 1px solid color-mix(in srgb, var(--border) 60%, transparent); color: #64748b; font-size: 12px; font-weight: 700; letter-spacing: .04em; text-transform: uppercase; user-select: none; }
 :root.dark .payroll-lines-table th { color: #8ca2ba; border-bottom-color: rgba(255, 255, 255, 0.06); }
-.payroll-lines-table td { height: 50px; padding: 8px 12px; font-size: 12px; font-weight: 500; font-variant-numeric: tabular-nums; white-space: nowrap; vertical-align: middle; border-bottom: 1px solid rgba(15, 23, 42, 0.05); border-right: 1px solid color-mix(in srgb, var(--border) 60%, transparent); background-color: var(--card); color: #334155; }
+.payroll-lines-table td { height: 52px; padding: 8px 12px; font-size: 13px; font-weight: 500; font-variant-numeric: tabular-nums; white-space: nowrap; vertical-align: middle; border-bottom: 1px solid rgba(15, 23, 42, 0.05); border-right: 1px solid color-mix(in srgb, var(--border) 60%, transparent); background-color: var(--card); color: #334155; }
 :root.dark .payroll-lines-table td { color: #cbd5e1; border-bottom-color: rgba(255, 255, 255, 0.05); }
 .payroll-lines-table thead th { position: sticky; z-index: 20; top: 34px; background-color: #f8fafc; }
 :root.dark .payroll-lines-table thead th { background-color: #0e1e2d; }
-.payroll-lines-table thead tr.payroll-line-group-row th.payroll-line-group { position: sticky; z-index: 25; top: 0; height: 34px; min-height: 34px; max-height: 34px; padding-block: 5px; font-size: 11px; font-weight: 750; letter-spacing: .05em; text-align: center; vertical-align: middle; }
+.payroll-lines-table thead tr.payroll-line-group-row th.payroll-line-group { position: sticky; z-index: 25; top: 0; height: 34px; min-height: 34px; max-height: 34px; padding-block: 5px; font-size: 12px; font-weight: 750; letter-spacing: .05em; text-align: center; vertical-align: middle; }
 .payroll-lines-table thead tr.payroll-line-group-row th.payroll-line-group.group-attendance { color: #0369a1; background-color: color-mix(in srgb, #38bdf8 18%, var(--card)); }
 .payroll-lines-table thead tr.payroll-line-group-row th.payroll-line-group.group-income { color: #047857; background-color: color-mix(in srgb, #34d399 18%, var(--card)); }
 .payroll-lines-table thead tr.payroll-line-group-row th.payroll-line-group.group-deduction { color: #b45309; background-color: color-mix(in srgb, #f59e0b 18%, var(--card)); }
 .payroll-lines-table thead tr.payroll-line-group-row th.payroll-line-group.group-payment { color: #6d28d9; background-color: color-mix(in srgb, #a78bfa 18%, var(--card)); }
 .payroll-lines-table tbody td.payroll-line-employee-sticky { position: sticky; z-index: 15; left: 0; width: 248px; min-width: 248px; max-width: 248px; vertical-align: middle; background-color: var(--card); box-shadow: 1px 0 0 var(--border); }
 .payroll-lines-table thead th.payroll-line-employee-sticky,
-.payroll-lines-table thead tr.payroll-line-group-row th.payroll-line-employee-sticky { position: sticky; z-index: 50; top: 0; left: 0; width: 248px; min-width: 248px; max-width: 248px; height: 76px; min-height: 76px; vertical-align: middle; text-align: left; color: #64748b; font-size: 11px; font-weight: 750; letter-spacing: .05em; text-transform: uppercase; background-color: color-mix(in srgb, var(--secondary) 92%, var(--card)); box-shadow: 1px 0 0 var(--border); }
+.payroll-lines-table thead tr.payroll-line-group-row th.payroll-line-employee-sticky { position: sticky; z-index: 50; top: 0; left: 0; width: 248px; min-width: 248px; max-width: 248px; height: 76px; min-height: 76px; vertical-align: middle; text-align: left; color: #64748b; font-size: 12px; font-weight: 750; letter-spacing: .05em; text-transform: uppercase; background-color: color-mix(in srgb, var(--secondary) 92%, var(--card)); box-shadow: 1px 0 0 var(--border); }
 :root.dark .payroll-lines-table thead th.payroll-line-employee-sticky,
 :root.dark .payroll-lines-table thead tr.payroll-line-group-row th.payroll-line-employee-sticky { color: #8ca2ba; }
 .payroll-lines-table tbody td.payroll-line-action-sticky { position: sticky; z-index: 15; right: 0; width: 52px; min-width: 52px; max-width: 52px; padding-inline: 8px; vertical-align: middle; text-align: center; background-color: var(--card); box-shadow: -1px 0 0 var(--border); }
@@ -6155,10 +6157,10 @@ button:disabled { cursor: not-allowed; opacity: .5; }
 .payroll-lines-table .emphasis-income { color: #047857; font-weight: 700; }
 .payroll-lines-table .emphasis-deduction { color: var(--destructive); font-weight: 700; }
 .payroll-lines-table .emphasis-net { color: var(--primary); font-weight: 750; }
-.payroll-lines-table tfoot td { position: sticky; z-index: 20; bottom: 0; height: 48px; color: var(--foreground); border-top: 1px solid var(--border); border-bottom: 0; background-color: color-mix(in srgb, var(--secondary) 85%, var(--card)); font-weight: 700; text-align: right; font-family: var(--font-mono); font-size: 12px; }
+.payroll-lines-table tfoot td { position: sticky; z-index: 20; bottom: 0; height: 48px; color: var(--foreground); border-top: 1px solid var(--border); border-bottom: 0; background-color: color-mix(in srgb, var(--secondary) 85%, var(--card)); font-weight: 700; text-align: right; font-family: var(--font-mono); font-size: 13px; }
 .payroll-lines-table tfoot td.payroll-line-employee-sticky { position: sticky; z-index: 50; bottom: 0; left: 0; display: table-cell; text-align: left; background-color: color-mix(in srgb, var(--secondary) 95%, var(--card)); box-shadow: 1px 0 0 var(--border); font-family: var(--font-sans); }
-.payroll-lines-table tfoot td.payroll-line-employee-sticky strong { font-size: 12px; font-weight: 700; }
-.payroll-lines-table tfoot td.payroll-line-employee-sticky small { margin-top: 2px; color: var(--muted); font-size: 10.5px; font-weight: 500; }
+.payroll-lines-table tfoot td.payroll-line-employee-sticky strong { font-size: 13px; font-weight: 700; }
+.payroll-lines-table tfoot td.payroll-line-employee-sticky small { margin-top: 2px; color: var(--muted); font-size: 11.5px; font-weight: 500; }
 .payroll-lines-table tfoot td.payroll-line-action-sticky { position: sticky; z-index: 50; bottom: 0; right: 0; background-color: color-mix(in srgb, var(--secondary) 95%, var(--card)); box-shadow: -1px 0 0 var(--border); }
 .payroll-lines-table td.payroll-line-action-sticky button { margin: 0 auto; display: flex; }
 
@@ -6169,13 +6171,18 @@ button:disabled { cursor: not-allowed; opacity: .5; }
 .payroll-full-table-meta .attendance-code-legend, .payroll-full-table-meta .payroll-sensitive-note { margin: 0; }
 .payroll-full-table-meta .payroll-sensitive-note { flex: 0 0 auto; }
 .payroll-full-table-wrap { max-height: 68vh; border-radius: 0 !important; }
-.payroll-unified-table { min-width: 8200px; }
-.payroll-unified-table thead tr.payroll-unified-section-row th { position: sticky; z-index: 31; top: 0; height: 36px; min-height: 36px; padding: 6px 10px; color: var(--foreground); font-size: 11px; font-weight: 750; letter-spacing: .05em; text-align: center; }
-.payroll-unified-table thead tr.payroll-unified-column-row th { position: sticky; z-index: 29; top: 36px; height: 58px; min-height: 58px; padding: 7px 9px; font-size: 11px; font-weight: 700; }
+.payroll-unified-table {
+  min-width: 8200px;
+  -webkit-font-smoothing: auto;
+  -moz-osx-font-smoothing: auto;
+  text-rendering: optimizeLegibility;
+}
+.payroll-unified-table thead tr.payroll-unified-section-row th { position: sticky; z-index: 31; top: 0; height: 38px; min-height: 38px; padding: 6px 10px; color: var(--foreground); font-size: 12.5px; font-weight: 750; letter-spacing: .05em; text-align: center; }
+.payroll-unified-table thead tr.payroll-unified-column-row th { position: sticky; z-index: 29; top: 38px; height: 60px; min-height: 60px; padding: 7px 9px; font-size: 12px; font-weight: 700; }
 .payroll-unified-table thead th.payroll-line-employee-sticky,
 .payroll-unified-table thead tr.payroll-unified-section-row th.payroll-line-employee-sticky,
 .payroll-unified-table thead th.payroll-line-action-sticky,
-.payroll-unified-table thead tr.payroll-unified-section-row th.payroll-line-action-sticky { z-index: 60; top: 0; height: 94px; min-height: 94px; }
+.payroll-unified-table thead tr.payroll-unified-section-row th.payroll-line-action-sticky { z-index: 60; top: 0; height: 98px; min-height: 98px; }
 .payroll-unified-table .payroll-unified-section.section-employee { color: #0f766e; background: color-mix(in srgb, #5eead4 22%, var(--card)); }
 .payroll-unified-table .payroll-unified-section.section-bank { color: #6d28d9; background: color-mix(in srgb, #c4b5fd 24%, var(--card)); }
 .payroll-unified-table .payroll-unified-section.section-daily,
@@ -6183,13 +6190,14 @@ button:disabled { cursor: not-allowed; opacity: .5; }
 .payroll-unified-table .payroll-unified-section.section-income { color: #047857; background: color-mix(in srgb, #6ee7b7 24%, var(--card)); }
 .payroll-unified-table .payroll-unified-section.section-deduction { color: #b45309; background: color-mix(in srgb, #fcd34d 24%, var(--card)); }
 .payroll-unified-table .payroll-line-group.group-employee { color: #0f766e; background: color-mix(in srgb, #99f6e4 20%, var(--card)); }
-.payroll-unified-table th.payroll-day-col { width: 52px; min-width: 52px; max-width: 52px; padding-inline: 2px; text-align: center; }
+.payroll-unified-table th.payroll-day-col { width: 54px; min-width: 54px; max-width: 54px; padding-inline: 2px; text-align: center; }
 .payroll-unified-table th.payroll-day-col > span, .payroll-unified-table th.payroll-day-col > small { display: block; }
-.payroll-unified-table th.payroll-day-col > small { margin-top: 2px; font-size: 9.5px; font-weight: 500; letter-spacing: 0; text-transform: none; }
+.payroll-unified-table th.payroll-day-col > span { font-size: 12px; }
+.payroll-unified-table th.payroll-day-col > small { margin-top: 2px; font-size: 11px; font-weight: 500; letter-spacing: 0; text-transform: none; }
 .payroll-unified-table th.payroll-day-col.weekend { color: var(--muted-strong); background: color-mix(in srgb, var(--secondary) 80%, var(--card)); }
-.payroll-unified-table td.payroll-full-day-cell { width: 52px; min-width: 52px; max-width: 52px; padding: 6px 2px; text-align: center; font-family: var(--font-mono); background: var(--card); }
-.payroll-unified-table .payroll-full-day-cell strong { display: block; font-size: 12px; font-weight: 600; color: var(--foreground); }
-.payroll-unified-table .payroll-full-day-cell small { display: block; margin-top: 1px; font-size: 9.5px; color: var(--muted); font-weight: 500; }
+.payroll-unified-table td.payroll-full-day-cell { width: 54px; min-width: 54px; max-width: 54px; padding: 6px 2px; text-align: center; font-family: var(--font-mono); background: var(--card); }
+.payroll-unified-table .payroll-full-day-cell strong { display: block; font-size: 13px; font-weight: 600; color: var(--foreground); }
+.payroll-unified-table .payroll-full-day-cell small { display: block; margin-top: 1px; font-size: 11px; color: var(--muted); font-weight: 500; }
 .payroll-unified-table .payroll-full-day-cell.status-work strong { color: var(--foreground); }
 .payroll-unified-table .payroll-full-day-cell.status-overtime strong { color: var(--foreground); }
 .payroll-unified-table .payroll-full-day-cell.status-overtime small { color: #0f766e; font-weight: 600; }
@@ -6197,14 +6205,14 @@ button:disabled { cursor: not-allowed; opacity: .5; }
 .payroll-unified-table .payroll-full-day-cell.status-off { background: color-mix(in srgb, var(--secondary) 45%, var(--card)); }
 .payroll-unified-table .payroll-full-day-cell.status-off strong { color: var(--muted); font-weight: 500; }
 .payroll-unified-table .payroll-full-day-cell.status-unapproved strong { color: var(--destructive); font-weight: 600; }
-.payroll-unified-table tfoot td.payroll-full-footer-note { color: var(--muted); font-family: var(--font-sans); font-size: 11.5px; font-weight: 600; text-align: left; }
-.payroll-full-table-footnote { margin: 10px 18px 0; color: var(--muted); font-size: 10px; }
+.payroll-unified-table tfoot td.payroll-full-footer-note { color: var(--muted); font-family: var(--font-sans); font-size: 12.5px; font-weight: 600; text-align: left; }
+.payroll-full-table-footnote { margin: 10px 18px 0; color: var(--muted); font-size: 11.5px; }
 
 .line-employee { min-width: 210px; display: flex; align-items: center; gap: 10px; }
 .line-employee > div { min-width: 0; display: flex; flex-direction: column; }
-.line-employee strong { color: var(--foreground); font-size: 12px; font-weight: 650; }
-.line-employee small { color: var(--muted); font-size: 10.5px; font-family: var(--font-mono); }
-.line-employee em { max-width: 170px; margin-top: 2px; overflow: hidden; color: var(--warning); font-size: 10px; font-style: normal; text-overflow: ellipsis; white-space: nowrap; }
+.line-employee strong { color: var(--foreground); font-size: 13.5px; font-weight: 650; }
+.line-employee small { color: var(--muted); font-size: 11.5px; font-family: var(--font-mono); }
+.line-employee em { max-width: 170px; margin-top: 2px; overflow: hidden; color: var(--warning); font-size: 11px; font-style: normal; text-overflow: ellipsis; white-space: nowrap; }
 
 /* Workflow Tab */
 .payroll-workflow-tab {
@@ -6214,16 +6222,24 @@ button:disabled { cursor: not-allowed; opacity: .5; }
   overflow: hidden;
 }
 .workflow-table-heading { display: flex; align-items: flex-start; justify-content: space-between; gap: 24px; padding: 22px 24px 18px; border-bottom: 1px solid var(--border); }
-.workflow-table-heading .eyebrow { display: inline-flex; align-items: center; gap: 6px; color: var(--primary); font-size: 10px; font-weight: 800; letter-spacing: .08em; }
-.workflow-table-heading .eyebrow svg { width: 14px; height: 14px; }
-.workflow-table-heading h2 { margin-top: 5px; color: var(--foreground); font-size: 20px; font-weight: 750; letter-spacing: -.025em; }
-.workflow-table-heading p { max-width: 720px; margin-top: 5px; color: var(--muted); font-size: 12px; line-height: 1.55; }
+.workflow-table-heading .eyebrow { display: inline-flex; align-items: center; gap: 6px; color: var(--primary); font-size: 11.5px; font-weight: 800; letter-spacing: .08em; }
+.workflow-table-heading .eyebrow svg { width: 15px; height: 15px; }
+.workflow-table-heading h2 { margin-top: 5px; color: var(--foreground); font-size: 21px; font-weight: 750; letter-spacing: -.025em; }
+.workflow-table-heading p { max-width: 720px; margin-top: 5px; color: var(--muted); font-size: 13px; line-height: 1.55; }
 .workflow-table-wrap { width: 100%; overflow-x: auto; }
-.workflow-approval-table { width: 100%; min-width: 1280px; border-collapse: separate; border-spacing: 0; }
-.workflow-approval-table th { height: 46px; padding: 10px 12px; border-right: 1px solid var(--border); border-bottom: 1px solid var(--border); color: var(--muted); background: color-mix(in srgb, var(--secondary) 72%, var(--card)); font-size: 10px; font-weight: 800; letter-spacing: .065em; text-align: center; text-transform: uppercase; }
+.workflow-approval-table {
+  width: 100%;
+  min-width: 1280px;
+  border-collapse: separate;
+  border-spacing: 0;
+  -webkit-font-smoothing: auto;
+  -moz-osx-font-smoothing: auto;
+  text-rendering: optimizeLegibility;
+}
+.workflow-approval-table th { height: 48px; padding: 10px 12px; border-right: 1px solid var(--border); border-bottom: 1px solid var(--border); color: var(--muted); background: color-mix(in srgb, var(--secondary) 72%, var(--card)); font-size: 11.5px; font-weight: 800; letter-spacing: .065em; text-align: center; text-transform: uppercase; }
 .workflow-approval-table th:nth-child(2), .workflow-approval-table th:nth-child(4), .workflow-approval-table th:nth-child(6) { text-align: left; }
 .workflow-approval-table th:last-child { border-right: 0; }
-.workflow-approval-table td { height: 104px; padding: 14px 12px; border-right: 1px solid var(--border); border-bottom: 1px solid var(--border); color: var(--foreground); background: var(--card); font-size: 12px; vertical-align: middle; }
+.workflow-approval-table td { height: 104px; padding: 14px 12px; border-right: 1px solid var(--border); border-bottom: 1px solid var(--border); color: var(--foreground); background: var(--card); font-size: 13px; vertical-align: middle; }
 .workflow-approval-table tr:last-child td { border-bottom: 0; }
 .workflow-approval-table td:last-child { min-width: 185px; border-right: 0; text-align: center; }
 .workflow-approval-table td:first-child, .workflow-approval-table td:nth-child(3), .workflow-approval-table td:nth-child(5) { text-align: center; }
@@ -6231,28 +6247,28 @@ button:disabled { cursor: not-allowed; opacity: .5; }
 .workflow-approval-table tr.active td:first-child { box-shadow: inset 3px 0 0 var(--primary); }
 .workflow-approval-table tr.correction td { background: color-mix(in srgb, var(--destructive-soft) 42%, var(--card)); }
 .workflow-approval-table tr.correction td:first-child { box-shadow: inset 3px 0 0 var(--destructive); }
-.workflow-step-number { display: inline-grid; place-items: center; width: 34px; height: 34px; border: 1px solid var(--border); border-radius: 50%; color: var(--muted-strong); background: var(--secondary); font-size: 11px; font-weight: 800; font-family: var(--font-mono); }
+.workflow-step-number { display: inline-grid; place-items: center; width: 36px; height: 36px; border: 1px solid var(--border); border-radius: 50%; color: var(--muted-strong); background: var(--secondary); font-size: 13px; font-weight: 800; font-family: var(--font-mono); }
 .workflow-approval-table tr.done .workflow-step-number { color: var(--success); border-color: color-mix(in srgb, var(--success) 35%, var(--border)); background: var(--success-soft); }
 .workflow-approval-table tr.active .workflow-step-number { color: white; border-color: var(--primary); background: var(--primary); }
 .workflow-approval-table tr.correction .workflow-step-number { border-color: var(--destructive); background: var(--destructive); }
 .workflow-step-cell { min-width: 230px; max-width: 310px; }
-.workflow-step-cell strong { display: block; font-size: 13px; font-weight: 720; }
-.workflow-step-cell p { margin-top: 4px; color: var(--muted-strong); font-size: 11px; line-height: 1.45; }
-.workflow-step-cell small { display: block; margin-top: 6px; color: var(--muted); font-size: 9.5px; }
+.workflow-step-cell strong { display: block; font-size: 14px; font-weight: 720; }
+.workflow-step-cell p { margin-top: 4px; color: var(--muted-strong); font-size: 12px; line-height: 1.45; }
+.workflow-step-cell small { display: block; margin-top: 6px; color: var(--muted); font-size: 11px; }
 .workflow-approval-table .status-badge { white-space: nowrap; }
 .workflow-assignee { min-width: 180px; max-width: 240px; }
-.workflow-assignee > strong { display: block; color: var(--foreground); font-size: 12px; font-weight: 670; line-height: 1.4; }
-.workflow-assignee > small { display: block; margin-top: 3px; color: var(--muted); font-size: 10px; line-height: 1.4; }
+.workflow-assignee > strong { display: block; color: var(--foreground); font-size: 13px; font-weight: 670; line-height: 1.4; }
+.workflow-assignee > small { display: block; margin-top: 3px; color: var(--muted); font-size: 11.5px; line-height: 1.4; }
 .workflow-employee-progress { display: flex; align-items: center; gap: 8px; margin-top: 8px; }
-.workflow-employee-progress > span { width: 82px; height: 5px; border-radius: 999px; background: var(--secondary); overflow: hidden; }
+.workflow-employee-progress > span { width: 82px; height: 6px; border-radius: 999px; background: var(--secondary); overflow: hidden; }
 .workflow-employee-progress i { display: block; height: 100%; border-radius: inherit; background: var(--primary); }
-.workflow-employee-progress b { color: var(--primary); font-size: 9.5px; font-weight: 750; white-space: nowrap; }
-.workflow-time { display: inline-block; min-width: 100px; color: var(--muted-strong); font-size: 10.5px; font-family: var(--font-mono); line-height: 1.5; }
-.workflow-note { display: block; min-width: 200px; max-width: 290px; color: var(--muted-strong); font-size: 11px; line-height: 1.5; }
-.workflow-note.empty, .workflow-no-action { color: var(--muted); }
+.workflow-employee-progress b { color: var(--primary); font-size: 11px; font-weight: 750; white-space: nowrap; }
+.workflow-time { display: inline-block; min-width: 100px; color: var(--muted-strong); font-size: 12px; font-family: var(--font-mono); line-height: 1.5; }
+.workflow-note { display: block; min-width: 200px; max-width: 290px; color: var(--muted-strong); font-size: 12px; line-height: 1.5; }
+.workflow-note.empty, .workflow-no-action { color: var(--muted); font-size: 12px; }
 .workflow-actions { display: flex; flex-direction: column; align-items: stretch; gap: 7px; }
 .workflow-actions .button { justify-content: center; }
-.workflow-waiting { display: inline-block; max-width: 165px; color: var(--muted); font-size: 10.5px; line-height: 1.4; }
+.workflow-waiting { display: inline-block; max-width: 165px; color: var(--muted); font-size: 11.5px; line-height: 1.4; }
 .workflow-done-check { display: inline-flex; align-items: center; justify-content: center; }
 .workflow-done-check svg { width: 22px; height: 22px; stroke-width: 2.8; color: #0d9488; }
 
@@ -6261,9 +6277,9 @@ button:disabled { cursor: not-allowed; opacity: .5; }
 .confirmation-summary { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); border: 1px solid var(--border); border-radius: 12px; background: var(--card); overflow: hidden; }
 .confirmation-summary article { min-height: 92px; display: flex; flex-direction: column; justify-content: center; padding: 14px 16px; border-right: 1px solid var(--border); }
 .confirmation-summary article:last-child { border-right: 0; }
-.confirmation-summary span { color: var(--muted); font-size: 10.5px; font-weight: 650; }
-.confirmation-summary strong { margin: 3px 0; color: var(--foreground); font-size: 22px; font-weight: 780; font-family: var(--font-mono); }
-.confirmation-summary small { color: var(--muted); font-size: 9.5px; }
+.confirmation-summary span { color: var(--muted); font-size: 12px; font-weight: 650; }
+.confirmation-summary strong { margin: 3px 0; color: var(--foreground); font-size: 24px; font-weight: 780; font-family: var(--font-mono); }
+.confirmation-summary small { color: var(--muted); font-size: 11px; }
 .confirmation-summary article.confirmed { background: color-mix(in srgb, var(--success-soft) 52%, var(--card)); }
 .confirmation-summary article.confirmed strong { color: var(--success); }
 .confirmation-summary article.needs-action { background: color-mix(in srgb, var(--warning-soft) 62%, var(--card)); }
@@ -6271,35 +6287,35 @@ button:disabled { cursor: not-allowed; opacity: .5; }
 .confirmation-toolbar { display: flex; align-items: center; justify-content: space-between; gap: 14px; }
 .confirmation-search { width: min(320px, 100%); flex: 0 1 320px; }
 .confirmation-filters { display: inline-flex; align-items: center; gap: 4px; padding: 3px; border: 1px solid var(--border); border-radius: 9px; background: var(--secondary); overflow-x: auto; }
-.confirmation-filters button { min-height: 31px; display: inline-flex; align-items: center; gap: 6px; padding: 0 10px; border: 0; border-radius: 6px; color: var(--muted-strong); background: transparent; cursor: pointer; font-size: 10.5px; font-weight: 650; white-space: nowrap; }
+.confirmation-filters button { min-height: 31px; display: inline-flex; align-items: center; gap: 6px; padding: 0 10px; border: 0; border-radius: 6px; color: var(--muted-strong); background: transparent; cursor: pointer; font-size: 12px; font-weight: 650; white-space: nowrap; }
 .confirmation-filters button:hover { color: var(--foreground); }
 .confirmation-filters button.active { color: var(--primary); background: var(--card); box-shadow: var(--shadow-sm); }
-.confirmation-filters button span { min-width: 18px; height: 18px; display: inline-grid; place-items: center; padding: 0 5px; border-radius: 999px; color: inherit; background: color-mix(in srgb, currentColor 10%, transparent); font-size: 9px; font-family: var(--font-mono); }
+.confirmation-filters button span { min-width: 18px; height: 18px; display: inline-grid; place-items: center; padding: 0 5px; border-radius: 999px; color: inherit; background: color-mix(in srgb, currentColor 10%, transparent); font-size: 10.5px; font-family: var(--font-mono); }
 .confirmation-table-wrap { max-height: min(50vh, 520px); overflow: auto; border: 1px solid var(--border); border-radius: 12px; }
 .confirmation-table { width: 100%; min-width: 1080px; border-collapse: separate; border-spacing: 0; }
-.confirmation-table th { position: sticky; z-index: 2; top: 0; height: 40px; padding: 9px 11px; border-right: 1px solid var(--border); border-bottom: 1px solid var(--border); color: var(--muted); background: color-mix(in srgb, var(--secondary) 86%, var(--card)); font-size: 9.5px; font-weight: 800; letter-spacing: .055em; text-align: left; text-transform: uppercase; }
+.confirmation-table th { position: sticky; z-index: 2; top: 0; height: 42px; padding: 9px 11px; border-right: 1px solid var(--border); border-bottom: 1px solid var(--border); color: var(--muted); background: color-mix(in srgb, var(--secondary) 86%, var(--card)); font-size: 11.5px; font-weight: 800; letter-spacing: .055em; text-align: left; text-transform: uppercase; }
 .confirmation-table th:last-child { border-right: 0; }
-.confirmation-table td { min-height: 64px; padding: 11px; border-right: 1px solid var(--border); border-bottom: 1px solid var(--border); color: var(--foreground); background: var(--card); font-size: 11px; vertical-align: middle; }
+.confirmation-table td { min-height: 64px; padding: 11px; border-right: 1px solid var(--border); border-bottom: 1px solid var(--border); color: var(--foreground); background: var(--card); font-size: 12.5px; vertical-align: middle; }
 .confirmation-table tr:last-child td { border-bottom: 0; }
 .confirmation-table td:last-child { min-width: 150px; border-right: 0; }
 .confirmation-employee { min-width: 210px; display: flex; align-items: center; gap: 9px; }
 .confirmation-employee > div { min-width: 0; }
-.confirmation-employee strong { display: block; font-size: 11.5px; font-weight: 680; }
-.confirmation-employee small { display: block; margin-top: 2px; color: var(--muted); font-size: 9.5px; }
-.confirmation-time { color: var(--muted-strong); font-size: 9.5px; font-family: var(--font-mono); white-space: nowrap; }
+.confirmation-employee strong { display: block; font-size: 13px; font-weight: 680; }
+.confirmation-employee small { display: block; margin-top: 2px; color: var(--muted); font-size: 11px; }
+.confirmation-time { color: var(--muted-strong); font-size: 11px; font-family: var(--font-mono); white-space: nowrap; }
 .confirmation-feedback { min-width: 230px; max-width: 340px; }
-.confirmation-feedback p { margin: 0; color: var(--muted-strong); font-size: 10.5px; line-height: 1.45; }
-.confirmation-feedback > small { display: block; margin-top: 6px; padding: 6px 8px; border-radius: 6px; color: var(--muted-strong); background: var(--secondary); font-size: 9.5px; line-height: 1.4; }
-.confirmation-owner { display: inline-block; min-width: 145px; color: var(--muted-strong); font-size: 10px; line-height: 1.4; }
-.feedback-role-waiting { align-self: center; color: var(--muted); font-size: 10px; }
+.confirmation-feedback p { margin: 0; color: var(--muted-strong); font-size: 12px; line-height: 1.45; }
+.confirmation-feedback > small { display: block; margin-top: 6px; padding: 6px 8px; border-radius: 6px; color: var(--muted-strong); background: var(--secondary); font-size: 11px; line-height: 1.4; }
+.confirmation-owner { display: inline-block; min-width: 145px; color: var(--muted-strong); font-size: 11.5px; line-height: 1.4; }
+.feedback-role-waiting { align-self: center; color: var(--muted); font-size: 11.5px; }
 .confirmation-table .feedback-actions { justify-content: flex-start; }
 .confirmation-empty { min-height: 180px; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 5px; color: var(--muted); }
 .confirmation-empty svg { width: 28px; height: 28px; }
-.confirmation-empty strong { color: var(--foreground); font-size: 12px; }
-.confirmation-empty span { font-size: 10px; }
+.confirmation-empty strong { color: var(--foreground); font-size: 13px; }
+.confirmation-empty span { font-size: 11px; }
 .confirmation-rule { display: flex; align-items: flex-start; gap: 9px; padding: 10px 12px; border: 1px solid color-mix(in srgb, var(--primary) 18%, var(--border)); border-radius: 9px; color: var(--muted-strong); background: var(--primary-soft); }
 .confirmation-rule svg { width: 16px; height: 16px; flex: 0 0 auto; margin-top: 1px; color: var(--primary); }
-.confirmation-rule p { font-size: 10.5px; line-height: 1.45; }
+.confirmation-rule p { font-size: 11.5px; line-height: 1.45; }
 
 /* Payroll action forms */
 .edit-payroll-form { display: grid; gap: 15px; }

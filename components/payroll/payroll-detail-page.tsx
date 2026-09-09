@@ -186,7 +186,6 @@ export function PayrollDetailPage({ payrollId }: { payrollId: string }) {
             <div className="payroll-detail-title-row"><h1>{selectedRun.code}</h1><StatusBadge tone={statusConfig[selectedRun.status].tone}>{statusConfig[selectedRun.status].label}</StatusBadge></div>
             <p>{selectedProject.code} · {selectedProject.name} · {formatMonthYear(selectedRun.period, true)}</p>
           </div>
-          <div className="payroll-detail-header-action"><small>Cập nhật {formatDate(selectedRun.updatedAt)}</small></div>
         </header>
 
         <nav className="payroll-page-tabs" aria-label="Nhóm thông tin bảng lương">

@@ -120,7 +120,6 @@ export function PayrollFullTable({
           </table>
         </div>
       )}
-      <p className="payroll-full-table-footnote">Bảng gồm {4 + 3 + dayHeaders.length + detailColumnCount} cột dữ liệu. Kéo ngang để xem toàn bộ như file Excel.</p>
     </section>
   );
 }

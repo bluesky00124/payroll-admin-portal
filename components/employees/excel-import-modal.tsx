@@ -75,6 +75,7 @@ export function ExcelImportModal<T = any>({
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [uploadedFileName, setUploadedFileName] = useState<string>("");
   const [uploadedFileSize, setUploadedFileSize] = useState<string>("");
+  const [isDragging, setIsDragging] = useState<boolean>(false);
 
   const handleDownloadTemplate = () => {
     if (onDownloadSample) {
@@ -98,6 +99,35 @@ export function ExcelImportModal<T = any>({
     }
   };
 
+  const handleDragOver = (e: React.DragEvent<HTMLDivElement>) => {
+    e.preventDefault();
+    e.stopPropagation();
+    setIsDragging(true);
+  };
+
+  const handleDragLeave = (e: React.DragEvent<HTMLDivElement>) => {
+    e.preventDefault();
+    e.stopPropagation();
+    setIsDragging(false);
+  };
+
+  const handleDrop = (e: React.DragEvent<HTMLDivElement>) => {
+    e.preventDefault();
+    e.stopPropagation();
+    setIsDragging(false);
+    const file = e.dataTransfer.files?.[0];
+    if (file) {
+      setUploadedFileName(file.name);
+      const sizeKb = Math.round(file.size / 1024);
+      setUploadedFileSize(sizeKb > 1024 ? `${(sizeKb / 1024).toFixed(1)} MB` : `${sizeKb} KB`);
+      if (onUploadFile) {
+        onUploadFile(file);
+      } else if (onSimulateUpload) {
+        onSimulateUpload();
+      }
+    }
+  };
+
   const handleDropzoneClick = () => {
     if (fileInputRef.current) {
       fileInputRef.current.click();
@@ -109,6 +139,7 @@ export function ExcelImportModal<T = any>({
   const handleClear = () => {
     setUploadedFileName("");
     setUploadedFileSize("");
+    setIsDragging(false);
     if (fileInputRef.current) fileInputRef.current.value = "";
     if (onClearPreview) onClearPreview();
   };
