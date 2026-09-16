@@ -13,6 +13,7 @@ import {
   Pencil,
   Plus,
   Save,
+  ScrollText,
   Search,
   SlidersHorizontal,
   Trash2,
@@ -24,6 +25,7 @@ import { useToast } from "@/components/providers";
 import { Badge, Button, ErrorState, LoadingBlock, SaveBar } from "@/components/ui";
 import { api } from "@/lib/api";
 import { ProjectParametersModal } from "@/components/formula/project-parameters-modal";
+import { SalaryStructuresModal } from "@/components/formula/salary-structures-modal";
 import { SmartFormulaEditor } from "@/components/formula/smart-formula-editor";
 import {
   collectVariables,
@@ -345,8 +347,19 @@ export function FormulaTab({ projectId }: { projectId: string; embedded?: boolea
     queryFn: () => api.getProjectCustomVariables(projectId),
   });
 
+  const salaryStructuresQuery = useQuery({
+    queryKey: ["salary-structures", projectId],
+    queryFn: () => api.getSalaryStructures(projectId),
+  });
+
   const customVariables = useMemo(() => customVariablesQuery.data ?? [], [customVariablesQuery.data]);
   const [isParamsModalOpen, setIsParamsModalOpen] = useState(false);
+  const [isStructuresModalOpen, setIsStructuresModalOpen] = useState(false);
+
+  const salaryStructuresCount = useMemo(
+    () => salaryStructuresQuery.data?.length ?? 0,
+    [salaryStructuresQuery.data]
+  );
 
   const missingParamsCount = useMemo(() => {
     return customVariables.filter((v) => v.value === null || v.value === undefined).length;
@@ -656,6 +669,21 @@ export function FormulaTab({ projectId }: { projectId: string; embedded?: boolea
         </div>
 
         <div className="heading-actions">
+          <Button
+            type="button"
+            variant="secondary"
+            onClick={() => setIsStructuresModalOpen(true)}
+            className="h-9 gap-1.5 shadow-2xs text-xs font-semibold"
+          >
+            <ScrollText className="w-4 h-4 text-primary" />
+            Quy chế lương
+            {salaryStructuresCount > 0 && (
+              <span className="ml-1 px-1.5 py-0.5 rounded-full bg-primary/10 text-primary text-[10px] font-bold border border-primary/20">
+                {salaryStructuresCount}
+              </span>
+            )}
+          </Button>
+
           <Button
             type="button"
             variant="secondary"
@@ -1166,6 +1194,13 @@ export function FormulaTab({ projectId }: { projectId: string; embedded?: boolea
         projectId={projectId}
         isOpen={isParamsModalOpen}
         onClose={() => setIsParamsModalOpen(false)}
+      />
+
+      {/* Salary Structures (Quy chế lương) Dedicated Modal */}
+      <SalaryStructuresModal
+        projectId={projectId}
+        isOpen={isStructuresModalOpen}
+        onClose={() => setIsStructuresModalOpen(false)}
       />
 
       <SaveBar visible={dirty} saving={saveMutation.isPending} onSave={() => saveMutation.mutate()} onCancel={cancel} />

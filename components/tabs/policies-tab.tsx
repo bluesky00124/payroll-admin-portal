@@ -1,7 +1,7 @@
 "use client";
 
-import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { AlertCircle, CalendarDays, Check, Pencil, Plus, Save, Search, ScrollText, Trash2, Users, X } from "lucide-react";
+import { useInfiniteQuery, useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { AlertCircle, CalendarDays, Check, Loader2, Pencil, Plus, Save, Search, ScrollText, Trash2, Users, X } from "lucide-react";
 import { useMemo, useState, useEffect, useRef } from "react";
 import { useToast } from "@/components/providers";
 import { Badge, Button, DatePicker, EmptyState, ErrorState, LoadingBlock, Modal, MonthPicker, SaveBar, StatusBadge, TablePaginationFooter, TableRowActions } from "@/components/ui";
@@ -183,6 +183,7 @@ export function PoliciesTab({ projectId }: { projectId: string; embedded?: boole
   const [search, setSearch] = useState("");
   const [modalOpen, setModalOpen] = useState(false);
   const [modalSearch, setModalSearch] = useState("");
+  const [debouncedModalSearch, setDebouncedModalSearch] = useState("");
   const [selectedIds, setSelectedIds] = useState<string[]>([]);
   const [deleteTarget, setDeleteTarget] = useState<ProjectPolicyRow | null>(null);
   const [groupsModalOpen, setGroupsModalOpen] = useState(false);
@@ -197,10 +198,89 @@ export function PoliciesTab({ projectId }: { projectId: string; embedded?: boole
     Record<string, Record<string, string | number>>
   >({});
 
-  const definitionsQuery = useQuery({
-    queryKey: ["policy-definitions", projectId],
-    queryFn: () => api.getPolicyDefinitions(projectId),
+  // Debounce search in modal
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      setDebouncedModalSearch(modalSearch.trim());
+    }, 350);
+    return () => clearTimeout(timer);
+  }, [modalSearch]);
+
+  // Infinite query for policy definitions (server-side search + auto loadmore)
+  const {
+    data: definitionsInfiniteData,
+    fetchNextPage,
+    hasNextPage,
+    isFetchingNextPage,
+    isLoading: isDefinitionsLoading,
+  } = useInfiniteQuery({
+    queryKey: ["policy-definitions-infinite", projectId, debouncedModalSearch],
+    queryFn: ({ pageParam = 1 }) =>
+      api.getPolicyDefinitions({
+        projectId,
+        search: debouncedModalSearch || undefined,
+        pageIndex: pageParam,
+        pageSize: 20,
+      }),
+    initialPageParam: 1,
+    getNextPageParam: (lastPage) => {
+      const currentFetched = lastPage.pageIndex * lastPage.pageSize;
+      if (currentFetched < lastPage.totalRow) {
+        return lastPage.pageIndex + 1;
+      }
+      return undefined;
+    },
+    enabled: modalOpen,
   });
+
+  const availableDefinitions = useMemo(() => {
+    if (!definitionsInfiniteData?.pages) return [];
+    const allItems = definitionsInfiniteData.pages.flatMap((p) => p.items);
+    const seen = new Set<string>();
+    return allItems.filter((item) => {
+      if (seen.has(item.id)) return false;
+      seen.add(item.id);
+      return true;
+    });
+  }, [definitionsInfiniteData]);
+
+  const totalDefinitionsCount =
+    definitionsInfiniteData?.pages?.[0]?.totalRow ?? availableDefinitions.length;
+
+  const loadMoreRef = useRef<HTMLDivElement | null>(null);
+
+  // Intersection Observer for auto load more
+  useEffect(() => {
+    if (!modalOpen || !hasNextPage || isFetchingNextPage) return;
+    const target = loadMoreRef.current;
+    if (!target) return;
+
+    const observer = new IntersectionObserver(
+      (entries) => {
+        if (entries[0]?.isIntersecting && hasNextPage && !isFetchingNextPage) {
+          fetchNextPage();
+        }
+      },
+      { threshold: 0.1 }
+    );
+
+    observer.observe(target);
+    return () => {
+      observer.disconnect();
+    };
+  }, [modalOpen, hasNextPage, isFetchingNextPage, fetchNextPage]);
+
+  const handlePickerScroll = (e: React.UIEvent<HTMLDivElement>) => {
+    const target = e.currentTarget;
+    if (
+      target.scrollHeight - target.scrollTop - target.clientHeight < 80 &&
+      hasNextPage &&
+      !isFetchingNextPage
+    ) {
+      fetchNextPage();
+    }
+  };
+
   const groupsQuery = useQuery({
     queryKey: ["project-employee-groups", projectId],
     queryFn: () => api.getProjectEmployeeGroups(projectId),
@@ -210,7 +290,6 @@ export function PoliciesTab({ projectId }: { projectId: string; embedded?: boole
     queryFn: () => api.getProjectPolicies(projectId, { pageIndex: page, pageSize, search }),
   });
 
-  const definitions = useMemo(() => definitionsQuery.data ?? [], [definitionsQuery.data]);
   const groups = useMemo(() => groupsQuery.data ?? [], [groupsQuery.data]);
   const columns = useMemo(() => {
     if (groups.length > 0) {
@@ -228,18 +307,6 @@ export function PoliciesTab({ projectId }: { projectId: string; embedded?: boole
   const [savedEffectiveDatesMap, setSavedEffectiveDatesMap] = useState<Record<string, string>>({});
   const [effectiveToDatesMap, setEffectiveToDatesMap] = useState<Record<string, string>>({});
   const [savedEffectiveToDatesMap, setSavedEffectiveToDatesMap] = useState<Record<string, string>>({});
-
-  const availableDefinitions = useMemo(
-    () =>
-      definitions.filter(
-        (definition) =>
-          !modalSearch ||
-          `${definition.code} ${definition.name} ${definition.description ?? ""}`
-            .toLocaleLowerCase("vi")
-            .includes(modalSearch.toLocaleLowerCase("vi"))
-      ),
-    [definitions, modalSearch]
-  );
 
   // Sync server policies when loaded
   useEffect(() => {
@@ -368,7 +435,7 @@ export function PoliciesTab({ projectId }: { projectId: string; embedded?: boole
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["project-policies", projectId] });
-      queryClient.invalidateQueries({ queryKey: ["policy-definitions", projectId] });
+      queryClient.invalidateQueries({ queryKey: ["policy-definitions-infinite"] });
       setModalOpen(false);
       notify(`Đã thêm ${selectedIds.length} chế độ vào dự án thành công`);
       setSelectedIds([]);
@@ -381,7 +448,7 @@ export function PoliciesTab({ projectId }: { projectId: string; embedded?: boole
     mutationFn: (row: ProjectPolicyRow) => api.deleteProjectPolicy(projectId, String(row.policyId)),
     onSuccess: (res) => {
       queryClient.invalidateQueries({ queryKey: ["project-policies", projectId] });
-      queryClient.invalidateQueries({ queryKey: ["policy-definitions", projectId] });
+      queryClient.invalidateQueries({ queryKey: ["policy-definitions-infinite"] });
       setDeleteTarget(null);
       notify(res?.message || "Đã bỏ chế độ khỏi dự án thành công.");
     },
@@ -440,13 +507,12 @@ export function PoliciesTab({ projectId }: { projectId: string; embedded?: boole
     Boolean(policiesQuery.data),
   ]);
 
-  if (definitionsQuery.isLoading || policiesQuery.isLoading) return <LoadingBlock rows={7} />;
-  if (definitionsQuery.isError || policiesQuery.isError)
+  if (policiesQuery.isLoading) return <LoadingBlock rows={7} />;
+  if (policiesQuery.isError)
     return (
       <ErrorState
-        message="Không thể tải danh mục chế độ."
+        message="Không thể tải danh sách chế độ dự án."
         retry={() => {
-          definitionsQuery.refetch();
           policiesQuery.refetch();
         }}
       />
@@ -737,7 +803,12 @@ export function PoliciesTab({ projectId }: { projectId: string; embedded?: boole
 
           <div className="flex items-center justify-between text-xs px-1 text-muted">
             <span>
-              Tổng số chế độ khả dụng: <strong className="text-foreground font-semibold">{availableDefinitions.length}</strong>
+              Tổng số chế độ tìm thấy: <strong className="text-foreground font-semibold">{totalDefinitionsCount}</strong>
+              {availableDefinitions.length > 0 && availableDefinitions.length < totalDefinitionsCount && (
+                <span className="text-muted text-[11px] ml-1.5 font-normal">
+                  (Đã tải {availableDefinitions.length}/{totalDefinitionsCount} chế độ)
+                </span>
+              )}
             </span>
             {selectedIds.length > 0 && (
               <span className="text-primary font-semibold">
@@ -746,14 +817,22 @@ export function PoliciesTab({ projectId }: { projectId: string; embedded?: boole
             )}
           </div>
 
-          {availableDefinitions.length === 0 ? (
-            <div className="py-8 text-center text-muted text-sm bg-secondary/30 rounded-lg border border-border/60">
-              {modalSearch
-                ? "Không tìm thấy chế độ nào phù hợp với từ khóa tìm kiếm."
+          {isDefinitionsLoading ? (
+            <div className="py-12 flex flex-col items-center justify-center gap-2.5 text-muted text-sm bg-secondary/20 rounded-xl border border-border/60">
+              <Loader2 className="w-6 h-6 animate-spin text-primary" />
+              <span>Đang tải danh mục chế độ...</span>
+            </div>
+          ) : availableDefinitions.length === 0 ? (
+            <div className="py-8 text-center text-muted text-sm bg-secondary/30 rounded-xl border border-border/60">
+              {debouncedModalSearch
+                ? `Không tìm thấy chế độ nào phù hợp với từ khóa "${debouncedModalSearch}".`
                 : "Dự án đã được cấu hình tất cả các chế độ hiện có trong hệ thống."}
             </div>
           ) : (
-            <div className="policy-picker">
+            <div
+              className="policy-picker max-h-[360px] overflow-y-auto custom-scrollbar space-y-2 p-0.5"
+              onScroll={handlePickerScroll}
+            >
               {availableDefinitions.map((definition) => {
                 const isSelected = selectedIds.includes(definition.id);
 
@@ -774,6 +853,24 @@ export function PoliciesTab({ projectId }: { projectId: string; embedded?: boole
                   </label>
                 );
               })}
+
+              {/* Infinite Scroll Trigger & Bottom State Indicator */}
+              <div ref={loadMoreRef} className="py-1 text-center">
+                {isFetchingNextPage ? (
+                  <div className="flex items-center justify-center gap-2 text-xs text-primary font-medium py-2">
+                    <Loader2 className="w-4 h-4 animate-spin" />
+                    <span>Đang tải thêm dữ liệu...</span>
+                  </div>
+                ) : hasNextPage ? (
+                  <button
+                    type="button"
+                    onClick={() => fetchNextPage()}
+                    className="text-xs text-primary hover:underline py-1.5 cursor-pointer font-medium"
+                  >
+                    Tải thêm chế độ...
+                  </button>
+                ) : null}
+              </div>
             </div>
           )}
         </div>

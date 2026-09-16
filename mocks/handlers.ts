@@ -26,9 +26,37 @@ import type {
   UnionFeeRecord,
   OtherDeductionRecord,
   OtherIncomeRecord,
+  SalaryStructure,
+  SalaryStructurePayload,
 } from "@/lib/types";
 import { defaultCustomVariablesDefinitions } from "@/lib/mock-data";
 import { uid } from "@/lib/utils";
+
+let mockSalaryStructuresStore: Array<{
+  id: number;
+  projectId: string;
+  code: string;
+  name: string;
+  isActive: boolean;
+  description: string | null;
+}> = [
+  {
+    id: 1,
+    projectId: "1017",
+    code: "STR_KCV_NM_2026",
+    name: "Cấu trúc bảng lương KCV-NM theo Quy chế V03",
+    isActive: true,
+    description: "Áp dụng cho toàn bộ khối nhà máy năm 2026",
+  },
+  {
+    id: 2,
+    projectId: "1017",
+    code: "STR_OFFICE_2026",
+    name: "Cấu trúc lương Khối Văn phòng & Quản lý",
+    isActive: true,
+    description: "Quy chế chi trả cho nhân sự văn phòng và quản lý dự án",
+  },
+];
 
 const ok = <T,>(data: T, init?: ResponseInit) =>
   HttpResponse.json<ApiResponse<T>>({ data }, init);
@@ -261,6 +289,68 @@ export const handlers = [
     });
 
     return ok(updatedVars);
+  }),
+
+  // Salary Structures Mock Handlers
+  http.get("*/web/payroll/projects/:projectId/salary-structures", async ({ params }) => {
+    await delay(180);
+    const id = projectId(params.projectId);
+    const list = mockSalaryStructuresStore.filter((item) => !id || item.projectId === id || item.projectId === "1017");
+    if (list.length === 0) {
+      return ok([
+        {
+          id: 1,
+          code: "STR_KCV_NM_2026",
+          name: "Cấu trúc bảng lương KCV-NM theo Quy chế V03",
+          isActive: true,
+          description: "Áp dụng cho dự án năm 2026",
+        },
+      ]);
+    }
+    return ok(list.map((item) => ({
+      id: item.id,
+      code: item.code,
+      name: item.name,
+      isActive: item.isActive,
+      description: item.description,
+    })));
+  }),
+
+  http.post("*/web/payroll/projects/:projectId/salary-structures", async ({ params, request }) => {
+    await delay(250);
+    const id = projectId(params.projectId);
+    const payload = (await request.json()) as SalaryStructurePayload;
+    const newId = Date.now();
+    const newItem = {
+      id: newId,
+      projectId: id || "1017",
+      code: payload.StructureCode,
+      name: payload.StructureName,
+      isActive: Boolean(payload.IsActive),
+      description: payload.Description || null,
+    };
+    mockSalaryStructuresStore.push(newItem);
+    return ok({
+      id: newId,
+      code: newItem.code,
+      name: newItem.name,
+      isActive: newItem.isActive,
+      description: newItem.description,
+    });
+  }),
+
+  http.put("*/web/payroll/projects/:projectId/salary-structures/:id", async ({ params, request }) => {
+    await delay(250);
+    const id = Number(params.id);
+    const payload = (await request.json()) as SalaryStructurePayload;
+    const found = mockSalaryStructuresStore.find((item) => item.id === id);
+    if (found) {
+      found.code = payload.StructureCode;
+      found.name = payload.StructureName;
+      found.isActive = Boolean(payload.IsActive);
+      found.description = payload.Description || null;
+    }
+    return ok(true);
   }),
 
   http.get("/api/projects/:projectId/formulas", async ({ params }) => {

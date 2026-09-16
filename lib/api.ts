@@ -30,6 +30,8 @@ import type {
   ProjectPoliciesResponseData,
   OtherDeductionRecord,
   OtherIncomeRecord,
+  SalaryStructure,
+  SalaryStructurePayload,
 } from "@/lib/types";
 
 import { handlers } from "@/mocks/handlers";
@@ -57,7 +59,7 @@ async function request<T>(url: string, init?: RequestInit): Promise<{ data: T; m
     const fullUrl = url.startsWith("http") ? url : new URL(url, baseOrigin).href;
     const req = new Request(fullUrl, init);
     for (const handler of handlers) {
-      const result = await handler.run({ request: req });
+      const result = await (handler as any).run({ request: req });
       if (result && result.response) {
         const payload = (await result.response.json()) as ApiResponse<T>;
         if (!result.response.ok || payload.error) {
@@ -169,7 +171,7 @@ export const api = {
         response.status
       );
     }
-    const resJson = await response.json();
+    const resJson: any = await response.json();
     if (!resJson || resJson.success === false) {
       throw new ApiRequestError(
         resJson?.message || "Lỗi khi lấy dữ liệu danh sách dự án",
@@ -275,7 +277,36 @@ export const api = {
   },
   updateProject: (id: string, payload: Partial<Project>) => request<Project>(`/api/projects/${id}`, { method: "PATCH", body: JSON.stringify(payload) }).then((item) => item.data),
   cloneProject: (id: string) => request<Project>(`/api/projects/${id}/clone`, { method: "POST" }).then((item) => item.data),
-  getPolicyDefinitions: async (projectId?: string | number): Promise<PolicyDefinition[]> => {
+  getPolicyDefinitions: async (
+    params?:
+      | {
+          projectId?: string | number;
+          search?: string;
+          pageIndex?: number;
+          pageSize?: number;
+        }
+      | string
+      | number
+  ): Promise<{
+    items: PolicyDefinition[];
+    totalRow: number;
+    pageIndex: number;
+    pageSize: number;
+  }> => {
+    let projectId: string | number | undefined;
+    let search: string | undefined;
+    let pageIndex = 1;
+    let pageSize = 20;
+
+    if (typeof params === "object" && params !== null) {
+      projectId = params.projectId;
+      search = params.search;
+      pageIndex = params.pageIndex ?? 1;
+      pageSize = params.pageSize ?? 20;
+    } else if (params !== undefined) {
+      projectId = params;
+    }
+
     const rawBaseUrl = getApiBaseUrl();
     const baseUrl = (rawBaseUrl && rawBaseUrl.trim().length > 0 ? rawBaseUrl : "https://bruh.thanhf.dev/api/").replace(/\/+$/, "");
     const token = getAuthToken();
@@ -283,6 +314,12 @@ export const api = {
     if (projectId !== undefined && projectId !== null && String(projectId).trim() !== "") {
       query.set("projectId", String(projectId).trim());
     }
+    if (search && search.trim()) {
+      query.set("search", search.trim());
+    }
+    query.set("pageIndex", String(pageIndex));
+    query.set("pageSize", String(pageSize));
+
     const queryString = query.toString();
     const url = `${baseUrl}/web/payroll/policies${queryString ? `?${queryString}` : ""}`;
     const headers: Record<string, string> = {
@@ -301,7 +338,7 @@ export const api = {
         response.status
       );
     }
-    const resJson = await response.json();
+    const resJson: any = await response.json();
     if (!resJson || resJson.success === false) {
       throw new ApiRequestError(
         resJson?.message || "Lỗi khi lấy danh mục chế độ",
@@ -310,20 +347,33 @@ export const api = {
       );
     }
 
-    const rawItems: any[] = Array.isArray(resJson.data) ? resJson.data : [];
-    return rawItems.map((item: any) => {
+    const dataObj = resJson.data || {};
+    const rawItems: any[] = Array.isArray(dataObj.items)
+      ? dataObj.items
+      : Array.isArray(dataObj.rows)
+      ? dataObj.rows
+      : Array.isArray(dataObj)
+      ? dataObj
+      : Array.isArray(resJson.data)
+      ? resJson.data
+      : [];
+    const totalRow: number = typeof dataObj.totalRow === "number" ? dataObj.totalRow : rawItems.length;
+    const currentPageIndex: number = typeof dataObj.pageIndex === "number" ? dataObj.pageIndex : pageIndex;
+    const currentPageSize: number = typeof dataObj.pageSize === "number" ? dataObj.pageSize : pageSize;
+
+    const items: PolicyDefinition[] = rawItems.map((item: any) => {
       const isPercentage = item.dataType === "percentage" || String(item.typeName).toLowerCase().includes("phần trăm");
       return {
         id: String(item.id),
         code: item.policyCode || "",
         name: item.policyName || "",
-        category: isPercentage ? "bonus" : "allowance",
+        category: (isPercentage ? "bonus" : "allowance") as "allowance" | "bonus" | "deduction",
         description: item.description || item.typeName || "",
         fields: [
           {
             key: isPercentage ? "multiplier" : "amount",
             label: item.policyName || "",
-            type: isPercentage ? "percentage" : "money",
+            type: (isPercentage ? "percentage" : "money") as "percentage" | "money",
             unit: isPercentage ? "%" : "VNĐ/tháng",
             defaultValue: 0,
           },
@@ -331,6 +381,13 @@ export const api = {
         targetValues: {},
       };
     });
+
+    return {
+      items,
+      totalRow,
+      pageIndex: currentPageIndex,
+      pageSize: currentPageSize,
+    };
   },
   addPoliciesToProject: async (
     projectId: string,
@@ -370,7 +427,7 @@ export const api = {
       );
     }
 
-    const resJson = await response.json();
+    const resJson: any = await response.json();
     if (!resJson || resJson.success === false) {
       throw new ApiRequestError(
         resJson?.message || "Lỗi khi thêm chế độ vào dự án",
@@ -414,7 +471,7 @@ export const api = {
         response.status
       );
     }
-    const resJson = await response.json();
+    const resJson: any = await response.json();
     if (!resJson || resJson.success === false) {
       throw new ApiRequestError(
         resJson?.message || "Lỗi khi lấy danh sách chế độ dự án",
@@ -482,7 +539,7 @@ export const api = {
       );
     }
 
-    const resJson = await response.json();
+    const resJson: any = await response.json();
     if (!resJson || resJson.success === false) {
       throw new ApiRequestError(
         resJson?.message || "Lỗi khi cập nhật chế độ",
@@ -519,7 +576,7 @@ export const api = {
       );
     }
 
-    const resJson = await response.json();
+    const resJson: any = await response.json();
     if (!resJson || resJson.success === false) {
       throw new ApiRequestError(
         resJson?.message || "Lỗi khi xóa chế độ khỏi dự án",
@@ -762,4 +819,132 @@ export const api = {
     request<{ success: boolean }>(`/api/other-incomes/${id}`, { method: "DELETE" }).then((item) => item.data),
   batchImportOtherIncomes: (payload: { projectId: string; period: string; items: Array<Partial<OtherIncomeRecord>> }) =>
     request<OtherIncomeRecord[]>("/api/other-incomes/batch-import", { method: "POST", body: JSON.stringify(payload) }).then((item) => item.data),
+
+  // Salary Structures (Quy chế lương) APIs
+  getSalaryStructures: async (projectId: string): Promise<SalaryStructure[]> => {
+    const rawBaseUrl = getApiBaseUrl();
+    const baseUrl = (rawBaseUrl && rawBaseUrl.trim().length > 0 ? rawBaseUrl : "https://bruh.thanhf.dev/api/").replace(/\/+$/, "");
+    const token = getAuthToken();
+    const url = `${baseUrl}/web/payroll/projects/${projectId}/salary-structures`;
+    const headers: Record<string, string> = {
+      Accept: "*/*",
+      "Content-Type": "application/json",
+    };
+    if (token) {
+      headers["Authorization"] = `Bearer ${token}`;
+    }
+
+    const response = await fetch(url, { method: "GET", headers });
+    if (!response.ok) {
+      throw new ApiRequestError(
+        `Không thể tải danh sách quy chế lương (Status: ${response.status})`,
+        "FETCH_SALARY_STRUCTURES_FAILED",
+        response.status
+      );
+    }
+    const resJson: any = await response.json();
+    if (!resJson || resJson.success === false) {
+      throw new ApiRequestError(
+        resJson?.message || "Lỗi khi lấy danh sách quy chế lương",
+        "API_ERROR",
+        response.status
+      );
+    }
+    const rawItems: any[] = Array.isArray(resJson.data) ? resJson.data : [];
+    return rawItems.map((item: any) => ({
+      id: Number(item.id),
+      code: item.code ?? item.StructureCode ?? "",
+      name: item.name ?? item.StructureName ?? "",
+      isActive: Boolean(item.isActive ?? item.IsActive ?? true),
+      description: item.description ?? item.Description ?? null,
+    }));
+  },
+
+  createSalaryStructure: async (
+    projectId: string,
+    payload: SalaryStructurePayload
+  ): Promise<SalaryStructure> => {
+    const rawBaseUrl = getApiBaseUrl();
+    const baseUrl = (rawBaseUrl && rawBaseUrl.trim().length > 0 ? rawBaseUrl : "https://bruh.thanhf.dev/api/").replace(/\/+$/, "");
+    const token = getAuthToken();
+    const url = `${baseUrl}/web/payroll/projects/${projectId}/salary-structures`;
+    const headers: Record<string, string> = {
+      Accept: "*/*",
+      "Content-Type": "application/json",
+    };
+    if (token) {
+      headers["Authorization"] = `Bearer ${token}`;
+    }
+
+    const response = await fetch(url, {
+      method: "POST",
+      headers,
+      body: JSON.stringify(payload),
+    });
+
+    if (!response.ok) {
+      throw new ApiRequestError(
+        `Không thể tạo quy chế lương (Status: ${response.status})`,
+        "CREATE_SALARY_STRUCTURE_FAILED",
+        response.status
+      );
+    }
+    const resJson: any = await response.json();
+    if (!resJson || resJson.success === false) {
+      throw new ApiRequestError(
+        resJson?.message || "Lỗi khi tạo quy chế lương",
+        "API_ERROR",
+        response.status
+      );
+    }
+    const item = resJson.data || {};
+    return {
+      id: Number(item.id),
+      code: item.code ?? payload.StructureCode,
+      name: item.name ?? payload.StructureName,
+      isActive: Boolean(item.isActive ?? payload.IsActive),
+      description: item.description ?? payload.Description ?? null,
+    };
+  },
+
+  updateSalaryStructure: async (
+    projectId: string,
+    structureId: number | string,
+    payload: SalaryStructurePayload
+  ): Promise<boolean> => {
+    const rawBaseUrl = getApiBaseUrl();
+    const baseUrl = (rawBaseUrl && rawBaseUrl.trim().length > 0 ? rawBaseUrl : "https://bruh.thanhf.dev/api/").replace(/\/+$/, "");
+    const token = getAuthToken();
+    const url = `${baseUrl}/web/payroll/projects/${projectId}/salary-structures/${structureId}`;
+    const headers: Record<string, string> = {
+      Accept: "*/*",
+      "Content-Type": "application/json",
+    };
+    if (token) {
+      headers["Authorization"] = `Bearer ${token}`;
+    }
+
+    const response = await fetch(url, {
+      method: "PUT",
+      headers,
+      body: JSON.stringify(payload),
+    });
+
+    if (!response.ok) {
+      throw new ApiRequestError(
+        `Không thể cập nhật quy chế lương (Status: ${response.status})`,
+        "UPDATE_SALARY_STRUCTURE_FAILED",
+        response.status
+      );
+    }
+    const resJson: any = await response.json();
+    if (!resJson || resJson.success === false) {
+      throw new ApiRequestError(
+        resJson?.message || "Lỗi khi cập nhật quy chế lương",
+        "API_ERROR",
+        response.status
+      );
+    }
+    return true;
+  },
 };

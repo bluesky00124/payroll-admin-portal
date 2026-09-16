@@ -240,6 +240,21 @@ export interface ProjectCustomVariable {
   updatedAt?: string;
 }
 
+export interface SalaryStructure {
+  id: number;
+  code: string;
+  name: string;
+  isActive: boolean;
+  description: string | null;
+}
+
+export interface SalaryStructurePayload {
+  StructureCode: string;
+  StructureName: string;
+  Description: string;
+  IsActive: boolean;
+}
+
 export interface DataMapping {
   id: string;
   projectId: string;
@@ -287,6 +302,7 @@ export interface Employee {
   id: string;
   code: string;
   name: string;
+  gender?: string;
   idCard: string;
   phone: string;
   email?: string;

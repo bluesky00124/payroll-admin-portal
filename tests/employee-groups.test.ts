@@ -42,7 +42,7 @@ describe("Project Employee Groups & Assignment API", () => {
     });
 
     expect(assignResult.success).toBe(true);
-    expect(assignResult.updatedCount).toBe(2);
+    expect((assignResult as any).updatedCount).toBe(2);
   });
 
   it("xóa nhóm người lao động khỏi dự án", async () => {

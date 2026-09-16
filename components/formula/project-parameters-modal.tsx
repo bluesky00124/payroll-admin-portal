@@ -143,7 +143,7 @@ export function ProjectParametersModal({
       open={isOpen}
       onOpenChange={(open) => !open && onClose()}
       title="Tham số & Biến đầu vào của dự án"
-      description="Cấu hình các giá trị tham số đặc thù do Backend cung cấp để áp dụng vào các công thức tính lương của dự án."
+      description="Thiết lập các mức phụ cấp, định mức và tỷ lệ áp dụng cho công thức tính lương của dự án."
       size="lg"
       footer={
         <div className="flex items-center justify-between w-full">
@@ -178,7 +178,7 @@ export function ProjectParametersModal({
     >
       <div className="space-y-4 py-1">
         {/* Status Bar */}
-        <div className="flex items-center justify-between p-3 rounded-xl bg-secondary/30 border border-border/70 text-xs">
+        <div className="flex items-center justify-between p-3 rounded-xl bg-secondary/40 border border-border/70 text-sm">
           <div className="flex items-center gap-2">
             <SlidersHorizontal className="w-4 h-4 text-primary" />
             <span className="font-semibold text-foreground">
@@ -188,19 +188,19 @@ export function ProjectParametersModal({
 
           <div>
             {stats.missing === 0 ? (
-              <span className="inline-flex items-center gap-1 text-[11px] font-semibold px-2.5 py-0.5 rounded-full bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border border-emerald-500/20">
-                <Check className="w-3 h-3" /> Đầy đủ ({stats.filled}/{stats.total})
+              <span className="inline-flex items-center gap-1.5 text-xs font-semibold px-2.5 py-1 rounded-full bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border border-emerald-500/20">
+                <Check className="w-3.5 h-3.5" /> Đầy đủ ({stats.filled}/{stats.total})
               </span>
             ) : (
-              <span className="inline-flex items-center gap-1 text-[11px] font-semibold px-2.5 py-0.5 rounded-full bg-amber-500/15 text-amber-600 dark:text-amber-400 border border-amber-500/25">
-                <AlertCircle className="w-3 h-3" /> Cần nhập {stats.missing} tham số
+              <span className="inline-flex items-center gap-1.5 text-xs font-medium px-2.5 py-1 rounded-full bg-secondary text-muted-strong border border-border">
+                <AlertCircle className="w-3.5 h-3.5 text-muted" /> Cần nhập {stats.missing} tham số
               </span>
             )}
           </div>
         </div>
 
         {/* Parameters Grid */}
-        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 max-h-[420px] overflow-y-auto custom-scrollbar p-0.5">
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3.5 max-h-[440px] overflow-y-auto custom-scrollbar p-0.5">
           {serverVariables.map((v) => {
             const draftVal = draftValues[v.code] ?? "";
             const hasValue = draftVal.trim() !== "" && !isNaN(Number(draftVal));
@@ -210,46 +210,44 @@ export function ProjectParametersModal({
             return (
               <div
                 key={v.code}
-                className={`p-3.5 rounded-xl border transition-all flex flex-col justify-between space-y-2.5 ${
+                className={`p-3.5 rounded-xl border transition-all flex flex-col justify-between space-y-3 ${
                   isChanged
-                    ? "bg-primary/5 border-primary/40 shadow-xs"
-                    : hasValue
-                    ? "bg-card border-border/80 shadow-2xs hover:border-border"
-                    : "bg-amber-500/5 border-amber-500/30 hover:border-amber-500/50"
+                    ? "bg-primary/5 border-primary/50 shadow-xs"
+                    : "bg-slate-50/80 dark:bg-card/80 border border-slate-200 dark:border-border hover:border-slate-300 dark:hover:border-border-strong hover:bg-card hover:shadow-xs"
                 }`}
               >
                 {/* Top: Name & Status */}
                 <div className="space-y-1">
-                  <div className="flex items-start justify-between gap-1.5">
-                    <strong className="text-xs font-bold text-foreground leading-snug">
+                  <div className="flex items-start justify-between gap-2">
+                    <strong className="text-sm font-bold text-foreground leading-snug">
                       {v.name}
                     </strong>
                     {hasValue ? (
-                      <span className="w-2 h-2 rounded-full bg-emerald-500 shrink-0 mt-1" title="Đã có giá trị" />
+                      <span className="w-2 h-2 rounded-full bg-emerald-500 shrink-0 mt-1.5" title="Đã có giá trị" />
                     ) : (
-                      <span className="w-2 h-2 rounded-full bg-amber-500 shrink-0 mt-1 animate-pulse" title="Chưa nhập giá trị" />
+                      <span className="w-2 h-2 rounded-full bg-muted-foreground/40 shrink-0 mt-1.5" title="Chưa nhập giá trị" />
                     )}
                   </div>
 
                   {v.description && (
-                    <p className="text-[11px] text-muted leading-relaxed line-clamp-2" title={v.description}>
+                    <p className="text-xs text-muted leading-relaxed line-clamp-2" title={v.description}>
                       {v.description}
                     </p>
                   )}
                 </div>
 
                 {/* Bottom: Value Input with Unit & Suggestion */}
-                <div className="space-y-1 pt-1">
-                  <div className="inline-cell-wrap !min-h-[36px]">
+                <div className="space-y-1.5 pt-1">
+                  <div className="inline-cell-wrap !w-full !max-w-full !min-h-[38px]">
                     <input
                       type="number"
                       step="any"
-                      className="inline-cell-input no-spinner"
+                      className="inline-cell-input no-spinner !text-sm"
                       placeholder="0"
                       value={draftVal}
                       onChange={(e) => handleChangeValue(v.code, e.target.value)}
                     />
-                    {v.unit && <span className="inline-cell-unit">{v.unit}</span>}
+                    {v.unit && <span className="inline-cell-unit !text-xs">{v.unit}</span>}
                   </div>
 
                   {v.defaultValue !== undefined && v.defaultValue !== null && draftVal === "" && (
@@ -257,7 +255,7 @@ export function ProjectParametersModal({
                       <button
                         type="button"
                         onClick={() => handleChangeValue(v.code, String(v.defaultValue))}
-                        className="text-primary hover:underline font-sans cursor-pointer text-[10.5px]"
+                        className="text-primary hover:underline font-sans cursor-pointer text-xs"
                         title={`Gợi ý: ${v.defaultValue}`}
                       >
                         Gợi ý: {v.defaultValue.toLocaleString("vi-VN")} {v.unit}
