@@ -878,16 +878,15 @@ export function FormulaTab({ projectId }: { projectId: string; embedded?: boolea
           {customVariables.length > 0 && (
             <div className="space-y-1.5 pt-2.5 border-t border-border">
               <div className="flex items-center justify-between text-[11px] font-extrabold tracking-wider text-muted uppercase pb-0.5">
-                <span className="flex items-center gap-1">
-                  <SlidersHorizontal className="w-3 h-3 text-primary" />
-                  3. THAM SỐ DỰ ÁN ({customVariables.length})
-                </span>
+                <span>3. THAM SỐ DỰ ÁN ({customVariables.length})</span>
                 <button
                   type="button"
                   onClick={() => setIsParamsModalOpen(true)}
-                  className="text-primary hover:underline lowercase text-[10.5px] font-normal"
+                  className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-[11px] font-medium text-primary hover:bg-primary/10 transition-colors cursor-pointer"
+                  title="Cấu hình giá trị tham số dự án"
                 >
-                  Cài đặt
+                  <SlidersHorizontal className="w-3 h-3" />
+                  <span>Cài đặt</span>
                 </button>
               </div>
 

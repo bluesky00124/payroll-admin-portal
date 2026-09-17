@@ -24,14 +24,7 @@ export function readMockDatabase(): MockDatabase {
       !parsed.activityLogs ||
       parsed.activityLogs.length === 0 ||
       !parsed.otherDeductions ||
-      parsed.otherDeductions.length === 0 ||
-      !parsed.otherIncomes ||
-      parsed.otherIncomes.length === 0 ||
-      !parsed.payrollRuns ||
-      !parsed.payrollAttendanceSheets ||
-      !parsed.payrollLines ||
-      !parsed.payrollFeedbacks ||
-      !parsed.payrollAuditEvents
+      !parsed.otherIncomes
     ) {
       return resetMockDatabase();
     }

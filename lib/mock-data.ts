@@ -31,7 +31,6 @@ import {
   payrollFormulaVariables,
   payrollProjectParameterDefinitions,
 } from "@/lib/payroll-component-library";
-import { payrollSeed } from "@/lib/payroll-seed";
 
 const projects: Project[] = [
   {
@@ -3469,5 +3468,4 @@ export const seedDatabase: MockDatabase = {
   activityLogs,
   otherDeductions,
   otherIncomes,
-  ...payrollSeed,
 };

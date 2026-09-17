@@ -5,17 +5,13 @@ import {
   AlertCircle,
   Check,
   CheckCircle2,
-  HelpCircle,
-  Info,
-  RotateCcw,
   Save,
   SlidersHorizontal,
   Sparkles,
-  X,
 } from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
 import { useToast } from "@/components/providers";
-import { Badge, Button, Modal } from "@/components/ui";
+import { Button, Modal } from "@/components/ui";
 import { api } from "@/lib/api";
 import type { ProjectCustomVariable } from "@/lib/types";
 
@@ -119,6 +115,13 @@ export function ProjectParametersModal({
     saveMutation.mutate(payload);
   };
 
+  const handleChangeValue = (code: string, value: string) => {
+    setDraftValues((prev) => ({
+      ...prev,
+      [code]: value,
+    }));
+  };
+
   const handleResetToDefault = () => {
     const resetMap: Record<string, string> = {};
     serverVariables.forEach((v) => {
@@ -129,13 +132,6 @@ export function ProjectParametersModal({
       }
     });
     setDraftValues(resetMap);
-  };
-
-  const handleChangeValue = (code: string, value: string) => {
-    setDraftValues((prev) => ({
-      ...prev,
-      [code]: value,
-    }));
   };
 
   return (
@@ -151,9 +147,9 @@ export function ProjectParametersModal({
             type="button"
             variant="ghost"
             size="sm"
-            className="text-xs text-muted hover:text-foreground gap-1.5"
+            className="text-xs text-muted hover:text-primary gap-1.5"
             onClick={handleResetToDefault}
-            title="Điền giá trị gợi ý mặc định cho các biến"
+            title="Tự động điền các giá trị mẫu cho các tham số"
           >
             <Sparkles className="w-3.5 h-3.5 text-primary" /> Điền giá trị mẫu
           </Button>

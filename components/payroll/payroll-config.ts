@@ -1,33 +1,13 @@
 import type { UserRole } from "@/components/providers";
-import type { PayrollFeedback, PayrollFeedbackStatus, PayrollRun, PayrollStatus } from "@/lib/types";
 
-export const statusConfig: Record<PayrollStatus, { label: string; tone: "neutral" | "success" | "warning" | "danger" | "info"; short: string }> = {
-  admin_review: { label: "Chờ Admin/BCSX kiểm tra", short: "Admin/BCSX kiểm tra", tone: "warning" },
-  correction_required: { label: "Cần Kế toán C&B điều chỉnh", short: "Cần điều chỉnh", tone: "danger" },
-  project_approval: { label: "Chờ CDA/GSDA xác nhận", short: "CDA/GSDA xác nhận", tone: "info" },
-  payslip_publish: { label: "Chờ phát hành phiếu lương", short: "Chờ phát hành", tone: "info" },
-  payslip_confirmation: { label: "NLĐ xác nhận phiếu lương", short: "Xác nhận phiếu lương", tone: "warning" },
-  revenue_check: { label: "Chờ cập nhật doanh thu", short: "Kiểm tra doanh thu", tone: "info" },
-  explanation_required: { label: "Cần giải trình chênh lệch", short: "Cần giải trình", tone: "danger" },
-  ready_to_finalize: { label: "Sẵn sàng hoàn tất", short: "Chờ hoàn tất", tone: "success" },
+export const statusConfig: Record<string, { label: string; tone: "neutral" | "success" | "warning" | "danger" | "info"; short: string }> = {
+  draft: { label: "Bản nháp", short: "Nháp", tone: "neutral" },
+  calculated: { label: "Đã tính toán", short: "Đã tính", tone: "info" },
+  submitted: { label: "Chờ phê duyệt", short: "Chờ duyệt", tone: "warning" },
   locked: { label: "Đã hoàn tất & khóa", short: "Đã khóa", tone: "success" },
 };
 
-export const feedbackConfig: Record<PayrollFeedbackStatus, { label: string; tone: "neutral" | "success" | "warning" | "danger" | "info" }> = {
-  pending_owner: { label: "Chờ CDA/GSDA duyệt", tone: "warning" },
-  pending_accounting: { label: "Chờ C&B xử lý", tone: "info" },
-  adjusted: { label: "Đã điều chỉnh", tone: "success" },
-  rejected: { label: "Đã từ chối", tone: "danger" },
-};
 
-export const feedbackCategoryLabels: Record<PayrollFeedback["category"], string> = {
-  attendance: "Ngày công",
-  overtime: "Tăng ca",
-  allowance: "Phụ cấp",
-  deduction: "Khấu trừ",
-  personal: "Thông tin cá nhân",
-  other: "Nội dung khác",
-};
 
 export const roleActors: Record<UserRole, string> = {
   accountant: "Trần Thu Trang (Kế toán C&B)",
@@ -48,19 +28,8 @@ export const workflowSteps = [
   { step: 9, title: "Hoàn tất & khóa", owner: "Kế toán C&B", time: "Ngày chi lương", description: "Lưu dữ liệu hoàn tất làm cơ sở lập danh sách chi lương." },
 ];
 
-export function getWorkflowStage(run: Pick<PayrollRun, "status" | "returnToStep">) {
-  if (run.status === "correction_required") return run.returnToStep ?? 3;
-  const stageForStatus: Partial<Record<PayrollStatus, number>> = {
-    admin_review: 3,
-    project_approval: 4,
-    payslip_publish: 5,
-    payslip_confirmation: 6,
-    revenue_check: 7,
-    explanation_required: 8,
-    ready_to_finalize: 9,
-    locked: 10,
-  };
-  return stageForStatus[run.status] ?? 3;
+export function getWorkflowStage(run: any) {
+  return 1; // Unused, kept for backwards compatibility if needed
 }
 
 export const sourceLabels = { system: "Hệ thống Công ty", excel: "Excel / Scan ký", customer: "Khách hàng xác nhận" } as const;

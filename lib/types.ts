@@ -823,9 +823,4 @@ export interface MockDatabase {
   activityLogs: ActivityLogItem[];
   otherDeductions: OtherDeductionRecord[];
   otherIncomes: OtherIncomeRecord[];
-  payrollAttendanceSheets: PayrollAttendanceSheet[];
-  payrollRuns: PayrollRun[];
-  payrollLines: PayrollLine[];
-  payrollFeedbacks: PayrollFeedback[];
-  payrollAuditEvents: PayrollAuditEvent[];
 }
