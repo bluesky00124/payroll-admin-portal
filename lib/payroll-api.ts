@@ -36,10 +36,16 @@ async function payrollRequest<T>(endpoint: string, init?: RequestInit): Promise<
   };
   
   const response = await fetch(`${API_BASE_URL}/payroll-v3${endpoint}`, { ...init, headers });
-  const payload = (await response.json()) as any;
+  let payload: any = {};
+  try {
+    payload = (await response.json()) as any;
+  } catch {
+    payload = { message: response.statusText || "Lỗi kết nối máy chủ" };
+  }
   
   if (!response.ok || !payload.success) {
-    throw new PayrollApiError(payload.message || "Yêu cầu thất bại", payload.code || "UNKNOWN", response.status);
+    const errorCode = payload.error?.code || payload.code || "UNKNOWN";
+    throw new PayrollApiError(payload.message || "Yêu cầu thất bại", errorCode, response.status);
   }
   
   return { data: payload.data, meta: payload.meta };
@@ -153,8 +159,17 @@ export const payrollApi = {
   rejectWorkflow: (id: number, reason: string) =>
     payrollRequest<any>(`/periods/${id}/workflow/reject`, { method: "POST", body: JSON.stringify({ reason }) }).then((res) => res.data),
     
-  getWorkflowTimeline: (id: number) =>
-    payrollRequest<WorkflowTimeline>(`/periods/${id}/workflow`).then((res) => res.data),
+  getWorkflowTimeline: async (id: number): Promise<WorkflowTimeline | null> => {
+    try {
+      const res = await payrollRequest<WorkflowTimeline>(`/periods/${id}/workflow`);
+      return res.data;
+    } catch (err: any) {
+      if (err instanceof PayrollApiError && (err.status === 404 || err.code === "NOT_FOUND")) {
+        return null;
+      }
+      throw err;
+    }
+  },
     
   // 5. Quản lý xác nhận
   getConfirmationStats: (id: number, params?: { status?: string; search?: string; page?: number; pageSize?: number }) => {

@@ -147,6 +147,10 @@ export function useWorkflowTimeline(id: number) {
     queryKey: ["workflow-timeline", id],
     queryFn: () => payrollApi.getWorkflowTimeline(id),
     enabled: !!id,
+    retry: (failureCount, error: any) => {
+      if (error?.status === 404 || error?.code === "NOT_FOUND") return false;
+      return failureCount < 2;
+    },
   });
 }
 

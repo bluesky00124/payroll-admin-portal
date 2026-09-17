@@ -80,7 +80,7 @@ export function PayrollDetailPage({ payrollId }: { payrollId: string }) {
   // Queries
   const { data: run, isLoading: isRunLoading } = usePayrollDetail(id);
   const { data: matrixData, isLoading: isMatrixLoading } = usePayrollMatrix(id);
-  const { data: timelineData, isLoading: isTimelineLoading } = useWorkflowTimeline(id);
+  const { data: timelineData, isLoading: isTimelineLoading, error: timelineError } = useWorkflowTimeline(id);
   
   // Mutations
   const submitMut = useSubmitWorkflow();
@@ -231,6 +231,7 @@ export function PayrollDetailPage({ payrollId }: { payrollId: string }) {
               run={run} 
               timeline={timelineData} 
               isLoading={isTimelineLoading}
+              error={timelineError}
               onAction={openActionDialog} 
               onOpenConfirmations={openConfirmations} 
             />
@@ -258,10 +259,65 @@ export function PayrollDetailPage({ payrollId }: { payrollId: string }) {
   );
 }
 
-function WorkflowTab({ run, timeline, isLoading, onAction, onOpenConfirmations }: { run: PayrollPeriod; timeline: any; isLoading: boolean; onAction: (action: WorkflowAction) => void; onOpenConfirmations: () => void }) {
-  if (isLoading || !timeline) return <div className="payroll-loading"><RefreshCw className="spin" /> Đang tải tiến trình...</div>;
-  
-  const { instance, steps, history } = timeline;
+function WorkflowTab({
+  run,
+  timeline,
+  isLoading,
+  error,
+  onAction,
+  onOpenConfirmations,
+}: {
+  run: PayrollPeriod;
+  timeline: any;
+  isLoading: boolean;
+  error?: any;
+  onAction: (action: WorkflowAction) => void;
+  onOpenConfirmations: () => void;
+}) {
+  if (isLoading) {
+    return (
+      <div className="payroll-loading">
+        <RefreshCw className="spin" /> Đang tải tiến trình...
+      </div>
+    );
+  }
+
+  if (error && error.status !== 404 && error.code !== "NOT_FOUND") {
+    return (
+      <section className="payroll-workflow-tab payroll-page-tab-panel">
+        <div className="p-8 text-center text-red-600 bg-red-50 rounded-lg border border-red-200">
+          <p className="font-medium">Lỗi tải quy trình duyệt: {error.message || "Không thể kết nối máy chủ"}</p>
+        </div>
+      </section>
+    );
+  }
+
+  const defaultSteps: WorkflowStep[] = [
+    { stepOrder: 1, stepName: "C&B lập & trình duyệt", status: "pending", completedAt: undefined },
+    { stepOrder: 2, stepName: "BCSX / Admin xác nhận", status: "pending", completedAt: undefined },
+    { stepOrder: 3, stepName: "CDA / GSDA xác nhận", status: "pending", completedAt: undefined },
+    { stepOrder: 4, stepName: "Người lao động xác nhận", status: "pending", completedAt: undefined },
+    { stepOrder: 5, stepName: "Kế toán nhập doanh thu", status: "pending", completedAt: undefined },
+    { stepOrder: 6, stepName: "C&B hoàn tất & khóa sổ", status: "pending", completedAt: undefined },
+  ];
+
+  const instance = timeline?.instance;
+  const steps = timeline?.steps && timeline.steps.length > 0 ? timeline.steps : defaultSteps;
+  const history = timeline?.history || [];
+  const isWorkflowStarted = Boolean(instance);
+
+  const getStepBadge = (status: string) => {
+    switch (status) {
+      case "approved":
+        return <StatusBadge tone="success">Đã duyệt</StatusBadge>;
+      case "in_progress":
+        return <StatusBadge tone="warning">Đang xử lý</StatusBadge>;
+      case "rejected":
+        return <StatusBadge tone="danger">Từ chối</StatusBadge>;
+      default:
+        return <StatusBadge tone="neutral">Chờ xử lý</StatusBadge>;
+    }
+  };
 
   return (
     <section className="payroll-workflow-tab payroll-page-tab-panel">
@@ -269,12 +325,31 @@ function WorkflowTab({ run, timeline, isLoading, onAction, onOpenConfirmations }
         <div>
           <span className="eyebrow"><History /> QUY TRÌNH DUYỆT LƯƠNG</span>
           <h2>Tiến trình phê duyệt (Workflow)</h2>
-          <p>Chỉ người có thẩm quyền tương ứng với bước hiện tại mới có thể phê duyệt.</p>
+          <p>
+            {isWorkflowStarted
+              ? "Chỉ người có thẩm quyền tương ứng với bước hiện tại mới có thể phê duyệt."
+              : "Kỳ lương chưa được khởi tạo quy trình duyệt."}
+          </p>
         </div>
-        {run.status === "calculated" && (
-          <Button variant="primary" onClick={() => onAction("submit")}><Send /> Trình duyệt ngay</Button>
+        {!isWorkflowStarted && (run.status === "calculated" || run.status === "draft") && (
+          <Button variant="primary" onClick={() => onAction("submit")}>
+            <Send /> Trình duyệt ngay
+          </Button>
         )}
       </header>
+
+      {!isWorkflowStarted && (
+        <div className="mb-6 p-4 rounded-lg border border-amber-200 bg-amber-50/70 text-amber-900 flex items-start gap-3">
+          <History className="w-5 h-5 text-amber-600 shrink-0 mt-0.5" />
+          <div className="text-sm">
+            <p className="font-semibold text-amber-950">Chưa khởi tạo quy trình duyệt</p>
+            <p className="text-amber-800 mt-0.5">
+              Bảng lương này đang ở trạng thái <strong>{statusConfig[run.status]?.label || run.status}</strong>. Bấm <strong>"Trình duyệt ngay"</strong> để bắt đầu bước 1 (C&B lập &amp; trình duyệt).
+            </p>
+          </div>
+        </div>
+      )}
+
       <div className="workflow-table-wrap">
         <table className="workflow-approval-table">
           <thead>
@@ -289,7 +364,7 @@ function WorkflowTab({ run, timeline, isLoading, onAction, onOpenConfirmations }
                     <strong>{step.stepName}</strong>
                   </div>
                 </td>
-                <td><StatusBadge tone={step.status === "approved" ? "success" : step.status === "in_progress" ? "warning" : "neutral"}>{step.status}</StatusBadge></td>
+                <td>{getStepBadge(step.status)}</td>
                 <td>{step.completedAt ? formatDate(step.completedAt) : "—"}</td>
               </tr>
             ))}
